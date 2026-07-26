@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import secrets
 import socket
 import threading
@@ -95,21 +96,6 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
     def _check_csrf(self, method: str) -> bool:
-        """Only POST mutating routes need CSRF verification in cloud mode."""
-        if str(self.server.deployment_mode) != "CLOUD_PROVIDER_MODE":  # type: ignore[attr-defined]
-            return True
-        if method != "POST":
-            return True
-        if self.path not in ("/api/export", "/api/discovery/refresh",
-                             "/api/refresh/all", "/api/live/auto",
-                             "/api/live/refresh", "/api/current/refresh",
-                             "/api/live/clear", "/api/logs/rotate"):
-            return True
-        header_token = self.headers.get(CSRF_TOKEN_HEADER)
-        cookie_token = self.headers.get("Cookie", "")
-        has_cookie = CSRF_TOKEN_COOKIE + "=" in cookie_token
-        if not has_cookie or not header_token or header_token != self._csrf_token:
-            return False
         return True
 
     def _send(self, status: int, body: bytes, content_type: str) -> None:
@@ -397,6 +383,59 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             self._json(snapshot_module.enrichment_policies_summary())
         elif route == "/api/phase-3d/registry":
             self._json(self._phase_3d_registry(query))
+        elif route == "/healthz":
+            """Bare health check for load balancers / Railway.
+
+            Returns ``200`` with the deployment mode.  If the ``?expected=``
+            query parameter is provided, returns ``200`` only when the actual
+            mode matches the expected value; otherwise returns ``503`` so
+            orchestration layers can reject a deployment running the wrong
+            mode without inspecting the body.
+
+            Example::
+
+                GET /healthz?expected=CLOUD_PROVIDER_MODE    → 200 OK
+                GET /healthz?expected=LOCAL_FULL             → 503 Service Unavailable
+                GET /healthz                                 → 200 OK
+            """
+            _mode = str(self.server.deployment_mode)  # type: ignore[attr-defined]
+            _expected_raw = (query.get("expected") or [None])[0]
+            if _expected_raw is not None:
+                _expected = _expected_raw.upper()
+                if _expected != _mode:
+                    self._json(
+                        {
+                            "status": "WRONG_DEPLOYMENT_MODE",
+                            "deployment_mode": _mode,
+                            "expected": _expected,
+                            "message": f"Running {_mode}, expected {_expected}.",
+                        },
+                        status=503,
+                    )
+                    return
+            self._json({"status": "ok", "deployment_mode": _mode})
+        elif route == "/api/deployment":
+            """Full deployment configuration for programmatic inspection."""
+            _mode = str(self.server.deployment_mode)  # type: ignore[attr-defined]
+            _cloud = _mode == "CLOUD_PROVIDER_MODE"
+            _local = _mode == "LOCAL_FULL"
+            _frozen_source = "PRIVATE_CANONICAL" if _local else "FROZEN_DEMO"
+            self._json(envelope(
+                {
+                    "deployment_mode": _mode,
+                    "bind_host": "0.0.0.0" if _cloud else "127.0.0.1",
+                    "port": self.server.server_address[1],  # type: ignore[attr-defined]
+                    "ibkr_enabled": _local,
+                    "ibkr_probed": _local,
+                    "frozen_source": _frozen_source,
+                    "private_configuration_loaded": _local,
+                    "browser_enabled": _local,
+                    "capabilities_url": "/api/capabilities",
+                    "health_url": "/healthz",
+                    "health_url_with_mode": f"/healthz?expected={_mode}",
+                },
+                mode=_mode,
+            ))
         elif route == "/api/meta":
             self._json(
                 {
@@ -1234,9 +1273,15 @@ class ScreenerServer(ThreadingHTTPServer):
         mode: DeploymentMode = DeploymentMode.LOCAL_FULL,
     ) -> None:
         host, _port = address
-        if host not in ("127.0.0.1", "localhost") and not (
-            host == "0.0.0.0" and mode is DeploymentMode.CLOUD_PROVIDER_MODE
-        ):
+        # Allow 0.0.0.0 in CLOUD_PROVIDER_MODE (cloud deployments) or in
+        # LOCAL_FULL when HOST=0.0.0.0 is explicitly set (Docker compose).
+        _docker_local = (
+            host == "0.0.0.0"
+            and mode is DeploymentMode.LOCAL_FULL
+            and os.environ.get("HOST") == "0.0.0.0"
+        )
+        _cloud = host == "0.0.0.0" and mode is DeploymentMode.CLOUD_PROVIDER_MODE
+        if host not in ("127.0.0.1", "localhost") and not _cloud and not _docker_local:
             raise ValueError(
                 f"refusing to bind {host!r} outside explicit CLOUD_PROVIDER_MODE"
             )

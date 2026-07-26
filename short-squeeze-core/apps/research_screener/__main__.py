@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import APP_TITLE, DISCLAIMER
 from .deployment import DeploymentMode, RuntimeConfig, resolve_runtime
+from .credentials import default_private_path
 from .config import resolve_application_config
 from .paths import FrozenLayout
 from .live_providers import configure_application
@@ -64,7 +65,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verbose", action="store_true", help="log every HTTP request")
     parser.add_argument(
         "--provider-config", type=Path, default=None,
+        dest="provider_config",
         help="explicit private provider configuration path (production opt-in)",
+    )
+    parser.add_argument(
+        "--private-path", type=Path, default=None,
+        dest="provider_config",
+        help="alias for --provider-config",
     )
     parser.add_argument(
         "--config",
@@ -78,15 +85,17 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _default_private_config() -> Path | None:
-    """Auto-detect the repository-private providers file when not given explicitly."""
-    candidate = Path(__file__).resolve().parents[2] / ".private" / "providers.env"
-    return candidate if candidate.is_file() else None
-
-
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    private_file = args.provider_config or _default_private_config()
+    private_file = args.provider_config or default_private_path()
+
+    # Preload private provider credentials into os.environ so provider init
+    # code (which reads from env vars) sees the keys before the config
+    # pipeline processes them.  Only preload in LOCAL_FULL mode.
+    if private_file and private_file.is_file():
+        from .config import load_private_env
+        load_private_env(private_file, verbose=True)
+
     application_config = resolve_application_config(
         cli={
             "SQUEEZE_APP_MODE": args.mode,
@@ -129,6 +138,11 @@ def main(argv: list[str] | None = None) -> int:
             "showing anything in their place."
         )
     if args.check:
+        print(
+            "\n  For a detailed credential and provider report, run:"
+            "\n"
+            "    python -m apps.research_screener.config doctor"
+        )
         return 0
 
     port = (

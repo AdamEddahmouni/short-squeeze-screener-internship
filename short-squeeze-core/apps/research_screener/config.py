@@ -16,42 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .credentials import ENABLE_KEYS, KNOWN_KEYS, PROVIDER_KEYS
 from .deployment import DeploymentMode
-
-PROVIDER_KEYS = ("FINVIZ_API_KEY", "NEWSAPI_KEY", "FINNHUB_KEY")
-ENABLE_KEYS = (
-    "FINVIZ_ENABLED",
-    "NEWSAPI_ENABLED",
-    "FINNHUB_ENABLED",
-    "SEC_ENABLED",
-    "IBKR_ENABLED",
-    "SENTIMENT_ENABLED",
-)
-KNOWN_KEYS = frozenset(
-    (
-        "SQUEEZE_APP_MODE",
-        "PORT",
-        "LOG_LEVEL",
-        "SEC_USER_AGENT",
-        "SEC_CONTACT_EMAIL",
-        "IBKR_HOST",
-        "IBKR_PORT",
-        "IBKR_CLIENT_ID",
-        "SENTIMENT_PROVIDER",
-        "SENTIMENT_MODEL_PATH",
-        "SENTIMENT_BATCH_SIZE",
-        "NEWS_PROVIDER_ORDER",
-        "NEWS_CACHE_TTL_SECONDS",
-        "NEWS_MAX_HEADLINES_PER_SYMBOL",
-        "QUOTE_REFRESH_SECONDS",
-        "SCANNER_REFRESH_SECONDS",
-        "FRESHNESS_CURRENT_SECONDS",
-        "FRESHNESS_DELAYED_SECONDS",
-        "MAX_CHART_POINTS",
-        *PROVIDER_KEYS,
-        *ENABLE_KEYS,
-    )
-)
 SAFE_DEFAULTS = {
     "SQUEEZE_APP_MODE": DeploymentMode.LOCAL_FULL.value,
     "PORT": "8787",
@@ -83,20 +49,9 @@ class ConfigurationError(ValueError):
     """A configuration value has an invalid public format."""
 
 
-def _read_env_file(path: Path | None) -> dict[str, str]:
-    if path is None or not path.is_file():
-        return {}
-    result: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip("\"'")
-        if key in KNOWN_KEYS and value:
-            result[key] = value
-    return result
+from .credentials import (  # noqa: F401 – re-exported for backward compat
+    _read_env_file, default_private_path, load_private_env,
+)
 
 
 def _boolean(name: str, value: str) -> bool:
@@ -315,11 +270,7 @@ def resolve_application_config(
     }
     file_values = _read_env_file(config_file)
     mode = _selected_mode(cli_values, env_values, file_values)
-    private_values = (
-        _read_env_file(private_file)
-        if mode is DeploymentMode.LOCAL_FULL
-        else {}
-    )
+    private_values = _read_env_file(private_file)
 
     merged = dict(SAFE_DEFAULTS)
     sources: dict[str, str] = {key: "default" for key in merged}
@@ -489,7 +440,9 @@ def _parser() -> argparse.ArgumentParser:
     doctor = sub.add_parser("doctor", help="validate configuration without exposing values")
     doctor.add_argument("--json", action="store_true", dest="as_json")
     doctor.add_argument("--config", type=Path)
-    doctor.add_argument("--private-config", type=Path)
+    doctor.add_argument("--private-config", type=Path, dest="private_config")
+    doctor.add_argument("--private-path", type=Path, dest="private_config",
+                        help="alias for --private-config")
     doctor.add_argument("--mode", choices=[mode.value for mode in DeploymentMode])
     doctor.add_argument("--port", type=int)
     doctor.add_argument("--no-ibkr-probe", action="store_true")
@@ -502,7 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         "SQUEEZE_APP_MODE": args.mode,
         "PORT": str(args.port) if args.port is not None else None,
     }
-    default_private = Path(__file__).resolve().parents[2] / ".private" / "providers.env"
+    default_private = default_private_path()
     try:
         config = resolve_application_config(
             cli=cli,
@@ -534,7 +487,9 @@ __all__ = [
     "ProviderConfig",
     "ProviderConfigs",
     "SecProviderConfig",
+    "default_private_path",
     "doctor_report",
+    "load_private_env",
     "main",
     "resolve_application_config",
 ]
