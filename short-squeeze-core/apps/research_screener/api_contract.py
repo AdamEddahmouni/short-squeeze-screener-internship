@@ -29,7 +29,7 @@ def envelope(
         "missingness": [] if missingness is None else missingness,
         "provenance": {
             "application": "short-squeeze-research-screener",
-            "predictive_validation": "NOT_COMPLETED",
+            "predictive_validation": "NOT_APPLICABLE",
             **(provenance or {}),
         },
     }

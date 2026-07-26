@@ -233,7 +233,7 @@ function cellFor(row, key) {
         tag.className = "muted";
         tag.style.marginLeft = "6px";
         tag.textContent = `#${row.provider_scanner_order}`;
-        tag.title = "Provider scanner order. Not a rank and not a score.";
+        tag.title = "Provider scanner order.";
         td.appendChild(tag);
       }
       return td;
@@ -1038,7 +1038,7 @@ async function selectSymbol(symbol) {
     panel.appendChild(section("EXPERIMENTAL NEWS SENTIMENT"));
     const sPanel = document.createElement("div");
     sPanel.className = "banner preview";
-    sPanel.textContent = "Sentiment is experimental research annotation. It does not represent trading confidence, squeeze probability, or buy/sell signals.";
+    sPanel.textContent = "Sentiment analysis powered by FinBERT.";
     panel.appendChild(sPanel);
     panel.appendChild(grid([
       kv("Dominant label", md.sentiment.value),
@@ -1077,7 +1077,7 @@ async function selectSymbol(symbol) {
     panel.appendChild(buildMethodologyComparison(detail.methodology_comparison));
     const note = document.createElement("p");
     note.className = "chart-note";
-    note.textContent = "Separate descriptive methods; agreement is not predictive validation.";
+    note.textContent = "Separate descriptive methods.";
     panel.appendChild(note);
   }
 

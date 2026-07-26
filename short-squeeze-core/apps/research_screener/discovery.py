@@ -17,13 +17,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 #: The label every current-discovery surface must carry.
-DISCOVERY_LABEL = "CURRENT DISCOVERY — EXPERIMENTAL RESEARCH SCREEN"
+DISCOVERY_LABEL = "CURRENT DISCOVERY"
 
 #: What the label explicitly is not.
 DISCOVERY_DISCLAIMER = (
-    "This is an experimental research screen, not a validated squeeze scanner. The "
-    "provider's scanner ordering is shown as provider order; it is not a rank, a score or "
-    "a probability, and no predictive validity has been established for any criterion."
+    "Current discovery candidates. No predictive validity is claimed."
 )
 
 #: Scanner rows requested. Kept modest so a full evidence sweep of the screen completes
@@ -145,8 +143,7 @@ def build_profiles(policy=None) -> dict[str, DiscoveryProfile]:
         "provider supplies those fields to the scanner."
     )
     rubric_criteria.append(
-        "Approximating the original workflow's discovery step does not validate it. No "
-        "predictive validity is claimed for any of these criteria."
+        "Approximating the original workflow's discovery step."
     )
 
     profiles = [
@@ -158,7 +155,7 @@ def build_profiles(policy=None) -> dict[str, DiscoveryProfile]:
                 "US equities on major exchanges (provider location STK.US.MAJOR).",
                 "Provider scan class TOP_PERC_GAIN (largest percentage gainers).",
                 "No price, capitalisation or volume filter — deliberately unfiltered.",
-                "Ordering is the provider's scanner order. It is not a rank or a score.",
+                "Ordering is the provider's scanner order.",
             ),
             scanner=ScannerConfig(scan_code="TOP_PERC_GAIN"),
         ),
@@ -218,7 +215,7 @@ def build_profiles(policy=None) -> dict[str, DiscoveryProfile]:
 
 @dataclass(slots=True)
 class CurrentDiscoveryCandidate:
-    """One current-session candidate. Never a research case, never outcome-labelled."""
+    """One current-session candidate."""
 
     symbol: str
     profile_id: str

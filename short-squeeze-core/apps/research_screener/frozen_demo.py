@@ -126,7 +126,7 @@ def frozen_demo_snapshot() -> dict[str, Any]:
         "header": {
             "mode": "FROZEN_RESEARCH",
             "mode_label": demo["label"],
-            "disclaimer": "Sanitized descriptive research aggregate; not predictive validation.",
+            "disclaimer": "Sanitized descriptive research aggregate.",
             "generated_at": demo["boundary_time"],
             "banners": [
                 "FROZEN DEMO — sanitized aggregate, not the private canonical tree.",

@@ -89,12 +89,10 @@ def _finviz_fields(row: FinvizRow, retrieved_at: str) -> dict[str, FieldValue]:
             readiness=readiness,
         )
 
-    return {
-        "float_shares": fv(
-            row.float_shares, "SHARES", "float",
-            "float_shares",
-            readiness="PROVIDER_SNAPSHOT_FLOAT_FINVIZ",
-        ),
+    # NOTE: float_shares is set by short_pressure_fields() with richer metadata
+    # (provider_field, selection_reason, research_admissibility). Do not
+    # overwrite it here.
+    result: dict[str, FieldValue] = {
         "shares_outstanding_provider": fv(
             row.shares_outstanding, "SHARES", "shares_outstanding",
             "shares_outstanding",
@@ -174,6 +172,7 @@ def _finviz_fields(row: FinvizRow, retrieved_at: str) -> dict[str, FieldValue]:
             provider=provider,
         ),
     }
+    return result
 
 
 def _sec_fields(sec_data: dict[str, Any], symbol: str) -> dict[str, FieldValue]:

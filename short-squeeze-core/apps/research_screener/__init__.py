@@ -9,7 +9,7 @@ and labelled as not admissibility-gated.
 from __future__ import annotations
 
 APP_TITLE = "Short Squeeze Research Screener"
-DISCLAIMER = "RESEARCH TOOL — NOT A TRADING RECOMMENDATION"
+DISCLAIMER = "RESEARCH TOOL"
 SCHEMA_VERSION = "1.0.0"
 
 __all__ = ["APP_TITLE", "DISCLAIMER", "SCHEMA_VERSION"]
