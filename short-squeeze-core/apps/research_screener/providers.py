@@ -233,12 +233,12 @@ def provider_health(
             "Sentiment",
             (
                 ProviderState.AVAILABLE
-                if get_sentiment_analyzer().enabled
+                if runtime._sentiment_analyzer.enabled
                 else ProviderState.NOT_CONFIGURED
             ),
             (
-                f"READY · model {get_sentiment_analyzer().model_id}"
-                if get_sentiment_analyzer().enabled
+                f"READY · model {runtime._sentiment_analyzer.model_id}"
+                if runtime._sentiment_analyzer.enabled
                 else "MODEL_NOT_DEPLOYED — FinBERT sentiment is local-only. "
                 "Configure SENTIMENT_ENABLED=true, SENTIMENT_MODEL_PATH, and ensure "
                 "the transformers library is installed."

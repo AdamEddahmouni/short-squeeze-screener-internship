@@ -55,7 +55,7 @@ DELAYED_AFTER_S = int(os.environ.get("FRESHNESS_DELAYED_SECONDS", "600"))
 #: Marker for a candidate that has dropped out of the latest scanner result.
 NOT_IN_SCAN_LABEL = "NO LONGER IN CURRENT SCANNER"
 
-CURRENT_MODE_LABEL = "CURRENT DISCOVERY — EXPERIMENTAL RESEARCH SCREEN"
+CURRENT_MODE_LABEL = "CURRENT DISCOVERY"
 
 
 def _now() -> datetime:
@@ -1244,8 +1244,7 @@ class ScreenerSession:
             "outcome": {
                 "status": "NOT_APPLICABLE",
                 "reasons": [
-                    "A current candidate has no forward outcome window by construction. "
-                    "It is not outcome-labelled and never enters the research registry."
+                    "A current candidate has no forward outcome window by construction."
                 ],
             },
             "evidence_coverage": {
@@ -1406,8 +1405,7 @@ class ScreenerSession:
                 "volume_rationale": current_eval.CURRENT_VOLUME_RATIONALE,
                 "percentage_return_window": current_eval.PERCENTAGE_RETURN_WINDOW_LABEL,
                 "note": (
-                    "This is an ephemeral current snapshot. It is not a research case, it "
-                    "is not outcome-labelled, and it never enters any research registry."
+                    "This is an ephemeral current snapshot."
                 ),
             },
             "bar_count": row["bar_count"],
@@ -1488,8 +1486,7 @@ class ScreenerSession:
             "providers": self.provider.statuses(),
             "connection": self.provider.connection_info(),
             "note": (
-                "Current candidates are kept entirely separate from the 13 frozen research "
-                "cases. These counts are never added to the historical research statistics."
+                "Current candidates are kept separate from the 13 frozen research cases."
             ),
         }
 

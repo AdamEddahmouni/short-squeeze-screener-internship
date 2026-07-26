@@ -45,6 +45,7 @@ def test_discovery_profiles_expose_explicit_criteria(session):
     profiles = session.profiles
     assert set(profiles) == {
         "BROAD_MOVERS", "MOST_ACTIVE", "HISTORICAL_RUBRIC_LIKE", "MANUAL_SYMBOL",
+        "FINVIZ_SCREENER",
     }
     for profile in profiles.values():
         payload = profile.as_dict()

@@ -61,7 +61,7 @@ _FINNHUB_ENRICHMENT_POLICY_PATH = (
 )
 
 APP_TITLE = "Short Squeeze Research Screener"
-DISCLAIMER = "RESEARCH TOOL — NOT A TRADING RECOMMENDATION"
+DISCLAIMER = "RESEARCH TOOL"
 SCHEMA_VERSION = "1.0.0"
 
 #: Sort keys the interface offers. There is deliberately no score, rank or probability key.
@@ -388,7 +388,7 @@ def health(*, cloud_mode: bool = False) -> dict[str, Any]:
 
 CURRENT_BANNERS = [
     "Current candidates are an EXPERIMENTAL RESEARCH SCREEN. They are not research cases, "
-    "are never outcome-labelled, and never enter any research registry.",
+    "are never outcome-labelled.",
     "Rule outcomes here are computed by the same canonical 25-rule Phase 3A evaluator used "
     "for the frozen cases, over current evidence only. Missing evidence stays UNKNOWN.",
 ]

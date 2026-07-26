@@ -502,7 +502,7 @@ class FrozenResearchSource:
             "notes": [
                 "UNKNOWN means insufficient admissible evidence, not failure. A rule that "
                 "could not be evaluated is skipped, not counted against the case.",
-                "No predictive claim has been made. No forward outcome window has been "
+                "No forward outcome window has been "
                 "acquired, so no case can be scored as a successful or failed prediction.",
                 "The global acquisition preflight remains "
                 f"{summary['global_preflight_verdict']}; every record echoes it.",

@@ -301,7 +301,7 @@ def test_refresh_all_available_evidence_sweeps_every_tracked_candidate():
 
 def test_discovery_profiles_endpoint(server):
     payload = _get(server, "/api/discovery/profiles")
-    assert len(payload["profiles"]) == 4
+    assert len(payload["profiles"]) == 5  # +FINVIZ_SCREENER
     assert payload["selected"] in {p["profile_id"] for p in payload["profiles"]}
 
 
