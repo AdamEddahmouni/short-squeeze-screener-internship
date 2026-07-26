@@ -19,7 +19,7 @@
 
 .PHONY: help up up-full build dev logs logs-screener logs-gateway
 .PHONY: down stop clean clean-cache ps pull doctor doctor-json
-.PHONY: deploy deploy-sync
+.PHONY: deploy deploy-sync tidy
 
 # ── Help ──────────────────────────────────────────────────────────────
 
@@ -40,6 +40,7 @@ help: ## Show this help
 	@printf "  \033[36mmake doctor-json\033[0m     Print report as JSON via jq\n"
 	@printf "  \033[36mmake deploy\033[0m        Sync source + deploy to Railway\n"
 	@printf "  \033[36mmake deploy-sync\033[0m    Sync source into .railway-deploy/ only\n"
+	@printf "  \033[36mmake tidy\033[0m          Git garbage collection and cleanup\n"
 	@printf "\n"
 
 # ── Up — both services (frozen demo + Gateway) ────────────────────────
@@ -135,6 +136,16 @@ deploy: deploy-sync ## Sync latest source and deploy to Railway (mirrors CI pipe
 	@printf "  \033[36m4/4\033[0m Deployment initiated.\n"
 	@printf "\n  \033[36m->\033[0m Track progress at \033[4mhttps://railway.app/project/\033[0m\n"
 	@printf "  \033[36m->\033[0m Or push to main and watch the GitHub Action.\n"
+
+# ── Maintenance ───────────────────────────────────────────────────
+
+tidy: ## Run git garbage collection and prune stale objects
+	@printf "\033[32m. Running git gc (aggressive)...\033[0m\n"
+	git gc --aggressive --prune=now
+	@printf "\033[32m. Pruning stale remote-tracking branches...\033[0m\n"
+	git remote prune origin 2>/dev/null || true
+	@printf "\n  \033[32mOK\033[0m Repository cleaned.\n"
+
 
 doctor-json: ## Print credential/provider status report as JSON, piped through jq (falls back to json.tool)
 	@if command -v jq >/dev/null 2>&1; then \
