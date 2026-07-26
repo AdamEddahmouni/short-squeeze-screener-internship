@@ -156,6 +156,31 @@ jobs:
                     -f context="Deploy to Railway" \
                     --silent
                   echo "Commit status updated → $DEPLOY_URL"
+
+                  # Post-deploy smoke test: /health must return 200
+                  # Retry a few times — the container may not be serving
+                  # HTTP immediately after Railway reports SUCCESS.
+                  echo ""
+                  echo "--- Health check ---"
+                  HEALTH_OK=""
+                  for i in 1 2 3; do
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                      --max-time 10 "$DEPLOY_URL/health" || echo "000")
+                    if [ "$HTTP_CODE" = "200" ]; then
+                      HEALTH_OK="yes"
+                      break
+                    fi
+                    echo "  /health → $HTTP_CODE, retrying in 5s... (attempt $i/3)"
+                    sleep 5
+                  done
+                  if [ "$HEALTH_OK" = "yes" ]; then
+                    echo "✅  /health → 200 OK"
+                  else
+                    echo "❌  /health never returned 200 after 3 attempts"
+                    echo "::error::Post-deploy health check failed — /health unreachable"
+                    echo "::endgroup::"
+                    exit 1
+                  fi
                 fi
 
                 echo "::endgroup::"
