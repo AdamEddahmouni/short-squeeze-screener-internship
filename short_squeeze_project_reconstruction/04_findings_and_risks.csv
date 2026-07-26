@@ -1,0 +1,16 @@
+ID,Severity,Category,Finding,Impact,Recommended treatment,Source
+F-001,Critical,Conceptual,"Official short interest, borrow pressure, and TTM Squeeze are conflated.",Can create a convincing but financially invalid score.,Separate dimensions and rename outputs accurately.,AM/EL
+F-002,Critical,Validation,No demonstrated out-of-sample evidence that Prime/Subprime predicts short squeezes.,False confidence and unsafe trading decisions.,"Reproduce baseline, replay, walk-forward test, compare baselines.",DT/AM
+F-003,High,News,Random-forest headline sentiment is subjective and not event-aware.,Dilution or weak promotional news may be mislabeled positive.,Replace with source-aware catalyst taxonomy and materiality rules.,DT
+F-004,High,Data,Fast polling is confused with real-time underlying data.,Stale values may drive live alerts.,"Track source timestamp, receive timestamp, entitlement, and age.",DT/AM
+F-005,High,Missing data,"Zero borrow fee may mean unavailable, not genuinely zero.",Prime classifications can survive missing critical evidence.,Use UNKNOWN state and confidence penalties/suppression.,AM
+F-006,High,TTM,TTM is treated as direct short-squeeze evidence.,Volatility compression can occur without short pressure.,Use only as volatility-setup dimension.,AM/EL
+F-007,High,Labeling,N/S/M/L squeeze labels lack documented definitions.,Backtests may be arbitrary or leak future outcomes.,Define objective labels from future path and validate robustness.,DT
+F-008,High,Targets,8% and later RSI/volatility targets lack disclosed validation.,Exits may be arbitrary and overfit.,Recover formulas; benchmark against ATR/state-based exits.,DT
+F-009,High,Timing,10% gain threshold may identify candidates too late.,System may chase already extended moves.,Use state machine and overextension filters.,DT/AM
+F-010,Medium,Source access,IBKR described as free despite possible subscription requirements.,Implementation may silently receive delayed or missing data.,Create entitlement manifest and field-level tests.,AM/EL
+F-011,Medium,Finviz,Token rotation and rate limits can interrupt the scanner.,Silent outages or stale UI.,"Health checks, authorized access method, caching, backoff, fallback.",DT/AM
+F-012,Medium,Time,Timezone and future-looking timestamps were observed.,Misordered events and invalid replay.,UTC canonical time and exchange-local presentation.,AM
+F-013,Medium,GUI,Prime/Subprime labels hide missing or conflicting evidence.,Users cannot judge why a signal exists.,Evidence-first table and drilldown with source health.,AM
+F-014,Medium,Causality,Large price gains are assumed to be short squeezes.,News-driven or manipulated moves contaminate training labels.,Separate outcome magnitude from causal classification.,AM
+F-015,Medium,Integration,Different student components use incompatible inputs/outputs.,High integration cost and fragile coupling.,Canonical schemas and adapter boundaries.,AM

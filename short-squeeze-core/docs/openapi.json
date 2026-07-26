@@ -1,0 +1,153 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Short Squeeze Research Screener API",
+    "version": "1.0.0",
+    "description": "Read-only research and integration API. No trading or account capabilities."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8787"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Application and provider health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "responses": {
+          "200": {
+            "description": "Mode-specific readiness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/providers": {
+      "get": {
+        "operationId": "getProviders",
+        "responses": {
+          "200": {
+            "description": "Provider capabilities and status"
+          }
+        }
+      }
+    },
+    "/api/frozen/candidates": {
+      "get": {
+        "operationId": "getFrozenCandidates",
+        "responses": {
+          "200": {
+            "description": "Sanitized deterministic candidates"
+          }
+        }
+      }
+    },
+    "/api/current/candidates": {
+      "get": {
+        "operationId": "getCurrentCandidates",
+        "responses": {
+          "200": {
+            "description": "Current research candidates"
+          }
+        }
+      }
+    },
+    "/api/methodologies": {
+      "get": {
+        "operationId": "getMethodologies",
+        "responses": {
+          "200": {
+            "description": "Methodology definitions"
+          }
+        }
+      }
+    },
+    "/api/v1/integration/manifest": {
+      "get": {
+        "operationId": "getIntegrationManifest",
+        "responses": {
+          "200": {
+            "description": "Versioned integration manifest"
+          }
+        }
+      }
+    },
+    "/api/export": {
+      "post": {
+        "operationId": "createResearchExport",
+        "responses": {
+          "200": {
+            "description": "Sanitized research export metadata"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "required": [
+          "api_version",
+          "schema_version",
+          "mode",
+          "as_of",
+          "data",
+          "status",
+          "missingness",
+          "provenance"
+        ],
+        "properties": {
+          "api_version": {
+            "const": "1.0.0"
+          },
+          "schema_version": {
+            "const": "batch14.integration.v1"
+          },
+          "mode": {
+            "enum": [
+              "LOCAL_FULL",
+              "CLOUD_PROVIDER_MODE",
+              "FROZEN_DEMO"
+            ]
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {},
+          "status": {
+            "type": "string"
+          },
+          "missingness": {},
+          "provenance": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

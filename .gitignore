@@ -1,0 +1,17 @@
+# Freebuff desktop metadata — never commit
+.freebuff/
+
+# Claude / IDE settings
+.claude/
+
+# Embedded git directories (archived as .git.bak)
+**/.git.bak/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp
+*.temp

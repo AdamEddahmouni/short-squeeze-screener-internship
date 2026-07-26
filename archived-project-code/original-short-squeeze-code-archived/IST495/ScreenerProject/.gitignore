@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual envs
+venv/
+.env/
+.env
+
+# Model artifacts / caches
+*.pkl
+
+# Logs & runtime outputs
+logs/
+*.sqlite
+*.db
+
+# Data you don't want public (keep prime_log private; allow labeled_data)
+data/*
+!data/labeled_data.csv
+
+# OS/Editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
