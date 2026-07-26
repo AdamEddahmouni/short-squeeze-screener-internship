@@ -19,12 +19,12 @@
 
 .PHONY: help up up-full build dev logs logs-screener logs-gateway
 .PHONY: down stop clean clean-cache ps pull doctor doctor-json
-.PHONY: deploy deploy-sync tidy
+.PHONY: deploy deploy-sync tidy precommit install-hooks
 
 # ── Help ──────────────────────────────────────────────────────────────
 
 help: ## Show this help
-	@printf "\033[1mShort Squeeze Research Screener — quick commands\033[0m\n"
+	@printf "\033[1mShort Squeeze Research Screener \342\200\224 quick commands\033[0m\n"
 	@printf "  \033[36mmake up\033[0m         Start frozen-demo + IB Gateway  (\033[33mdocker compose up\033[0m)\n"
 	@printf "  \033[36mmake up-full\033[0m    Full LOCAL_FULL mode             (\033[33moverride + HEALTHY wait\033[0m)\n"
 	@printf "  \033[36mmake build\033[0m      Rebuild screener image\n"
@@ -41,9 +41,11 @@ help: ## Show this help
 	@printf "  \033[36mmake deploy\033[0m        Sync source + deploy to Railway\n"
 	@printf "  \033[36mmake deploy-sync\033[0m    Sync source into .railway-deploy/ only\n"
 	@printf "  \033[36mmake tidy\033[0m          Git garbage collection and cleanup\n"
+	@printf "  \033[36mmake precommit\033[0m     Run import checks and lint before committing\n"
+	@printf "  \033[36mmake install-hooks\033[0m  Install git pre-commit hook\n"
 	@printf "\n"
 
-# ── Up — both services (frozen demo + Gateway) ────────────────────────
+# ── Up \342\200\224 both services (frozen demo + Gateway) ────────────────────────
 
 up: ## Start frozen demo + IB Gateway (no API keys required)
 	@printf "\033[32m. Starting screener (frozen demo) + IB Gateway...\033[0m\n"
@@ -52,7 +54,7 @@ up: ## Start frozen demo + IB Gateway (no API keys required)
 	@printf "  \033[36m->\033[0m Run \033[33mmake logs\033[0m to follow output\n"
 	@printf "  \033[36m->\033[0m Run \033[33mmake down\033[0m to stop\n"
 
-# ── Up — full LOCAL_FULL (screener uses live Gateway directly) ────────
+# ── Up \342\200\224 full LOCAL_FULL (screener uses live Gateway directly) ────────
 
 up-full: ## Start in full LOCAL_FULL mode (wait for Gateway health)
 	@printf "\033[32m. Starting in\033[0m \033[1mLOCAL_FULL\033[0m \033[32mmode with live IBKR data...\033[0m\n"
@@ -114,6 +116,13 @@ pull: ## Pre-pull the IB Gateway image
 doctor: ## Print credential/provider status report
 	python -m apps.research_screener.config doctor
 
+doctor-json: ## Print credential/provider status report as JSON, piped through jq (falls back to json.tool)
+	@if command -v jq >/dev/null 2>&1; then \
+		python -m apps.research_screener.config doctor --json | jq; \
+	else \
+		python -m apps.research_screener.config doctor --json | python -m json.tool; \
+	fi
+
 # ── Railway deploy (mirrors CI workflow) ──────────────────────────────
 
 deploy-sync: ## Sync latest source into .railway-deploy/ (dry-run before deploy)
@@ -137,7 +146,7 @@ deploy: deploy-sync ## Sync latest source and deploy to Railway (mirrors CI pipe
 	@printf "\n  \033[36m->\033[0m Track progress at \033[4mhttps://railway.app/project/\033[0m\n"
 	@printf "  \033[36m->\033[0m Or push to main and watch the GitHub Action.\n"
 
-# ── Maintenance ───────────────────────────────────────────────────
+# ── Maintenance ───────────────────────────────────────────────────────
 
 tidy: ## Run git garbage collection and prune stale objects
 	@printf "\033[32m. Running git gc (aggressive)...\033[0m\n"
@@ -146,10 +155,44 @@ tidy: ## Run git garbage collection and prune stale objects
 	git remote prune origin 2>/dev/null || true
 	@printf "\n  \033[32mOK\033[0m Repository cleaned.\n"
 
+# ── Pre-commit checks ───────────────────────────────────────────────
 
-doctor-json: ## Print credential/provider status report as JSON, piped through jq (falls back to json.tool)
-	@if command -v jq >/dev/null 2>&1; then \
-		python -m apps.research_screener.config doctor --json | jq; \
-	else \
-		python -m apps.research_screener.config doctor --json | python -m json.tool; \
+PRECOMMIT_IMPORTS = \
+	apps.research_screener.config \
+	apps.research_screener.credentials \
+	apps.research_screener.ibkr_gateway \
+	apps.research_screener.__main__
+
+precommit: ## Run Python import checks and verify Makefile is valid
+	@printf "\033[32m. Pre-commit checks...\033[0m\n"
+	@fail=0; \
+	for mod in $(PRECOMMIT_IMPORTS); do \
+		printf "  \033[36mimport\033[0m  %s ... " "$$mod"; \
+		if python -c "import $$mod" 2>/dev/null; then \
+			printf "\033[32mOK\033[0m\n"; \
+		else \
+			printf "\033[31mFAIL\033[0m\n"; \
+			python -c "import $$mod" 2>&1 | head -3; \
+			fail=1; \
+		fi; \
+	done; \
+	if [ "$$fail" -ne 0 ]; then \
+		printf "\n  \033[31mFAILED\033[0m \342\200\224 fix import errors before committing.\n"; \
+		exit 1; \
 	fi
+	@printf "  \033[36mmake help\033[0m ... "; \
+	if make help >/dev/null 2>&1; then \
+		printf "\033[32mOK\033[0m\n"; \
+	else \
+		printf "\033[31mFAIL\033[0m\n"; \
+		exit 1; \
+	fi
+	@printf "\n  \033[32mOK\033[0m All pre-commit checks passed.\n"
+
+install-hooks: ## Install git pre-commit hook that runs 'make precommit'
+	@printf "\033[32m. Installing git pre-commit hook...\033[0m\n"
+	@mkdir -p .git/hooks
+	@printf '#!/bin/sh\n# Installed by `make install-hooks`\n# Runs import checks before every commit.\n# Bypass: SKIP_CHECKS=1 git commit  or  git commit --no-verify\n\nif [ -n "$$SKIP_CHECKS" ]; then exit 0; fi\n\ncd "$$(git rev-parse --show-toplevel)/short-squeeze-core"\nmake precommit\nexit $?\n' > .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
+	@printf "\n  \033[32mOK\033[0m Pre-commit hook installed at .git/hooks/pre-commit\n"
+	@printf "  Bypass with \033[33mSKIP_CHECKS=1 git commit\033[0m or \033[33mgit commit --no-verify\033[0m\n"
