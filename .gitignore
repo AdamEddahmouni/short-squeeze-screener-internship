@@ -4,7 +4,8 @@
 # Claude / IDE settings
 .claude/
 
-# Embedded git directories (archived as .git.bak)
+# Embedded git directories — never commit a nested .git/
+**/.git/
 **/.git.bak/
 
 # OS files
