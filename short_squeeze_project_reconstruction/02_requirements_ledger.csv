@@ -1,0 +1,21 @@
+ID,Type,Requirement,Evidence,Acceptance criterion,Status
+R-001,Mandatory,Get inherited code operational,EL 2026-07-06,Original code runs reproducibly from documented setup,Open
+R-002,Mandatory,Review both original demonstration recordings/transcripts,EL 2026-07-06,Findings mapped to code and requirements,Complete from transcripts
+R-003,Mandatory,"Produce a real-time screener, potentially one-minute cadence",EL 2026-07-06; AM 2026-07-16,Field-level freshness is measured; scanner state updates at configured cadence,Open
+R-004,Mandatory,Integrate new sentiment/news capability,EL 2026-07-06,Catalyst intelligence works without per-ticker request explosion,Open
+R-005,Mandatory,Use or evaluate Interactive Brokers,EL 2026-07-06; AM 2026-07-09,"IBKR adapter, entitlement record, borrow-field validation",Open
+R-006,Mandatory,Integrate Charles Schwab/TD Ameritrade pathway,EL 2026-07-06; AM 2026-07-12,Schwab adapter or documented access blocker,Open
+R-007,Mandatory,Add TTM Squeeze to main table and make sortable,AM 2026-07-17,"Visible, sortable, parameterized TTM fields",Partially implemented historically
+R-008,Mandatory,Combine TTM with IBKR-derived information,AM 2026-07-16,Combined model preserves separate dimensions and explains contribution,Open
+R-009,Mandatory,Compare multiple independent sources/signals,AM 2026-07-12,Agreement/conflict logic and source health shown,Open
+R-010,Mandatory,Correct timestamps and timezone behavior,AM 2026-07-16,UTC internal timestamps; exchange-local display; no future timestamps,Open
+R-011,Mandatory,Resolve None/unavailable chart and API fields,AM 2026-07-16,Missing/zero/not-applicable states are distinct,Open
+R-012,Mandatory,Revisit Prime/Subprime criteria,AM 2026-07-17,Original formula retained only as baseline; revised formula validated,Open
+R-013,Mandatory,Identify candidates earlier than other traders / before overextension,AM 2026-07-17,"State machine distinguishes setup, activation, expansion, climax",Open
+R-014,Mandatory,Make work reproducible by another person,AM 2026-07-05,"Clean setup, documentation, replayable evidence, test suite",Open
+R-015,Integration,Use MongoDB for compatibility,AM 2026-07-09,Schema documented and integration-tested,Open
+R-016,Integration,Prepare for deployment/integration,AM 2026-07-09,Documented local and hosted deployment,Open
+R-017,Research,Evaluate ShortSqueeze.com and Cboe alternatives,EL 2026-07-06,Cost/capability/source matrix,Open
+R-018,Research,Confirm Finviz Elite capabilities and authorized access,User statement after transcripts,"Entitlement, API/export method, cadence, and license documented",Open
+R-019,Research,Verify local TTM against thinkorswim/Schwab samples,EL 2026-07-17 Adam reply,Parameter parity and differences documented,Open
+R-020,Safety,Do not treat missing borrow fee as zero,AM 2026-07-17,UNKNOWN state suppresses affected calculations,Open

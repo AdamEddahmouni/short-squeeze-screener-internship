@@ -1,0 +1,556 @@
+20260705_173425.mp4
+
+## Discussion About the Short-Squeeze Project with the professor and another student (before i began work on it, but some info may be important)
+
+**Student:** I am currently living here, and my phone number and other information are registered at this address. I am trying to work through the identification requirements because the UAE does not provide a national ID that I can use here.
+
+**Professor:** I need the short-squeeze project completed by the end of the week.
+
+**Student:** I understand. As I said, my deadline was approximately 10 days, but I will have it completed.
+
+**Professor:** If you do not complete it, I will not be able to integrate it.
+
+**Student:** Absolutely. I will take care of it.
+
+**Professor:** I wanted to clarify that in advance.
+
+ShortSqueeze.com costs approximately $50 per month, compared with the other service that costs $150 per month. I asked you to investigate ShortSqueeze.com because I do not believe the $150 service offers anything significantly better. It may not offer anything better than Interactive Brokers, either. That is why I believe $150 per month may be excessive.
+
+**Student:** I understand. I was also beginning to have doubts about Interactive Brokers because it does not show short interest as a live numerical percentage of all available shares.
+
+**Professor:** Interactive Brokers calculates short-squeeze potential using a different formula. The website I sent you explains how Interactive Brokers performs its calculation.
+
+It considers factors such as:
+
+* The availability of shares
+* The number of shares available to borrow
+* The cost of borrowing those shares
+
+This differs from the traditional short-interest figure you may already know. Interactive Brokers appears to use a specific formula to calculate short-squeeze potential.
+
+**Student:** Right. I understand.
+
+**Professor:** You need to examine the information at the bottom of the page and use AI to help identify the formula and required inputs.
+
+I do not mind paying $150 per month if necessary. However, if alternatives exist, we should evaluate them first.
+
+True real-time short-interest data does not exist in a directly published form. It has to be estimated or calculated. That is what Interactive Brokers appears to do.
+
+You need to identify that formula. Once you understand it, you may be able to apply it using data from TD Ameritrade, Charles Schwab, Interactive Brokers, Robinhood, or another platform.
+
+**Student:** I will investigate it. TD Ameritrade no longer exists independently because it was acquired by Charles Schwab.
+
+**Professor:** It is effectively the same service through Charles Schwab. We may still refer to it as TD Ameritrade because that is the name people recognize.
+
+Schwab may also have an internal calculation that can be used. Ask AI to help determine the formula. Once you have it, you may be able to calculate the same metric using Webull, Robinhood, or another commission-free platform.
+
+Do you understand?
+
+**Student:** Yes.
+
+**Professor:** Friday is the deadline.
+
+**Student:** Understood.
+
+**Professor:** First, identify the formula. Then determine whether Interactive Brokers can be replaced with another source.
+
+Interactive Brokers is generally user-friendly, so I am surprised you are having difficulty opening an account. Many previous interns were approved within approximately two days.
+
+**Student:** I applied, and most of my information was approved. Only one document was rejected.
+
+**Professor:** Do you have a utility bill, such as an electricity or gas bill?
+
+**Student:** Those bills are not in my name. They are in my father’s name because the house is under his name and he pays the bills.
+
+**Professor:** You should contact them and determine how to resolve that. A bank statement may also be acceptable.
+
+**Student:** My bank statement includes my name, but it does not show my current address.
+
+**Professor:** Contact the bank and ask them to add your current address to the statement or provide a signed letter confirming it.
+
+**Student:** I will try that.
+
+**Professor:** By Friday, I need a working, functional, testable, and reliable system.
+
+**Student:** Understood. I am sorry about the delay.
+
+**Professor:** Have a good day.
+
+**Student:** You too. Goodbye.
+
+---
+
+## Discussion With Adam About Ownership and Project Requirements
+
+**Professor:** Adam, you had several questions. I am going to answer them, and other students may also listen to or receive this information.
+
+Anything you produce while working with me is educational material. I may copy it, distribute it, and provide it to other students, both while you are on my team and after you leave.
+
+You may continue using your work after leaving the team, but there is no exclusive ownership or confidentiality attached to it. I may provide it to Ayana, Nicolas, Aliyah, or anyone else on the team.
+
+If you require exclusive confidentiality or ownership, then you should not work with me. I do not want to manage that type of restriction.
+
+Do you understand?
+
+**Adam:** Yes.
+
+**Professor:** What was your other question?
+
+Keep in mind that this is a university educational project. My purpose is to teach you concepts you may not already know and ask you to complete work you may not previously have considered.
+
+My coaching and advising are intended to take you from the beginning of the process to a completed result. However, everything you produce must be verifiable at the end of the internship.
+
+You will receive assignments requiring you to upload your work in a form that another person can reproduce independently. The project must be reproducible by someone other than you.
+
+If another person cannot reproduce it, then, under my standards, the internship work has not been properly completed.
+
+That is how I operate.
+
+For example, I retain code produced by students from previous summer, fall, and spring terms, and I provide it to future students. We build projects incrementally.
+
+A student may develop a working foundation but leave certain components unfinished because the full project is too large for a single internship. In that situation, the code is passed to another student, along with an explanation of the missing components.
+
+The next student may be asked either to add those missing components or to reproduce the project from scratch and correct issues as they arise.
+
+For example, I was just speaking with Yash about the short-squeeze project, which can potentially be a significant source of market profit.
+
+I may give you the code and recorded sessions from a previous student’s short-squeeze project. You would review the recordings, study the code, and advance the project.
+
+Once you improve it, your work will also remain available for future students.
+
+You may continue to use the project yourself. I am not going to prohibit you from using the knowledge or code. You may list the experience on your résumé, and I can verify your work if an employer contacts me.
+
+However, this is a shared, open educational environment rather than an exclusive-ownership arrangement.
+
+Do you have any other questions?
+
+**Adam:** No.
+
+**Professor:** If you are still comfortable proceeding under those terms, send me a follow-up email.
+
+**Adam:** Okay.
+
+**Professor:** Have a good day.
+
+**Adam:** You too.
+
+**Professor:** I believe Ayana is next.
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+20260705_211747.mp4
+
+I want to make sure that you are on the right track and progressing quickly.
+
+If you would like to meet with me tomorrow, or on another day outside my normal schedule, you can send me an email. Let me know that you would like to meet, and I will be happy to arrange a time.
+
+My official meeting days are Thursday, Friday, and Sunday. Everyone can schedule appointments through Calendly, and the booking link is included in the course announcements.
+
+You should review the announcements and pay particular attention to the important items, including the Calendly link and the recent announcements about AI agents. Those materials are useful if you are interested in learning more about that subject.
+
+Pedro provided much of the AI-agent material, and another student I recently spoke with is also working on an AI-agent project.
+
+The next thing I need you to do is make sure you have accounts with Interactive Brokers and TD Ameritrade, now operated through Charles Schwab.
+
+**Adam:** Yes. That should not take too long.
+
+If you have all of the required documents, including proof of address, approval usually takes approximately one or two days.
+
+Opening the account is free, but access to certain market data is not. Eventually, you may need to visit the data-subscription section and purchase one or more data plans.
+
+Some students are currently working on news sentiment and have reached a fairly advanced stage. Pedro is also approaching the broader project from a different angle.
+
+A significant amount of money in the market can be made through something called a short squeeze.
+
+I do not know whether you are already familiar with short squeezes.
+
+You are currently muted.
+
+Here is a simple example.
+
+Suppose Tesla is trading at $400 per share, and I believe its price will decline. I borrow 50 shares and immediately sell them.
+
+Fifty shares multiplied by $400 equals $20,000, so I receive $20,000 from the sale.
+
+I do this because I expect Tesla’s price to fall to $300.
+
+If the price falls to $300, I can repurchase the 50 shares for $15,000 and return them to the lender. The difference between the $20,000 sale and the $15,000 repurchase is my profit.
+
+Short selling is therefore not simply about borrowing money. It involves borrowing shares, selling them immediately, hoping their price declines, buying them back at a lower price, and returning them to the lender.
+
+However, suppose I am wrong and positive news causes Tesla’s price to rise to $500.
+
+Because I borrowed the shares at a time when they were worth $400, I may rush to repurchase them before the price rises further. If I have to buy them back at $500, I will lose money.
+
+When many investors have bet against the same company and unexpectedly positive news causes its price to rise, they may all rush to buy shares so they can close their short positions.
+
+Because they are competing with one another to purchase the stock, the additional buying pressure can cause a short squeeze.
+
+Some short squeezes can produce price increases of several hundred percent. They can be extremely dramatic.
+
+Ross Cameron, for example, is a trader who frequently focuses on short-squeeze opportunities.
+
+I will share short-squeeze materials from last year with you. A previous student completed a significant amount of work and did a very good job.
+
+However, the existing code needs to be redesigned and improved. I will give you the code, the recorded sessions, and the supporting materials. Your responsibility will be to review and modify them.
+
+That is the first project.
+
+The second project involves long-term investment analysis.
+
+Another intern completed a version of that project during the fall 2025 semester, and another student is currently working to finalize it.
+
+I will provide you with the existing code and recorded sessions. You will review them and create a platform that Pedro can integrate into the larger system.
+
+The next component is cumulative volume delta, or CVD.
+
+I will teach you what CVD is. Several students have worked on it previously, and two strong students are currently attempting to complete that portion of the project.
+
+I also need you to work on it.
+
+Your responsibility will be to review and validate their code, confirm that it works correctly, ensure that it is modular, and then provide it to Pedro for integration.
+
+Another component is Level 2 market data.
+
+Level 2 is a different type of trading tool, and I will explain how it works.
+
+Code for this component already exists. I need you to study it, apply your AI and programming skills, and coordinate it with the other project components.
+
+The final major areas are options and futures.
+
+Once again, I will provide you with existing code.
+
+Because these programs were written by different students, they do not necessarily communicate with one another correctly.
+
+Each student created different inputs and outputs without knowing exactly what the other students were developing.
+
+Your first responsibility is to make sure that each program runs.
+
+Your second responsibility is to revise, restructure, or completely rewrite the programs where necessary so that they form one coherent application.
+
+The final application should have multiple tabs, including:
+
+* Short Squeeze
+* Long-Term Investment
+* Cumulative Volume Delta
+* Level 2
+* Options
+* Futures
+
+This may initially sound like a large amount of work. However, much of the difficult foundational work has already been completed.
+
+Some students are also continuing to work on individual components, so you should be able to review, improve, and integrate the existing work more efficiently than if you were starting entirely from scratch.
+
+The first project you will begin is the short-squeeze system.
+
+As soon as your Interactive Brokers account and other required materials are ready, I will provide you with the links, code, recorded sessions, and supporting information so that you can begin.
+
+You will learn a great deal during this process.
+
+You will learn about short squeezes, cumulative volume delta, options, futures, Level 2 data, and long-term investment analysis. These are subjects you may not otherwise have had an opportunity to study.
+
+Once you integrate the components, you will have your own complete and visually polished trading dashboard.
+
+Are you ready?
+
+**Adam:** Yes.
+
+As I mentioned, I am willing to meet with you every day if necessary.
+
+I am usually available online at approximately 6:00 p.m. My official meeting days are Thursday, Friday, and Sunday, but I am often available on other days as well.
+
+On Thursday and Sunday, I also hold open sessions from 8:00 a.m. to 9:00 a.m. These sessions are primarily intended for students in locations such as China, India, and Dubai.
+
+Let us begin.
+
+Do you have any questions?
+
+I look forward to hearing from you soon.
+
+Have a great day.
+
+**Adam:** You too. Goodbye.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+20260709 170302
+
+**Professor:** We are going to retrieve the new token using cURL Impersonate. That should be the fastest and easiest way to do it.
+
+**Student:** I will see you during your office hours on Sunday.
+
+**Professor:** Okay.
+
+**Student:** Thank you.
+
+**Professor:** The fastest approach is to use cURL Impersonate on the Finviz page. That should allow you to retrieve the token automatically without having to update it manually.
+
+There will eventually be another screener using TradingView. I will explain how to integrate that later. For now, I primarily want to make sure that you are on the right track.
+
+You are currently using Finviz.
+
+Finnhub has approximately 15 minutes of latency if you are not a paid subscriber, which is too delayed for our purposes.
+
+Yahoo Finance may also have a delay of approximately 10 to 15 minutes for users without the appropriate subscription. That is why I recommend using Finviz.
+
+Interactive Brokers can provide near-real-time data if you pay for the necessary market-data subscriptions.
+
+I would like you to integrate the platform with both Interactive Brokers and TD Ameritrade, now operated through Charles Schwab.
+
+Go to the Interactive Brokers data-subscription page and determine how much the required data will cost. Let me know the amount, and I will reimburse you for one month, whether through Venmo or another payment method.
+
+You should be able to retrieve the necessary data through Interactive Brokers. The relevant short-squeeze information available through TD Ameritrade or Schwab may be free once you have opened an account.
+
+I will later explain additional mechanisms that can indicate when a short squeeze may be developing.
+
+For now, the primary factors should include:
+
+* Stock-price movement
+* Recent news
+* Short interest
+* The cost of borrowing shares
+
+Interactive Brokers relies heavily on share availability and stock-borrowing costs.
+
+Other platforms may claim to provide real-time information, but I doubt that they provide real-time short-interest figures. Official short-interest data is generally published only twice per month, so no platform receives a continuously updated official figure.
+
+However, by examining the stock-lending market, including share availability and borrowing costs, you may be able to estimate short-squeeze conditions on a minute-by-minute basis.
+
+Determine how much the Interactive Brokers data subscription will cost, and I will pay for one month.
+
+You can continue running the application locally for now. However, you could also deploy it using Railway’s free tier.
+
+Railway is one option. Vercel also appears to be stable, and both platforms are commonly used.
+
+**Student:** I have used Vercel before.
+
+**Professor:** Good. In that case, deploying it should be relatively straightforward.
+
+You can place the application on Vercel for the time being. Completing the deployment now may also make the eventual integration process easier.
+
+The other team is using MongoDB for its database. Make sure your application also uses MongoDB so that the systems will be compatible.
+
+Do you have any other questions?
+
+I would like to meet with you as frequently as possible. Once per week is the minimum, but because this project is urgent, I would also be willing to meet with you tomorrow.
+
+You may attend tomorrow, Saturday, Sunday, or all three days. We can use those meetings to confirm that you are progressing in the correct direction.
+
+Bring any questions you have, and I will address them as quickly as possible. You can also show me whatever you have completed at that point.
+
+The news-sentiment component is a separate challenge. However, the team responsible for integrating your work already has its own news-sentiment system.
+
+You may still develop your own version, but that decision is up to you.
+
+It was good to see you. Please meet with me tomorrow or Saturday if possible. I should be online at approximately the same time.
+
+Have a great day.
+
+**Student:** You too. Goodbye.
+
+**Professor:** William, my friend, how are you?
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+20260712 164948
+
+This information comes from the TTM Squeeze indicator, which is available through TD Ameritrade or Charles Schwab.
+
+Both platforms provide APIs. If you need help working with the Interactive Brokers or TD Ameritrade APIs, let me know. However, given your experience, I expect that you should be able to retrieve the necessary data.
+
+Do you currently have a screener or similar interface?
+
+Is the data updated minute by minute?
+
+That is good. Could you quickly demonstrate it? I would especially like Ryan, Aman, and Ortiz to see it.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+20260712 165918
+
+**Professor:** We will need to verify whether that is actually true, but that is what we are trying to determine now.
+
+I suspect the data has not yet been recalculated and may already be approximately one week old.
+
+GMM increased by 147 percent on Friday, but that movement was not caused by a short squeeze. It was primarily driven by positive company news.
+
+According to Interactive Brokers, GMM’s short interest was approximately 8 percent.
+
+Our next steps are to correct the Interactive Brokers integration, complete the required calculations, and begin integrating TD Ameritrade, now operated through Charles Schwab.
+
+The goal is to compare signals from multiple independent sources.
+
+For example, if TD Ameritrade identifies `SUNE` as a potential opportunity and your Interactive Brokers analysis also identifies `SUNE`, we will have greater confidence that it may be worth investigating.
+
+If Otis, Aman, and Ryan also identify meaningful underlying market activity, then I will consider a possible investment.
+
+Does that make sense?
+
+Do you have any questions, Adam?
+
+**Adam:** That was included in the email I sent you.
+
+**Professor:** Okay. Send me another email if necessary, and I will forward the relevant information to you.
+
+You said you were able to fix the bug. The next priority is to get the Interactive Brokers API working and then establish the TD Ameritrade or Schwab API integration.
+
+Once both are working, you should be in a good position.
+
+Well done, Adam.
+
+**Adam:** Thank you.
+
+**Professor:** You are currently in the United States, correct?
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+20260716_165931.mp4
+
+**Professor:** Tell me about your progress. It sounds as though you completed everything I asked you to do, which is excellent. I am pleased to see your dedication.
+
+I cannot see anything on the screen yet. Please show me what you have completed.
+
+Where is the short-interest figure? It is supposed to update minute by minute.
+
+Interactive Brokers explains a formula on its website that relies primarily on the cost of borrowing shares. If the borrowing cost increases, that generally indicates that the stock is being heavily shorted.
+
+Do you understand what I mean?
+
+**Adam:** Yes.
+
+**Professor:** The screen currently shows the 16th, and the time is listed as 21:06. What does that represent?
+
+What does “float as of” mean here, and which time zone is the application using? It is currently 5:27 p.m. where I am. Are you in the United States or somewhere else?
+
+The problem is that 9:06 p.m. has not occurred yet in our time zone, so the displayed timestamp may be incorrect.
+
+Another issue is the “short interest as of” field. That appears to be the official periodically reported short-interest figure.
+
+For example, the current value may reflect data from June 30. Official short-interest data is released on a delayed schedule, so it is too old for our purposes.
+
+If a significant short squeeze is developing today, I need to know about it immediately—not several weeks later. Does that make sense?
+
+**Adam:** Yes.
+
+**Professor:** That is why Interactive Brokers provides an alternative calculation. The TTM Squeeze indicator also uses a formula that can help identify developing squeeze conditions more frequently.
+
+The goal is to calculate or estimate short-squeeze potential minute by minute so that you can observe conditions moving up or down in real time.
+
+Please return to the link I sent you. You should be able to find it by searching through your email or project backlog.
+
+That message explains how Interactive Brokers approaches the short-interest calculation.
+
+Now, return to the chart section.
+
+I see that one of the columns currently displays `NONE`. Scroll to the right side of the screen.
+
+The charting component does not appear to be fully connected yet. That is probably why the application is returning `None` or “not applicable.”
+
+Your TTM Squeeze result has not yet been transferred into the table. There may be a problem with the API connection.
+
+Eventually, I want you to combine the TTM Squeeze signal with the Interactive Brokers calculation. The application should then identify which stocks are most likely to experience a short squeeze.
+
+Does that make sense?
+
+**Adam:** Yes.
+
+**Professor:** The final objective is a minute-by-minute calculation.
+
+Some commercial websites claim to provide real-time short-squeeze information. However, they cannot be using continuously updated official short-interest filings because those figures are reported only periodically and with a delay.
+
+The real-time estimate must therefore be calculated using other information, such as the Interactive Brokers methodology, lending costs, share availability, or the TTM Squeeze calculation.
+
+You can also investigate how TD Ameritrade or Charles Schwab calculates and displays its TTM Squeeze indicator.
+
+Excellent work. I look forward to our next meeting and our next email exchange.
+
+Does that sound good?
+
+**Adam:** Yes.
+
+**Professor:** I will see you soon. Thank you.
+
+Ron, my friend, how are you doing?
+
+**Ron:** I am doing well. How are you?
+
+**Professor:** Not bad.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+20260717_124615.mp4
+
+**Professor:** Hello, Adam. How are you doing?
+
+**Adam:** Not bad.
+
+**Professor:** Let me see what the application looks like.
+
+Your system currently identifies `KLOS` as a Prime Setup, but its news sentiment is neutral.
+
+`BIYA` rose sharply this morning at approximately 4:00 a.m. As you can see, the percentage change confirms that the stock has been moving upward significantly. However, its short interest appears to be low, and I am not sure why.
+
+Your system is also identifying `LBGJ` as a Prime Setup with a price increase of approximately 13 percent.
+
+When a major short squeeze occurs, the stock may increase by 80, 90, 100, 200, or even 300 percent. A 13 percent increase alone does not necessarily indicate a significant squeeze.
+
+I understand that the student who developed this system last summer created the Prime and Subprime categories using a particular set of criteria. You should revisit those criteria and determine whether they are reliable.
+
+You may be able to develop your own criteria that perform better.
+
+The entire objective is to identify these stocks earlier than other traders.
+
+I also see that the Interactive Brokers borrow fee is zero. Why is the stock still being classified as a Prime Setup?
+
+The borrow fee is one of the variables used to identify short-squeeze potential. Generally, the higher the cost of borrowing shares, the greater the possibility that the stock is heavily shorted.
+
+If the borrow fee is zero or unavailable, the short-squeeze calculation may not be reliable.
+
+Do you currently have the TTM Squeeze indicator included?
+
+**Adam:** Not as a table column.
+
+**Professor:** Add the TTM Squeeze result as a column and make it sortable.
+
+At this point, I am trying to understand why the results from your system, the system developed by the student working this summer, and the system developed last summer do not appear to match actual market activity.
+
+You can use AI to investigate which tickers are currently experiencing short-squeeze conditions. You can then compare those stocks with the results produced by your application and adjust the formula to better match observed market behavior.
+
+The application already has a table and sorting features, but the underlying squeeze classification still needs improvement.
+
+The stock you selected is not even classified as Prime; it is classified as Subprime.
+
+I recommend revisiting the entire project. Review the previous student’s recordings, code, criteria, and calculations. Then determine whether you can develop a more accurate formula.
+
+You should also add the TTM Squeeze result to the table and make it sortable.
+
+For example, can you retrieve the TTM Squeeze result for `BIYA`?
+
+That stock may not actually be experiencing a squeeze.
+
+Now check the ticker at the top of the table. Retrieve its TTM Squeeze value as well.
+
+The application should allow us to view and sort all of these results at once. We should not have to open each stock individually because that process would be too slow.
+
+When a short squeeze begins, a trader must enter at the correct time. Arriving late can result in becoming trapped in the trade and taking substantial losses.
+
+I can meet with you tomorrow. Would you like to meet in the morning?
+
+**Adam:** Morning works.
+
+**Professor:** What time?
+
+**Adam:** Would 9:00 a.m. work?
+
+**Professor:** Yes. Nine is better for me because I have several other responsibilities tomorrow.
+
+I am pleased that you are moving in the right direction. We now need to determine how closely the application’s signals correspond with actual market activity.
+
+Good job. I will see you tomorrow.
+
+Arwani and Harshita, welcome. It is good to see you.
+
+Tell me about your results. Would either of you like to share your screen?
+
+**Student:** I can share my screen. I also asked Claude about the—

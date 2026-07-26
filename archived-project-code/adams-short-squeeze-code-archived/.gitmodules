@@ -1,0 +1,3 @@
+[submodule "app/ScreenerProject"]
+	path = app/ScreenerProject
+	url = https://github.com/wtg5058-byte/SHORTSQUEEZE.git
