@@ -16,6 +16,9 @@ desktop.ini
 # Runtime generated data
 data/
 
+# Agent-generated reconstruction documents (reference only)
+docs/reconstruction/
+
 # Log files
 *.log
 
