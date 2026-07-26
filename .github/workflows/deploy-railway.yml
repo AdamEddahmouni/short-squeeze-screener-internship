@@ -1,0 +1,201 @@
+# ──────────────────────────────────────────────────────────────────────
+#  Deploy to Railway
+# ──────────────────────────────────────────────────────────────────────
+#  Triggers on pushes to main that touch either the Railway deploy
+#  directory OR the source directories that feed into it.  Before
+#  deploying, the latest source is synced into .railway-deploy/ so
+#  Railway always runs the freshest code.  After `railway up --detach`,
+#  the Railway GraphQL API is polled every 30s until the deployment
+#  succeeds or fails, surfacing build logs in the Actions UI.
+#
+#  Prerequisites:
+#    1. A Railway project linked to this GitHub repository.
+#    2. A Railway deploy token set as the RAILWAY_TOKEN secret.
+#
+#  To create a deploy token:
+#    Railway Dashboard → Project → Settings → Tokens → Generate
+#
+#  Then add it as a repository secret:
+#    GitHub → Settings → Secrets and variables → Actions → New secret
+#    Name: RAILWAY_TOKEN
+#    Value: <paste token>
+# ──────────────────────────────────────────────────────────────────────
+
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Source directories that feed into the deploy copy
+      - "short-squeeze-core/apps/**"
+      - "short-squeeze-core/src/**"
+      - "short-squeeze-core/scripts/**"
+      - "short-squeeze-core/pyproject.toml"
+      # The deploy directory itself (e.g. Dockerfile, railway.toml)
+      - "short-squeeze-core/.railway-deploy/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sync source into .railway-deploy/
+        run: |
+          rsync -a --delete short-squeeze-core/apps/      short-squeeze-core/.railway-deploy/apps/
+          rsync -a --delete short-squeeze-core/src/       short-squeeze-core/.railway-deploy/src/
+          rsync -a --delete short-squeeze-core/scripts/   short-squeeze-core/.railway-deploy/scripts/
+          cp  short-squeeze-core/pyproject.toml            short-squeeze-core/.railway-deploy/pyproject.toml
+
+      - name: Install Railway CLI
+        run: bash <(curl -fsSL railway.com/install.sh)
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: short-squeeze-core/.railway-deploy
+        run: railway up --detach --environment production
+
+      - name: Wait for deployment to complete
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: short-squeeze-core/.railway-deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          API="https://backboard.railway.com/graphql/v2"
+          TIMEOUT=$((10 * 60))     # 10 minute overall timeout
+          INTERVAL=30              # poll every 30 seconds
+
+          # ── 1. Discover project + service IDs via GraphQL ────────
+          #     (railway project-id/service-id need a .railway/ link
+          #      file; using the API directly avoids that dependency)
+          echo "::group::Discovering Railway project + service"
+
+          SERVICE_NAME="short-squeeze-screener"
+
+          CONTEXT_QUERY=$(jq -n '{
+            query: "query { projects { edges { node { id name services(first: 50) { edges { node { id name } } } } } } }"
+          }')
+
+          CONTEXT=$(curl -s "$API" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$CONTEXT_QUERY")
+
+          PROJECT_ID=$(echo "$CONTEXT" | jq -r '.data.projects.edges[0].node.id // empty')
+          SERVICE_ID=$(echo "$CONTEXT" | jq -r --arg name "$SERVICE_NAME" \
+            '.data.projects.edges[0].node.services.edges[] | select(.node.name == $name) | .node.id' | head -1)
+
+          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ID" ]; then
+            echo "::error::Could not resolve Railway project/service from token"
+            echo "Project: ${PROJECT_ID:-<not found>}"
+            echo "Service: ${SERVICE_ID:-<not found>}"
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          echo "Project: $PROJECT_ID"
+          echo "Service: $SERVICE_ID"
+          echo "::endgroup::"
+
+          # ── 2. Give Railway a moment to register the deployment ───
+          sleep 5
+
+          # ── 3. Poll the GraphQL API ───────────────────────────────
+          echo "::group::Polling Railway deployment status"
+          ELAPSED=0
+
+          while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+
+            # Fetch the latest deployment for this service
+            QUERY=$(jq -n --arg sid "$SERVICE_ID" '{
+              query: "query($sid: String!) { deployments(serviceId: $sid, last: 1) { edges { node { id status url createdAt } } } }",
+              variables: { sid: $sid }
+            }')
+
+            RESPONSE=$(curl -s "$API" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$QUERY")
+
+            DEPLOYMENT_ID=$(echo "$RESPONSE" | jq -r '.data.deployments.edges[0].node.id // empty')
+            STATUS=$(echo "$RESPONSE" | jq -r '.data.deployments.edges[0].node.status // "unknown"')
+            DEPLOY_URL=$(echo "$RESPONSE" | jq -r '.data.deployments.edges[0].node.url // ""')
+
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "No deployment found yet, retrying in ${INTERVAL}s..."
+              sleep "$INTERVAL"
+              ELAPSED=$((ELAPSED + INTERVAL))
+              continue
+            fi
+
+            echo "[$(date -u +%H:%M:%S)] $DEPLOYMENT_ID — $STATUS"
+
+            case "$STATUS" in
+
+              SUCCESS)
+                echo ""
+                echo "✅  Deployment succeeded!"
+                echo "   URL: $DEPLOY_URL"
+                echo "::notice title=Railway Deploy::$DEPLOY_URL"
+                echo "::endgroup::"
+                exit 0
+                ;;
+
+              FAILED | CRASHED)
+                echo ""
+                echo "❌  Deployment $STATUS"
+
+                # Fetch build + runtime logs for debugging
+                LOGS_QUERY=$(jq -n --arg did "$DEPLOYMENT_ID" '{
+                  query: "query($did: String!) { deployment(id: $did) { buildLogs logs } }",
+                  variables: { did: $did }
+                }')
+
+                LOGS=$(curl -s "$API" \
+                  -H "Authorization: Bearer $RAILWAY_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d "$LOGS_QUERY")
+
+                BUILD_LOGS=$(echo "$LOGS" | jq -r '.data.deployment.buildLogs // ""')
+                RUNTIME_LOGS=$(echo "$LOGS" | jq -r '.data.deployment.logs // ""')
+
+                if [ -n "$BUILD_LOGS" ]; then
+                  echo ""
+                  echo "--- Build logs ---"
+                  echo "$BUILD_LOGS"
+                fi
+
+                if [ -n "$RUNTIME_LOGS" ]; then
+                  echo ""
+                  echo "--- Runtime logs ---"
+                  echo "$RUNTIME_LOGS"
+                fi
+
+                echo "::endgroup::"
+                exit 1
+                ;;
+
+              BUILDING | DEPLOYING | QUEUED | WAITING)
+                # Still in progress — poll again after the interval
+                sleep "$INTERVAL"
+                ELAPSED=$((ELAPSED + INTERVAL))
+                ;;
+
+              *)
+                echo "Unexpected status '$STATUS' — treating as in-progress"
+                sleep "$INTERVAL"
+                ELAPSED=$((ELAPSED + INTERVAL))
+                ;;
+            esac
+          done
+
+          # ── 4. Timeout ────────────────────────────────────────────
+          echo ""
+          echo "::error::Timed out waiting for Railway deployment after ${TIMEOUT}s"
+          echo "::endgroup::"
+          exit 1
