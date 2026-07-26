@@ -83,7 +83,8 @@ def integration_manifest(mode: str) -> dict[str, Any]:
         ],
         "missingness_semantics": "Missing values are explicit nulls and never zero.",
         "endpoints": [
-            "/health", "/ready", "/api/providers", "/api/frozen/candidates",
+            "/health", "/healthz", "/ready", "/api/deployment",
+            "/api/providers", "/api/frozen/candidates",
             "/api/frozen/candidate/<symbol>", "/api/current/candidates",
             "/api/current/candidate/<symbol>", "/api/current/refresh",
             "/api/discovery/refresh", "/api/methodologies",
@@ -93,7 +94,7 @@ def integration_manifest(mode: str) -> dict[str, Any]:
             "/api/sentiment/status", "/api/sentiment/symbol",
         ],
         "deployment_mode": mode,
-        "health_path": "/health",
+        "health_path": "/healthz",
         "readiness_path": "/ready",
         "prohibited_capabilities": {
             "trading": "UNSUPPORTED",

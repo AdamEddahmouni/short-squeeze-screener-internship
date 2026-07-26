@@ -1,0 +1,20 @@
+* 7a145f7 feat: add doctor-json Makefile target with jq fallback
+* 08567fe feat: sprint of Docker lifecycle, credential extraction, startup scripts, and Railway deploy
+* 9ef088a fix: resolve 164 Windows file-lock errors; IB Gateway confirmed running
+* 4a59fd8 feat: add /api/phase-3d/registry endpoint exposing Batch 01/02 audit results
+* ca23e98 feat: execute Phase 3D preregistered historical-source collection batches
+* 4f71fe5 fix: resolve all 13 test failures + add integration checklist
+* cd4def4 feat: aggregated news feed, category toggle pills with count badges
+* 39150f3 feat: comprehensive data logging, enrichment, replay, archive, and scanner UI v0.17.0
+* af797a5 chore: update scanner UI detail drawer and all documentation for v0.16.0
+* 3021c05 feat: wire real-time evidence pipeline - SI, DTC, rel vol, bar accel, catalyst age, borrow fee v0.16.0
+* 2c757d3 feat: professional main scanner UI, separate advanced research dashboard v0.16.0
+* 7ba10f0 fix: update integration manifest env vars test for v0.16.0
+* fed4e5a feat: news multi-provider layer, sentiment provider, and operational wiring v0.16.0
+* a0da309 fix(api): expose frozen acceptance summary
+* 9914404 docs: clarify tracked source sanitization gap
+* 928c399 docs: record double-checked Batch 15 suite
+* 3ea1fd1 chore: align final handoff verification
+* cc1db11 fix: reject generated package metadata in releases
+* ec036a5 chore: refresh verified release metadata
+* 3ff55b9 fix: make staged release audits portable
