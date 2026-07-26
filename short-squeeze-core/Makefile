@@ -19,7 +19,7 @@
 
 .PHONY: help up up-full build dev logs logs-screener logs-gateway
 .PHONY: down stop clean clean-cache ps pull doctor doctor-json
-.PHONY: deploy deploy-sync tidy precommit install-hooks
+.PHONY: deploy deploy-sync tidy precommit precommit-quick install-hooks
 
 # ── Help ──────────────────────────────────────────────────────────────
 
@@ -41,7 +41,8 @@ help: ## Show this help
 	@printf "  \033[36mmake deploy\033[0m        Sync source + deploy to Railway\n"
 	@printf "  \033[36mmake deploy-sync\033[0m    Sync source into .railway-deploy/ only\n"
 	@printf "  \033[36mmake tidy\033[0m          Git garbage collection and cleanup\n"
-	@printf "  \033[36mmake precommit\033[0m     Run import checks and lint before committing\n"
+	@printf "  \033[36mmake precommit\033[0m         Run import checks and lint before committing\n"
+	@printf "  \033[36mmake precommit-quick\033[0m  Run import checks only (faster)\n"
 	@printf "  \033[36mmake install-hooks\033[0m  Install git pre-commit hook\n"
 	@printf "\n"
 
@@ -163,8 +164,8 @@ PRECOMMIT_IMPORTS = \
 	apps.research_screener.ibkr_gateway \
 	apps.research_screener.__main__
 
-precommit: ## Run Python import checks and verify Makefile is valid
-	@printf "\033[32m. Pre-commit checks...\033[0m\n"
+precommit-quick: ## Run Python import checks only (fast, no Makefile validation)
+	@printf "\033[32m. Import checks...\033[0m\n"
 	@fail=0; \
 	for mod in $(PRECOMMIT_IMPORTS); do \
 		printf "  \033[36mimport\033[0m  %s ... " "$$mod"; \
@@ -180,6 +181,9 @@ precommit: ## Run Python import checks and verify Makefile is valid
 		printf "\n  \033[31mFAILED\033[0m \342\200\224 fix import errors before committing.\n"; \
 		exit 1; \
 	fi
+	@printf "\n  \033[32mOK\033[0m All imports passed.\n"
+
+precommit: precommit-quick ## Run import checks and verify Makefile is valid
 	@printf "  \033[36mmake help\033[0m ... "; \
 	if make help >/dev/null 2>&1; then \
 		printf "\033[32mOK\033[0m\n"; \
