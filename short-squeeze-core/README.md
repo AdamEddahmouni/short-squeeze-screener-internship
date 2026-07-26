@@ -8,6 +8,8 @@ versioned integration API.
 The application does not place orders, access brokerage accounts, recommend trades,
 or claim predictive validation.
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/github/AdamEddahmouni/short-squeeze-screener-internship)
+
 ## Capabilities
 
 - Three runtime modes: `LOCAL_FULL`, `CLOUD_PROVIDER_MODE`, and `FROZEN_DEMO`
@@ -106,10 +108,17 @@ Normal tests use synthetic fakes and do not call live providers. See
 
 ## Containers and Railway
 
+Click the button above to deploy directly to Railway, or build locally:
+
 ```bash
 docker build -t short-squeeze-research-screener .
 docker run --rm -p 8787:8787 -e SQUEEZE_APP_MODE=FROZEN_DEMO short-squeeze-research-screener
 ```
+
+Railway will auto-detect the `railway.toml` and `Dockerfile` in the repo root.
+The deployment runs in `CLOUD_PROVIDER_MODE`, binds `0.0.0.0:$PORT`, and serves
+the live scanner at the root URL. Requires provider environment variables:
+`FINVIZ_API_KEY`, `FINNHUB_KEY`, and optionally `NEWSAPI_KEY`.
 
 See [Deployment](docs/DEPLOYMENT.md) for cloud configuration and smoke checks.
 
