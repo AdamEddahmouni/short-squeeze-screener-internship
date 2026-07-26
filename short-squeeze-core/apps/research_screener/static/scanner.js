@@ -462,9 +462,10 @@ function renderBanner(mode) {
     var b = document.createElement("div");
     b.className = "alert alert-info";
     b.style.cssText = "background:#1a2740;color:#6fa8ff;padding:8px 16px;border-left:3px solid #6fa8ff;margin:8px 0;font-size:13px";
-    b.innerHTML = "<strong>FROZEN RESEARCH MODE</strong> &mdash; Showing pre-computed research cases. Live market discovery is pending &mdash; click <strong>Refresh</strong> when IB Gateway is ready.";
+    b.innerHTML = "<strong>FROZEN RESEARCH MODE</strong> &mdash; Showing pre-computed research cases. Live market discovery unavailable on this deployment.";
     banners.appendChild(b);
   }
+  // In live mode (or empty string), no banner — clean interface for Railway
 }
 
 /* ------------------------------------------------------------------ filters */
@@ -693,68 +694,73 @@ async function loadScanner() {
   setStatus("Loading scanner...");
   var pct = Date.now();
 
-  // 1. Load frozen data FIRST — always instant, never hangs
-  var payload = await loadAndRender("/api/screener?mode=FROZEN_RESEARCH", "FROZEN");
+  // 1. Render frozen instantly so the page isn't blank — but DON'T show the frozen banner
+  var frozenPromise = loadAndRender("/api/screener?mode=FROZEN_RESEARCH", "FROZEN");
 
-  var ms = Date.now() - pct;
-  if (payload) {
-    setStatus(state.rows.length + " candidates shown [FROZEN RESEARCH] \u00b7 loaded in " + ms + "ms");
-    renderBanner("FROZEN");
+  // 2. In parallel, run live discovery — this populates the session asynchronously
+  var livePromise = (async function () {
+    try {
+      var discResp = await fetch("/api/discovery/refresh", { method: "POST" });
+      var discData = await discResp.json().catch(function(){ return {}; });
+      if (discData.discovered && discData.discovered > 0) {
+        await fetch("/api/live/refresh", { method: "POST" });
+        await fetch("/api/live/refresh", { method: "POST" });
+        await fetch("/api/live/refresh", { method: "POST" });
+      }
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 15000);
+      var resp = await fetch("/api/screener?mode=CURRENT", { signal: controller.signal });
+      clearTimeout(timeout);
+      if (resp.ok) {
+        var live = await resp.json();
+        if (live && live.rows && live.rows.length) {
+          return { ok: true, data: live };
+        }
+      }
+      return { ok: false, reason: "No live candidates returned from screener" };
+    } catch (e) {
+      return { ok: false, reason: (e.message || "error") };
+    }
+  })();
+
+  // 3. Wait for frozen to render first so user sees data instantly
+  var frozenPayload = await frozenPromise;
+  if (frozenPayload) {
+    setStatus("Frozen ready \u00b7 discovering live candidates...");
     resetRefreshTimer();
   } else {
-    setStatus("No data available \u00b7 loaded in " + ms + "ms", true);
+    setStatus("Awaiting data...", true);
     renderRows([]);
     renderHead();
-    return;
   }
 
-  // 2. Run discovery + try live data — auto-discovers candidates from IBKR
-  try {
-    // First, trigger discovery
-    setStatus("Discovering live candidates from IBKR scanner...");
-    var discResp = await fetch("/api/discovery/refresh", { method: "POST" });
-    var discData = await discResp.json().catch(function(){ return {}; });
-
-    if (discData.discovered && discData.discovered > 0) {
-      // Sync refresh populates Finviz cache globally + loads IBKR evidence
-      setStatus(discData.discovered + " candidates found. Loading data...");
-      await fetch("/api/live/refresh", { method: "POST" });
-      // Second pass to cycle through more symbols with IBKR evidence
-      await fetch("/api/live/refresh", { method: "POST" });
-      await fetch("/api/live/refresh", { method: "POST" });
+  // 4. Now wait for live to finish — if it succeeded, swap in live data
+  var liveResult = await livePromise;
+  if (liveResult.ok && liveResult.data) {
+    state.rows = liveResult.data.rows;
+    state.summary = liveResult.data.summary || null;
+    state.mode = "CURRENT";
+    state.filteredRows = applyFilters(state.rows);
+    renderSummary(state.rows);
+    renderHead();
+    renderRows(state.filteredRows);
+    updateModeUI("CURRENT");
+    renderBanner("");
+    startNewsFeed();
+    resetRefreshTimer();
+    setStatus(state.rows.length + " candidates [LIVE] \u00b7 " + (Date.now() - pct) + "ms");
+    startAutoRefresh();
+    el("auto-refresh").checked = true;
+  } else {
+    // Live didn't produce rows — keep frozen visible with a clean banner
+    if (frozenPayload) {
+      renderBanner("FROZEN");
+      var ms = Date.now() - pct;
+      setStatus(state.rows.length + " candidates [FROZEN] \u00b7 " + ms + "ms \u00b7 live: " + (liveResult.reason || "unavailable"));
     }
-
-    // Now try live screener
-    var controller = new AbortController();
-    var timeout = setTimeout(function () { controller.abort(); }, 15000);
-    var resp = await fetch("/api/screener?mode=CURRENT", { signal: controller.signal });
-    clearTimeout(timeout);
-    if (resp.ok) {
-      var live = await resp.json();
-      if (live && live.rows && live.rows.length) {
-        state.rows = live.rows;
-        state.summary = live.summary || null;
-        state.mode = "CURRENT";
-        state.filteredRows = applyFilters(state.rows);
-        renderSummary(state.rows);
-        renderHead();
-        renderRows(state.filteredRows);
-        updateModeUI("CURRENT");
-        renderBanner("CURRENT");
-        startNewsFeed();
-        resetRefreshTimer();
-        setStatus(state.rows.length + " candidates shown [LIVE] \u00b7 " + (Date.now() - pct) + "ms");
-        startAutoRefresh();
-        el("auto-refresh").checked = true;
-      } else {
-        setStatus("Discovery complete but no live candidates matched. Showing frozen research.");
-      }
-    }
-  } catch (e) {
-    setStatus("Live discovery unavailable: " + (e.message || "timeout") + ". Showing frozen research.");
   }
 
-  // 3. Load provider status bar
+  // 5. Load provider status bar
   loadProviderStatus();
 }
 
