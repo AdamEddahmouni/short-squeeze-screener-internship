@@ -35,6 +35,10 @@ on:
       # The deploy directory itself (e.g. Dockerfile, railway.toml)
       - "short-squeeze-core/.railway-deploy/**"
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -142,6 +146,18 @@ jobs:
                 echo "✅  Deployment succeeded!"
                 echo "   URL: $DEPLOY_URL"
                 echo "::notice title=Railway Deploy::$DEPLOY_URL"
+
+                # Set commit status with link to the live Railway app
+                if [ -n "$DEPLOY_URL" ]; then
+                  gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+                    -f state=success \
+                    -f target_url="$DEPLOY_URL" \
+                    -f description="Deployed to Railway" \
+                    -f context="Deploy to Railway" \
+                    --silent
+                  echo "Commit status updated → $DEPLOY_URL"
+                fi
+
                 echo "::endgroup::"
                 exit 0
                 ;;
