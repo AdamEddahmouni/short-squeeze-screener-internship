@@ -19,7 +19,7 @@
 
 .PHONY: help up up-full build dev logs logs-screener logs-gateway
 .PHONY: down stop clean clean-cache ps pull doctor doctor-json
-.PHONY: deploy deploy-sync tidy precommit precommit-quick install-hooks
+.PHONY: deploy deploy-sync tidy precommit precommit-quick install-hooks test-quick
 
 # ── Help ──────────────────────────────────────────────────────────────
 
@@ -44,6 +44,7 @@ help: ## Show this help
 	@printf "  \033[36mmake precommit\033[0m         Run import checks and lint before committing\n"
 	@printf "  \033[36mmake precommit-quick\033[0m  Run import checks only (faster)\n"
 	@printf "  \033[36mmake install-hooks\033[0m  Install git pre-commit hook\n"
+	@printf "  \033[36mmake test-quick\033[0m      Import checks + fast smoke test\n"
 	@printf "\n"
 
 # ── Up \342\200\224 both services (frozen demo + Gateway) ────────────────────────
@@ -192,6 +193,22 @@ precommit: precommit-quick ## Run import checks and verify Makefile is valid
 		exit 1; \
 	fi
 	@printf "\n  \033[32mOK\033[0m All pre-commit checks passed.\n"
+
+# ── Testing ────────────────────────────────────────────────────────
+
+test-quick: precommit-quick ## Run import checks and a fast smoke test
+	@printf "  \033[36mpytest\033[0m  smoke tests ... "; \
+	if python -m pytest tests/test_serialization.py tests/test_contract_validation.py \
+		-q --tb=short --no-header --basetemp=.pytest-tmp \
+		>/dev/null 2>&1; then \
+		printf "\033[32mOK\033[0m\n"; \
+	else \
+		printf "\033[31mFAIL\033[0m\n"; \
+		python -m pytest tests/test_serialization.py tests/test_contract_validation.py \
+			-q --tb=short --no-header --basetemp=.pytest-tmp; \
+		exit 1; \
+	fi
+	@printf "\n  \033[32mOK\033[0m Quick tests passed.\n"
 
 install-hooks: ## Install git pre-commit hook that runs 'make precommit'
 	@printf "\033[32m. Installing git pre-commit hook...\033[0m\n"
