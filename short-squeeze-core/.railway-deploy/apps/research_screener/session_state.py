@@ -667,6 +667,28 @@ def catalyst_fields(
                 readiness="DISPLAY_ONLY",
             )
 
+        headline_item = news_headlines[0]
+        if timestamps:
+            latest_ts = timestamps[0]
+            for item in news_headlines:
+                if item.get("timestamp") == latest_ts:
+                    headline_item = item
+                    break
+        headline_text = (
+            str(headline_item.get("headline") or headline_item.get("title") or "").strip()
+        )
+        if len(headline_text) > 500:
+            headline_text = headline_text[:500]
+        if headline_text:
+            fields["latest_headline"] = known(
+                headline_text, unit="HEADLINE", provider=provider_label,
+                event_time=timestamps[0] if timestamps else _iso(_now()),
+                received_time=_iso(_now()),
+                freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+                evidence_id=f"news:{state.symbol}:headline:{_iso(_now())}",
+                readiness="DISPLAY_ONLY",
+            )
+
         sentiment_result = None
         try:
             analyzer = getattr(external_providers, "_sentiment_analyzer", None)

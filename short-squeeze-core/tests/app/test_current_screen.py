@@ -217,6 +217,8 @@ def test_explicit_fake_external_providers_enrich_without_network():
     assert fields["published_short_interest"]["value"] == 14.0
     assert fields["relative_volume"]["value"] == 2.0
     assert fields["news_count"]["value"] == 1
+    assert fields["latest_headline"]["status"] == ValueStatus.KNOWN.value
+    assert fields["latest_headline"]["value"] == "AAA files deterministic test update"
     assert fields["catalyst"]["status"] == ValueStatus.UNKNOWN.value
     assert fields["float_shares"]["provider_field"] == "Float"
     assert fields["float_shares"]["selection_reason"] == "ONLY_AVAILABLE"

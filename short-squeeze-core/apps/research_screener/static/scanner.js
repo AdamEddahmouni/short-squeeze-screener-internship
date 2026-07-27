@@ -38,6 +38,36 @@ function cf(row, name) {
   return (row.fields || {})[name] || null;
 }
 
+var DTC_FIELD_CASCADE = ["days_to_cover", "short_ratio", "short_ratio_provider"];
+
+function finiteNumber(value) {
+  if (value == null || value === "") return null;
+  var n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function numericKnownValue(row, name) {
+  var cell = cf(row, name);
+  if (!cell || cell.status !== "KNOWN") return null;
+  return finiteNumber(cell.value);
+}
+
+function daysToCoverValue(row) {
+  for (var i = 0; i < DTC_FIELD_CASCADE.length; i++) {
+    var n = numericKnownValue(row, DTC_FIELD_CASCADE[i]);
+    if (n != null) return n;
+  }
+  return null;
+}
+
+function daysToCoverField(row) {
+  for (var i = 0; i < DTC_FIELD_CASCADE.length; i++) {
+    var cell = cf(row, DTC_FIELD_CASCADE[i]);
+    if (cell && cell.status === "KNOWN" && finiteNumber(cell.value) != null) return cell;
+  }
+  return cf(row, "days_to_cover");
+}
+
 function isEvaluable(row) {
   var c = classification(row);
   return c !== "UNEVALUABLE" && c !== "CONFLICTED";
@@ -132,8 +162,10 @@ function hasMissingCoreShortInterest(row) {
 }
 
 function isInsufficient(row) {
-  var cov = coveragePct(row);
-  return cov == null || cov < 40 || row.pressure == null || row.ignition == null;
+  var cat = coverageCategory(row);
+  if (cat === "insufficient" || cat === "none") return true;
+  if (row.pressure == null || row.ignition == null) return true;
+  return false;
 }
 
 function dataQuality(row) {
@@ -203,27 +235,95 @@ function classification(row) {
   return adam ? adam.classification : "UNEVALUABLE";
 }
 
-function coveragePct(row) {
-  const cov = row.methodology_coverage || {};
-  return cov.percent != null ? cov.percent : null;
+function methodologyCoverage(row) {
+  return row.methodology_coverage || {};
 }
 
-function coverageLabel(row) {
-  const pct = coveragePct(row);
-  if (pct == null) return "\u2014";
-  if (pct >= 80) return "HIGH " + pct + "%";
-  if (pct >= 60) return "MODERATE " + pct + "%";
-  if (pct >= 40) return "LOW " + pct + "%";
-  return "INSUFFICIENT " + pct + "%";
+function coverageFieldFraction(row) {
+  var cov = methodologyCoverage(row);
+  var avail = cov.total_fields_available;
+  var req = cov.total_fields_required;
+  if (avail != null && req != null && req > 0) {
+    return { available: avail, required: req };
+  }
+  var pAvail = cov.pressure_fields_available;
+  var pReq = cov.pressure_fields_required;
+  var iAvail = cov.ignition_fields_available;
+  var iReq = cov.ignition_fields_required;
+  if (pAvail != null && pReq != null && iAvail != null && iReq != null && pReq + iReq > 0) {
+    return { available: pAvail + iAvail, required: pReq + iReq };
+  }
+  return null;
+}
+
+function coveragePct(row) {
+  var cov = methodologyCoverage(row);
+  if (cov.percent != null) return cov.percent;
+  if (cov.field_coverage_percent != null) return cov.field_coverage_percent;
+  var frac = coverageFieldFraction(row);
+  if (!frac || frac.required <= 0) return null;
+  return Math.round(1000 * frac.available / frac.required) / 10;
+}
+
+function coverageCategoryShortName(category) {
+  if (!category) return null;
+  var c = String(category).toUpperCase();
+  if (c === "HIGH_COVERAGE") return "HIGH";
+  if (c === "MODERATE_COVERAGE") return "MODERATE";
+  if (c === "LOW_COVERAGE") return "LOW";
+  if (c === "INSUFFICIENT_EVIDENCE") return "INSUFFICIENT";
+  if (c === "CONFLICTED") return "CONFLICTED";
+  return c.replace(/_COVERAGE$/, "").replace(/_/g, " ");
 }
 
 function coverageCategory(row) {
-  const pct = coveragePct(row);
+  var cov = methodologyCoverage(row);
+  var cat = cov.category;
+  if (cat) {
+    var c = String(cat).toUpperCase();
+    if (c === "HIGH_COVERAGE") return "high";
+    if (c === "MODERATE_COVERAGE") return "moderate";
+    if (c === "LOW_COVERAGE") return "low";
+    if (c === "INSUFFICIENT_EVIDENCE" || c === "CONFLICTED") return "insufficient";
+  }
+  var pct = coveragePct(row);
   if (pct == null) return "none";
-  if (pct >= 80) return "high";
-  if (pct >= 60) return "moderate";
-  if (pct >= 40) return "low";
+  if (pct >= 85) return "high";
+  if (pct >= 70) return "moderate";
+  if (pct >= 50) return "low";
   return "insufficient";
+}
+
+function coverageLabel(row) {
+  var short = coverageCategoryShortName(methodologyCoverage(row).category);
+  var frac = coverageFieldFraction(row);
+  if (!frac && !short) return "\u2014";
+  var parts = [];
+  if (short) parts.push(short);
+  if (frac) parts.push(frac.available + "/" + frac.required);
+  return parts.join(" \u00b7 ");
+}
+
+function coverageTooltip(row) {
+  var cov = methodologyCoverage(row);
+  var bits = [];
+  if (cov.pressure_fields_available != null && cov.pressure_fields_required != null) {
+    bits.push("Pressure " + cov.pressure_fields_available + "/" + cov.pressure_fields_required);
+  }
+  if (cov.ignition_fields_available != null && cov.ignition_fields_required != null) {
+    bits.push("Ignition " + cov.ignition_fields_available + "/" + cov.ignition_fields_required);
+  }
+  var ruleCov = row.evidence_coverage;
+  if (ruleCov && ruleCov.label) bits.push("Rules: " + ruleCov.label);
+  else if (ruleCov && ruleCov.supported != null && ruleCov.total != null) {
+    bits.push("Rules: " + ruleCov.supported + "/" + ruleCov.total + " supported");
+  }
+  if (cov.weight_coverage_percent != null) {
+    bits.push("Weight coverage " + cov.weight_coverage_percent + "%");
+  }
+  var pct = coveragePct(row);
+  if (pct != null) bits.push("Field coverage " + pct + "%");
+  return bits.join(" \u00b7 ");
 }
 
 function sentimentLabel(row) {
@@ -258,9 +358,13 @@ var SCANNER_COLUMNS = [
   { label: "PRICE", key: "price", sortable: true },
   { label: "CHANGE %", key: "percentage_change", sortable: true, emphasis: true },
   { label: "REL VOL", key: "relative_volume", sortable: true },
+  { label: "DTC", key: "days_to_cover", sortable: true },
+  { label: "NEWS", key: "news", sortable: true },
+  { label: "SENTIMENT", key: "sentiment", sortable: true },
   { label: "PRESSURE", key: "pressure", sortable: true, emphasis: true },
   { label: "IGNITION", key: "ignition", sortable: true, emphasis: true },
-  { label: "EVIDENCE", key: "evidence_coverage", sortable: true, emphasis: true },
+  { label: "EVIDENCE", key: "evidence_coverage", sortable: true, emphasis: true,
+    headerHint: "ADAM inputs present for Pressure/Ignition scoring. Hover a cell for rules, field %, and missing buckets." },
   { label: "CLASSIFICATION", key: "classification", sortable: true, emphasis: true },
 ];
 
@@ -292,7 +396,7 @@ function valueFor(row, key) {
     }
     case "float_shares": return cv(row, "float_shares");
     case "short_float": return cv(row, "short_float");
-    case "days_to_cover": return cv(row, "days_to_cover");
+    case "days_to_cover": return daysToCoverValue(row);
     case "pressure": return row.pressure;
     case "ignition": return row.ignition;
     case "evidence_coverage": return coveragePct(row);
@@ -327,13 +431,6 @@ function cellContent(row, col) {
     var strong = document.createElement("strong");
     strong.textContent = row.symbol;
     symWrap.appendChild(strong);
-    if (row.stale) {
-      var tag = document.createElement("span");
-      tag.className = "pill pill-blocked stale-tag";
-      tag.textContent = "STALE";
-      tag.title = row.stale_reason || "";
-      symWrap.appendChild(tag);
-    }
     td.appendChild(symWrap);
     return td;
   }
@@ -380,14 +477,13 @@ function cellContent(row, col) {
 
   if (col.key === "evidence_coverage") {
     var cat = coverageCategory(row);
-    var pct = coveragePct(row);
     var evSpan = document.createElement("span");
     evSpan.className = "coverage-pill cov-" + cat;
     evSpan.textContent = coverageLabel(row);
+    var tip = coverageTooltip(row);
+    if (tip) evSpan.title = tip;
+    else if (cat === "insufficient") evSpan.title = "Insufficient evidence coverage";
     td.appendChild(evSpan);
-    if (pct != null && cat === "insufficient") {
-      evSpan.title = "Insufficient evidence coverage";
-    }
     return td;
   }
 
@@ -409,12 +505,52 @@ function cellContent(row, col) {
   }
 
   if (col.key === "news") {
+    td.classList.add("news-snippet-cell");
+    var headlineField = cf(row, "latest_headline");
+    var headlineText = headlineField && headlineField.status === "KNOWN"
+      ? String(headlineField.value || "") : "";
+    if (headlineText) {
+      var snippet = headlineText.length > 72 ? headlineText.substring(0, 69) + "..." : headlineText;
+      td.title = headlineText;
+      var newsMain = document.createElement("span");
+      newsMain.className = "news-snippet-main";
+      newsMain.textContent = snippet;
+      td.appendChild(newsMain);
+      var latestAt = cf(row, "latest_news_at");
+      if (latestAt && latestAt.status === "KNOWN" && latestAt.value) {
+        var sub = document.createElement("span");
+        sub.className = "news-snippet-ago muted";
+        sub.textContent = ago(latestAt.value) || String(latestAt.value);
+        td.appendChild(sub);
+      }
+      if (value != null && value > 1) {
+        var badge = document.createElement("span");
+        badge.className = "news-count-badge muted";
+        badge.textContent = String(value);
+        badge.title = value + " headlines";
+        td.appendChild(badge);
+      }
+      return td;
+    }
     if (value == null) {
       appendMissingLabel(td, cf(row, "news_count"), "No headlines");
       td.className = td.className + " muted";
       return td;
     }
-    td.textContent = value;
+    td.textContent = value + (value === 1 ? " headline" : " headlines");
+    return td;
+  }
+
+  if (col.key === "days_to_cover") {
+    var dtcField = daysToCoverField(row);
+    if (value == null) {
+      appendMissingLabel(td, dtcField, "No DTC");
+      td.className = td.className + " muted";
+      return td;
+    }
+    var dtcNum = Number(value);
+    td.textContent = dtcNum.toFixed(1) + "d";
+    if (dtcField && dtcField.provider) td.title = "Days to cover · " + dtcField.provider;
     return td;
   }
 
@@ -463,6 +599,39 @@ var SENTIMENT_SORT_ORDER = {
   POSITIVE: 0, MIXED: 1, NEUTRAL: 2, NEGATIVE: 3,
 };
 
+var NUMERIC_SORT_KEYS = {
+  price: true,
+  percentage_change: true,
+  relative_volume: true,
+  float_shares: true,
+  short_float: true,
+  days_to_cover: true,
+  pressure: true,
+  ignition: true,
+  evidence_coverage: true,
+  news: true,
+};
+
+function parseFilterNumber(raw) {
+  if (raw === "" || raw == null) return null;
+  var n = parseFloat(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function compareSortValues(av, bv, descending) {
+  if (av == null && bv == null) return 0;
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  var aNum = finiteNumber(av);
+  var bNum = finiteNumber(bv);
+  if (aNum != null && bNum != null) {
+    return descending ? bNum - aNum : aNum - bNum;
+  }
+  var as = String(av);
+  var bs = String(bv);
+  return descending ? bs.localeCompare(as) : as.localeCompare(bs);
+}
+
 function sortValueFor(row, key) {
   if (key === "updated") {
     var ts = row.last_updated ? Date.parse(row.last_updated) : NaN;
@@ -477,7 +646,12 @@ function sortValueFor(row, key) {
     if (!label) return null;
     return SENTIMENT_SORT_ORDER[label] != null ? SENTIMENT_SORT_ORDER[label] : 9;
   }
-  return valueFor(row, key);
+  var value = valueFor(row, key);
+  if (value != null && NUMERIC_SORT_KEYS[key]) {
+    var numeric = finiteNumber(value);
+    if (numeric != null) return numeric;
+  }
+  return value;
 }
 
 function renderHead() {
@@ -486,6 +660,7 @@ function renderHead() {
   SCANNER_COLUMNS.forEach(function (col) {
     var th = document.createElement("th");
     th.textContent = col.label;
+    if (col.headerHint) th.title = col.headerHint;
     if (col.sortable) {
       th.classList.add("sortable");
       th.setAttribute("data-key", col.key);
@@ -494,12 +669,7 @@ function renderHead() {
       }
       th.addEventListener("click", function () {
         if (state.sortKey === col.key) {
-          if (state.sortDesc) {
-            state.sortKey = null;
-            state.sortDesc = false;
-          } else {
-            state.sortDesc = true;
-          }
+          state.sortDesc = !state.sortDesc;
         } else {
           state.sortKey = col.key;
           state.sortDesc = SORT_DESC_FIRST_KEYS.indexOf(col.key) !== -1;
@@ -526,14 +696,7 @@ function sortRows(rows) {
     else known.push(row);
   });
   known.sort(function (a, b) {
-    var av = sortValueFor(a, key);
-    var bv = sortValueFor(b, key);
-    if (typeof av === "string" && typeof bv === "string") {
-      return state.sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
-    }
-    var aNum = Number(av) || 0;
-    var bNum = Number(bv) || 0;
-    return state.sortDesc ? bNum - aNum : aNum - bNum;
+    return compareSortValues(sortValueFor(a, key), sortValueFor(b, key), state.sortDesc);
   });
   return known.concat(missing);
 }
@@ -691,8 +854,7 @@ function renderBanner(mode) {
   banners.textContent = "";
   if (mode === "FROZEN") {
     var b = document.createElement("div");
-    b.className = "alert alert-info";
-    b.style.cssText = "background:#1a2740;color:#6fa8ff;padding:8px 16px;border-left:3px solid #6fa8ff;margin:8px 0;font-size:13px";
+    b.className = "banner warn";
     b.textContent = "FROZEN \u2014 pre-computed research; live discovery unavailable on this deployment.";
     banners.appendChild(b);
   }
@@ -808,16 +970,16 @@ function renderBlockerPanel(rows) {
 function applyFilters(rows) {
   var cls = el("filter-classification").value;
   var sym = el("filter-symbol").value.trim().toUpperCase();
-  var minPrice = parseFloat(el("filter-min-price").value) || null;
-  var maxPrice = parseFloat(el("filter-max-price").value) || null;
-  var minChange = parseFloat(el("filter-min-change").value) || null;
-  var minRelvol = parseFloat(el("filter-min-relvol").value) || null;
-  var minPressure = parseFloat(el("filter-min-pressure").value) || null;
-  var minIgnition = parseFloat(el("filter-min-ignition").value) || null;
-  var minCoverage = parseFloat(el("filter-min-coverage").value) || null;
+  var minPrice = parseFilterNumber(el("filter-min-price").value);
+  var maxPrice = parseFilterNumber(el("filter-max-price").value);
+  var minChange = parseFilterNumber(el("filter-min-change").value);
+  var minRelvol = parseFilterNumber(el("filter-min-relvol").value);
+  var minPressure = parseFilterNumber(el("filter-min-pressure").value);
+  var minIgnition = parseFilterNumber(el("filter-min-ignition").value);
+  var minCoverage = parseFilterNumber(el("filter-min-coverage").value);
   var newsFilter = el("filter-news").value;
   var sentimentFilter = el("filter-sentiment").value;
-  var maxFloat = parseFloat(el("filter-max-float").value) || null;
+  var maxFloat = parseFilterNumber(el("filter-max-float").value);
 
   return rows.filter(function (row) {
     if (cls && classification(row) !== cls) return false;
@@ -974,7 +1136,7 @@ async function buildDetail(symbol) {
   body.appendChild(detailGrid([
     fieldLine("Float", cv(row || {}, "float_shares") != null ? Number(cv(row || {}, "float_shares")).toLocaleString() : null),
     fieldLine("Short Float", cv(row || {}, "short_float") != null ? cv(row || {}, "short_float") + "%" : null),
-    fieldLine("Days to Cover", cv(row || {}, "days_to_cover")),
+    fieldLine("Days to Cover", daysToCoverValue(row || {})),
     fieldLine("Borrow Fee", cv(row || {}, "borrow_fee") != null ? cv(row || {}, "borrow_fee") + "%" : null),
   ]));
 
@@ -1005,6 +1167,7 @@ async function buildDetail(symbol) {
       var title = item.headline || item.title || "";
       if (item.url) {
         var link = document.createElement("a");
+        link.className = "detail-news-link";
         link.href = item.url;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
@@ -1024,6 +1187,27 @@ async function buildDetail(symbol) {
     });
   }
   body.appendChild(newsWrap);
+
+  body.appendChild(detailSection("CATALYST / SENTIMENT"));
+  var sentKnown = cf(row || {}, "sentiment");
+  var dominantSent = sentimentLabel(row);
+  if (!dominantSent && sentKnown && sentKnown.status !== "KNOWN") {
+    dominantSent = (missingLabel(sentKnown, "No sentiment") || {}).label || MISSING;
+  }
+  function knownCount(name) {
+    var f = cf(row || {}, name);
+    return f && f.status === "KNOWN" ? f.value : MISSING;
+  }
+  body.appendChild(detailGrid([
+    fieldLine("Dominant label", dominantSent || MISSING),
+    fieldLine("Positive / Neutral / Negative",
+      knownCount("sentiment_positive_count") + " / "
+      + knownCount("sentiment_neutral_count") + " / "
+      + knownCount("sentiment_negative_count")),
+    fieldLine("Headline count", newsCount(row)),
+    fieldLine("Latest headline", knownCount("latest_headline") !== MISSING
+      ? knownCount("latest_headline") : null),
+  ]));
 
   var advLink = document.createElement("p");
   var advA = document.createElement("a");
@@ -1604,6 +1788,70 @@ function setupNewsPanelControls() {
   applyNewsPanelMode(state.newsPanelMode);
 }
 
+/* ------------------------------------------------------------------ export */
+
+function screenerApiMode() {
+  return state.mode === "CURRENT" ? "CURRENT" : "FROZEN_RESEARCH";
+}
+
+async function exportSnapshot() {
+  setStatus("Exporting snapshot…");
+  try {
+    var params = new URLSearchParams({ mode: screenerApiMode() });
+    var result = await getJSON("/api/export?" + params.toString(), { method: "POST" });
+    var written = result.written || {};
+    var msg = "Exported " + result.row_count + " row(s): "
+      + (written.json || "json") + " · " + (written.csv || "csv");
+    setStatus(msg);
+    showToast(msg, false);
+  } catch (error) {
+    setStatus("Export failed: " + error.message, true);
+    showToast("Export failed: " + error.message, true);
+  }
+}
+
+function scannerCsvRecord(row) {
+  var price = cv(row, "last") || cv(row, "finviz_price") || cv(row, "finnhub_price");
+  var dtc = daysToCoverValue(row);
+  return {
+    symbol: row.symbol,
+    price: price == null ? "" : price,
+    change_pct: valueFor(row, "percentage_change") == null ? "" : valueFor(row, "percentage_change"),
+    rel_vol: valueFor(row, "relative_volume") == null ? "" : valueFor(row, "relative_volume"),
+    days_to_cover: dtc == null ? "" : dtc,
+    news: newsCount(row) == null ? "" : newsCount(row),
+    sentiment: sentimentLabel(row) || "",
+    pressure: row.pressure == null ? "" : row.pressure,
+    ignition: row.ignition == null ? "" : row.ignition,
+    evidence: coverageLabel(row),
+    classification: classification(row),
+    data_mode: screenerApiMode(),
+  };
+}
+
+function exportCsvDownload() {
+  var rows = state.filteredRows || [];
+  if (!rows.length) {
+    setStatus("No rows to export.", true);
+    showToast("No rows to export.", true);
+    return;
+  }
+  var cols = [
+    "symbol", "price", "change_pct", "rel_vol", "days_to_cover",
+    "news", "sentiment", "pressure", "ignition", "evidence", "classification", "data_mode",
+  ];
+  var lines = [cols.join(",")];
+  rows.forEach(function (row) {
+    var rec = scannerCsvRecord(row);
+    lines.push(cols.map(function (c) { return csvEscape(rec[c]); }).join(","));
+  });
+  var stem = "scanner-" + (state.mode === "CURRENT" ? "live" : "frozen") + "-" + exportTimestamp();
+  downloadBlob(stem + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
+  var msg = "Downloaded CSV (" + rows.length + " row(s).";
+  setStatus(msg);
+  showToast(msg, false);
+}
+
 /* ------------------------------------------------------------------ init */
 
 function init() {
@@ -1698,6 +1946,16 @@ function init() {
   loadScanner();
   setupNewsFeedToggles();
   setupNewsPanelControls();
+  var showNewsBtn = el("btn-show-news-panel");
+  if (showNewsBtn) {
+    showNewsBtn.addEventListener("click", function () {
+      applyNewsPanelMode("compact");
+    });
+  }
+  var exportSnapBtn = el("btn-export-snapshot");
+  if (exportSnapBtn) exportSnapBtn.addEventListener("click", exportSnapshot);
+  var exportCsvBtn = el("btn-export-csv");
+  if (exportCsvBtn) exportCsvBtn.addEventListener("click", exportCsvDownload);
   loadProviderStatus();
   loadCadenceStatus();
 }

@@ -76,6 +76,9 @@ SORT_KEYS = (
     "percentage_change",
     "last",
     "relative_volume",
+    "days_to_cover",
+    "news_count",
+    "sentiment",
     "evidence_coverage",
     "updated",
     "provider_scanner_order",
@@ -87,6 +90,8 @@ _FIELD_SORT_KEYS = {
     "percentage_change": "percentage_change",
     "last": "last",
     "relative_volume": "relative_volume",
+    "days_to_cover": "days_to_cover",
+    "news_count": "news_count",
 }
 
 
@@ -99,14 +104,44 @@ def _now() -> str:
     return datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
 
 
+def _known_field_float(row: dict[str, Any], name: str) -> float | None:
+    cell = row.get("fields", {}).get(name) or {}
+    if cell.get("status") != "KNOWN":
+        return None
+    value = cell.get("value")
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _days_to_cover_float(row: dict[str, Any]) -> float | None:
+    for name in ("days_to_cover", "short_ratio", "short_ratio_provider"):
+        value = _known_field_float(row, name)
+        if value is not None:
+            return value
+    return None
+
+
 def _sort_value(row: dict[str, Any], key: str) -> tuple[int, Any]:
     """``(missing_flag, value)``. ``missing_flag`` is 1 for absent, so missing sorts last."""
     counts = row["phase3a"]["counts"]
     if key in _FIELD_SORT_KEYS:
-        cell = row.get("fields", {}).get(_FIELD_SORT_KEYS[key]) or {}
-        value = cell.get("value")
+        if key == "days_to_cover":
+            value = _days_to_cover_float(row)
+        else:
+            value = _known_field_float(row, _FIELD_SORT_KEYS[key])
         # Missing is never coerced to zero; it is flagged and pushed to the end.
-        return (1, 0.0) if value is None else (0, float(value))
+        return (1, 0.0) if value is None else (0, value)
+    if key == "sentiment":
+        cell = row.get("fields", {}).get("sentiment") or {}
+        value = cell.get("value")
+        if value is None:
+            return (1, 9)
+        order = {"POSITIVE": 0, "MIXED": 1, "NEUTRAL": 2, "NEGATIVE": 3}
+        return (0, order.get(str(value).upper(), 9))
     if key == "updated":
         value = row.get("last_updated")
         return (1, "") if not value else (0, str(value))
@@ -142,9 +177,7 @@ def sort_rows(rows: list[dict[str, Any]], key: str, descending: bool = False) ->
 
 
 def _cell_value(row: dict[str, Any], name: str) -> float | None:
-    cell = row.get("fields", {}).get(name) or {}
-    value = cell.get("value")
-    return None if value is None else float(value)
+    return _known_field_float(row, name)
 
 
 def filter_rows(

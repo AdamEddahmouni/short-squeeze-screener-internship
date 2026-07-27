@@ -32,8 +32,8 @@ def test_scanner_contains_required_classification_labels():
 def test_scanner_contains_column_labels():
     html = (APP_STATIC / "scanner.html").read_text(encoding="utf-8")
     js = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
-    for text in ("SYMBOL", "PRICE", "CHANGE %", "REL VOL", "PRESSURE", "IGNITION",
-                 "EVIDENCE", "CLASSIFICATION"):
+    for text in ("SYMBOL", "PRICE", "CHANGE %", "REL VOL", "DTC", "NEWS", "SENTIMENT",
+                 "PRESSURE", "IGNITION", "EVIDENCE", "CLASSIFICATION"):
         assert text in html or text in js
 
 
@@ -43,9 +43,10 @@ def test_scanner_js_table_columns_trimmed_for_scan_view():
     end = script.index("/* ------------------------------------------------------------------ render table */", start)
     block = script[start:end]
     for col in ("symbol", "price", "percentage_change", "relative_volume",
+                "days_to_cover", "news", "sentiment",
                 "pressure", "ignition", "evidence_coverage", "classification"):
         assert f'key: "{col}"' in block
-    for removed in ("why_listed", "updated", "float_shares", "news", "sentiment"):
+    for removed in ("why_listed", "updated", "float_shares"):
         assert f'key: "{removed}"' not in block
 
 
@@ -75,6 +76,16 @@ def test_scanner_has_refresh_controls():
     assert "auto-refresh" in html
     assert "btn-refresh-now" in html
     assert "refresh-clock" in html
+
+
+def test_scanner_has_export_buttons():
+    html = (APP_STATIC / "scanner.html").read_text(encoding="utf-8")
+    js = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    assert "btn-export-snapshot" in html
+    assert "btn-export-csv" in html
+    assert "exportSnapshot" in js
+    assert "exportCsvDownload" in js
+    assert "/api/export" in js
 
 
 def test_scanner_has_detail_drawer_elements():
@@ -164,6 +175,22 @@ def test_scanner_js_coverage_categories():
         assert cat in script
 
 
+def test_scanner_js_reads_methodology_coverage_contract():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    for key in (
+        "methodology_coverage",
+        "total_fields_available",
+        "total_fields_required",
+        "coverageTooltip",
+        "coverageFieldFraction",
+        "HIGH_COVERAGE",
+        "MODERATE_COVERAGE",
+        "headerHint",
+        "ADAM inputs present for Pressure/Ignition scoring",
+    ):
+        assert key in script
+
+
 def test_scanner_js_sentiment_labels():
     script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
     for label in ("POSITIVE", "NEUTRAL", "NEGATIVE", "MIXED"):
@@ -198,7 +225,7 @@ def test_scanner_js_detail_sections():
     # The scanner's buildDetail shows core sections; the full set lives in the
     # advanced page (app.js / index.html). The contract verifies the scanner has
     # the sections it actually renders.
-    for section in ("HEADER", "SHORT PRESSURE", "IGNITION", "NEWS"):
+    for section in ("HEADER", "SHORT PRESSURE", "IGNITION", "NEWS", "CATALYST / SENTIMENT"):
         assert section in script
 
 
@@ -213,6 +240,41 @@ def test_scanner_js_default_sort_uses_classification():
     assert "defaultSort" in script
     assert "PRIME: 0" in script
     assert "classification" in script
+
+
+def test_scanner_js_days_to_cover_sort_uses_cascade():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    assert "daysToCoverValue" in script
+    assert "short_ratio_provider" in script
+
+
+def test_snapshot_sort_days_to_cover_coerces_strings_and_short_ratio_fallback():
+    from apps.research_screener.snapshot import sort_rows
+
+    def base(sym: str, fields: dict) -> dict:
+        return {
+            "symbol": sym,
+            "fields": fields,
+            "phase3a": {"counts": {"PASS": 0, "FAIL": 0, "UNKNOWN": 0}},
+            "research_detection": {"status": "UNEVALUABLE"},
+            "data_mode": "REALTIME",
+            "freshness": "CURRENT",
+            "evidence_coverage": {"supported": 0},
+            "last_updated": "2026-01-01T00:00:00Z",
+        }
+
+    rows = [
+        base("HIGH", {"days_to_cover": {"status": "KNOWN", "value": "15"}}),
+        base("LOW", {"days_to_cover": {"status": "KNOWN", "value": "2.5"}}),
+        base("RATIO", {
+            "days_to_cover": {"status": "NOT_CONFIGURED", "value": None},
+            "short_ratio": {"status": "KNOWN", "value": 8.0},
+        }),
+    ]
+    asc = [r["symbol"] for r in sort_rows(rows, "days_to_cover", False)]
+    assert asc == ["LOW", "RATIO", "HIGH"]
+    desc = [r["symbol"] for r in sort_rows(rows, "days_to_cover", True)]
+    assert desc == ["HIGH", "RATIO", "LOW"]
 
 
 def test_scanner_js_has_auto_refresh():

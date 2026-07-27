@@ -56,7 +56,11 @@ h3 { font-size: 14px; margin: 18px 0 8px; }
   background: var(--panel-2); font-size: 13px; color: #cfd9e6;
 }
 .banner.preview { border-left-color: var(--blocked); }
-.banner.warn { border-left-color: var(--warn); }
+.banner.warn {
+  border-left-color: var(--warn);
+  background: #3d2e10;
+  color: #ffe08a;
+}
 
 .providers { padding: 14px 20px 0; }
 .provider-strip { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -309,26 +313,42 @@ body.scanner { padding-bottom: 0; }
 #provider-bar { position: relative; }
 .provider-bar-compact {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 4px 16px; border-bottom: 1px solid var(--line);
-  background: #0d1525; font-size: 11px;
-}
-
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 4px 16px; border-bottom: 1px solid var(--line);
-  background: #0d1525; font-size: 11px;
+  padding: 6px 16px; border-bottom: 1px solid var(--line);
+  background: #0d1525; font-size: 11px; color: var(--text);
 }
 .providers-btn {
-  border: 1px solid var(--line); background: var(--panel-2); color: var(--muted);
-  padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  line-height: 1.3;
 }
-.providers-btn.warn { color: #ffca57; border-color: #7a5f1d; }
+.providers-btn:hover { border-color: var(--accent); color: var(--accent); }
+.providers-btn.warn {
+  color: #ffe08a;
+  border-color: #9a7424;
+  background: #3d2e10;
+}
+.providers-btn.warn:hover {
+  color: #fff4c4;
+  border-color: #d98c1f;
+  background: #4a3814;
+}
 .providers-popover {
   position: absolute; z-index: 20; margin-top: 4px; padding: 8px 10px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
   max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
-.providers-popover-line { font-size: 11px; margin: 4px 0; }
-.providers-advanced-link { color: var(--muted); font-size: 11px; margin-left: auto; }
+.providers-popover-line { font-size: 11px; margin: 4px 0; color: var(--text); }
+.providers-advanced-link { color: #a8b8cc; font-size: 11px; margin-left: auto; }
+.providers-advanced-link:hover { color: var(--accent); }
 
 .more-filters { margin-right: 8px; }
 .more-filters-summary {
@@ -412,6 +432,18 @@ body.scanner .status-line:not([hidden]) { margin: 6px 16px 0; }
 #scanner-table th.secondary,
 #scanner-table td.secondary { color: var(--muted); font-size: 11px; }
 #scanner-table td.primary { font-weight: 600; }
+#scanner-table th.primary:first-child,
+#scanner-table td.primary:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--panel);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.25);
+}
+#scanner-table thead th.primary:first-child {
+  z-index: 4;
+  background: var(--panel-2);
+}
 #scanner-table td.emphasis { font-size: 12.5px; }
 #scanner-table td.muted { color: var(--muted); }
 #scanner-table td.why-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -421,8 +453,31 @@ body.scanner .status-line:not([hidden]) { margin: 6px 16px 0; }
 #scanner-table td.sc-ignition { min-width: 76px; }
 #scanner-table th.sc-evidence_coverage,
 #scanner-table td.sc-evidence_coverage { min-width: 108px; }
+#scanner-table th.sc-days_to_cover,
+#scanner-table td.sc-days_to_cover { min-width: 52px; white-space: nowrap; }
 #scanner-table td.sc-news,
 #scanner-table td.sc-sentiment { max-width: 120px; }
+#scanner-table td.news-snippet-cell {
+  max-width: 140px;
+  vertical-align: top;
+}
+#scanner-table .news-snippet-main {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+#scanner-table .news-snippet-ago {
+  display: block;
+  font-size: 10px;
+  margin-top: 2px;
+}
+#scanner-table .news-count-badge {
+  display: inline-block;
+  font-size: 10px;
+  margin-left: 4px;
+}
 #scanner-table .missing-field-label {
   display: inline-block;
   max-width: 110px;
@@ -438,7 +493,6 @@ body.scanner .status-line:not([hidden]) { margin: 6px 16px 0; }
   gap: 6px;
   max-width: 100%;
 }
-.symbol-cell .stale-tag { flex-shrink: 0; }
 .cls-dot {
   flex-shrink: 0;
   width: 8px;
@@ -736,8 +790,38 @@ body.scanner .status-line:not([hidden]) { margin: 6px 16px 0; }
 /* headline list */
 .headline-list { margin: 4px 0 10px; }
 .headline-item { margin-bottom: 6px; font-size: 12px; line-height: 1.4; }
-.headline-item a { color: var(--accent); text-decoration: none; }
-.headline-item a:hover { text-decoration: underline; }
+.headline-item a { color: #8fc4ff; text-decoration: none; }
+.headline-item a:hover { color: #b8d9ff; text-decoration: underline; }
+
+/* detail drawer — news headlines */
+.detail-news-list { margin: 4px 0 12px; }
+.news-headline-line {
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.news-headline-line a,
+.detail-news-list a,
+.detail-news-link {
+  color: #8fc4ff;
+  text-decoration: none;
+  font-weight: 500;
+}
+.news-headline-line a:hover,
+.detail-news-list a:hover,
+.detail-news-link:hover {
+  color: #b8d9ff;
+  text-decoration: underline;
+}
+.news-headline-line a:visited,
+.detail-news-list a:visited,
+.detail-news-link:visited {
+  color: #a8c8f0;
+}
+.news-headline-line .muted {
+  color: #9aa8bc;
+}
 
 /* missing evidence */
 .missing-list { margin: 4px 0 10px; }
@@ -758,7 +842,12 @@ body.scanner .status-line:not([hidden]) { margin: 6px 16px 0; }
   .detail-drawer { width: 100%; max-width: 100%; }
   .scanner-summary { display: none; }
   .readiness-inline { display: none; }
-  .news-feed-panel { display: none; }
+  .news-feed-panel { max-height: 220px; width: 100%; min-width: 0; }
+  .scanner-main.news-panel-collapsed .news-feed-panel { display: none; }
+  #btn-show-news-panel { display: inline-flex; }
+}
+#btn-show-news-panel {
+  display: none;
 }
 @media (max-width: 640px) {
   .scanner-controls { gap: 4px 6px; padding: 6px 10px; }

@@ -21,6 +21,8 @@
       <button id="btn-mode-live" class="mode-toggle" type="button" title="Real-time IBKR discovery + live providers">LIVE</button>
     </div>
     <span id="scan-status-pill" class="scan-status-pill none" title="Scan readiness">—</span>
+    <button id="btn-export-snapshot" class="btn" type="button" title="Write JSON + CSV snapshot to server export folder">Export snapshot</button>
+    <button id="btn-export-csv" class="btn" type="button" title="Download current table as CSV">Export CSV</button>
     <a id="advanced-link" class="advanced-link" href="/advanced" title="Research & Diagnostics">Advanced</a>
   </div>
 </header>
@@ -103,6 +105,7 @@
     </div>
   </details>
   <div class="control-group right refresh-group">
+    <button id="btn-show-news-panel" class="btn" type="button">Show news panel</button>
     <span id="refresh-clock" class="refresh-clock muted" title="Data freshness">
       <span class="timer-dot" id="timer-dot"></span>
       <span id="timer-text">--</span>
@@ -128,7 +131,7 @@
     <table id="scanner-table">
       <thead><tr id="scanner-head"></tr></thead>
       <tbody id="scanner-body">
-        <tr><td class="muted" style="text-align:center;padding:24px">Loading…</td></tr>
+        <tr><td class="muted" colspan="11" style="text-align:center;padding:24px">Loading…</td></tr>
       </tbody>
     </table>
   </div>

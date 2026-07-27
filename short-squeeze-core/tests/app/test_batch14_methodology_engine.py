@@ -110,8 +110,36 @@ def test_adam_full_evidence_is_prime_and_matches_preregistered_weights():
     assert result.pressure == 100
     assert result.ignition == 100
     assert result.evidence_coverage["category"] == "HIGH_COVERAGE"
+    assert result.evidence_coverage["percent"] == 100.0
+    assert result.evidence_coverage["total_fields_available"] == 9
+    assert result.evidence_coverage["total_fields_required"] == 9
     assert result.metadata["pressure_supported_weight"] == 100
     assert result.metadata["ignition_supported_weight"] == 100
+
+
+def test_adam_field_coverage_percent_is_field_based_not_weight_average():
+    result = evaluate_adam(full_adam_inputs())
+    cov = result.evidence_coverage
+    assert cov["field_coverage_percent"] == 100.0
+    assert cov["weight_coverage_percent"] == 100.0
+
+
+def test_adam_typical_scanner_profile_separates_field_and_weight_coverage():
+    inputs = {
+        "published_short_interest_pct": evidence("published_short_interest_pct", 30),
+        "days_to_cover": evidence("days_to_cover", 7),
+        "float_shares": evidence("float_shares", 10_000_000),
+        "current_percentage_change": evidence("current_percentage_change", 20),
+        "relative_volume": evidence("relative_volume", 10),
+        "completed_bar_acceleration": evidence("completed_bar_acceleration", 5),
+        "catalyst_age_hours": evidence("catalyst_age_hours", 12),
+    }
+    result = evaluate_adam(inputs)
+    cov = result.evidence_coverage
+    assert cov["total_fields_available"] == 7
+    assert cov["percent"] == round(100.0 * 7 / 9, 1)
+    assert cov["percent"] != 82.5
+    assert cov["weight_coverage_percent"] == 82.5
 
 
 def test_adam_withholds_below_seventy_percent_and_excludes_display_only():

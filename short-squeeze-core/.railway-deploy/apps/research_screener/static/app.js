@@ -29,7 +29,9 @@ const FROZEN_COLUMNS = [
   ["Reference price", "f:reference_price"], ["% change", "f:percentage_change"],
   ["Rel. volume", "f:relative_volume"], ["Float", "f:float_shares"],
   ["Short float", "f:short_float"], ["Borrow fee", "f:borrow_fee"],
-  ["Borrow avail.", "f:borrow_availability"], ["News / catalyst", "f:catalyst"],
+  ["Borrow avail.", "f:borrow_availability"],
+  ["News", "f:news_count"], ["Latest headline", "f:latest_headline"],
+  ["News / catalyst", "f:catalyst"],
   ["Sentiment", "f:sentiment"], ["Phase 3A", "phase3a"],
   ["Research detection", "detection"], ["Outcome", "outcome"],
   ["Evidence coverage", "coverage"], ["Freshness", "freshness"], ["Last updated", "updated"],
@@ -40,12 +42,13 @@ const CURRENT_COLUMNS = [
   ["Last", "f:last"], ["Bid", "f:bid"], ["Ask", "f:ask"],
   ["Prev close", "f:previous_close"], ["% change", "f:percentage_change"],
   ["Rel. volume", "f:relative_volume"], ["Float", "f:float_shares"],
-  ["Shares out.", "f:shares_outstanding"], ["Short float", "f:short_float"],
-  ["Short ratio", "f:short_ratio"], ["Published SI", "f:published_short_interest"],
+  ["Shares out.", "f:shares_outstanding"],   ["Short float", "f:short_float"],
+  ["Short ratio", "f:short_ratio"], ["Days to cover", "f:days_to_cover"],
+  ["Published SI", "f:published_short_interest"],
   ["Borrow fee", "f:borrow_fee"], ["Shortability", "f:shortable"],
   ["Shortable shares", "f:borrow_availability"], ["News", "f:news_count"],
-  ["Latest HN", "f:latest_news_at"], ["Catalyst", "f:catalyst"],
-  ["Sentiment", "f:sentiment"], ["Phase 3A", "phase3a"],
+  ["Latest headline", "f:latest_headline"], ["Latest HN", "f:latest_news_at"],
+  ["Catalyst", "f:catalyst"], ["Sentiment", "f:sentiment"], ["Phase 3A", "phase3a"],
   ["Research detection", "detection"], ["Evidence coverage", "coverage"],
   ["Freshness", "freshness"], ["Updated", "updated"],
 ];
@@ -202,14 +205,6 @@ function cellFor(row, key) {
       const strong = document.createElement("strong");
       strong.textContent = row.symbol;
       td.appendChild(strong);
-      if (row.stale) {
-        const tag = document.createElement("span");
-        tag.className = "pill pill-blocked";
-        tag.style.marginLeft = "6px";
-        tag.textContent = "STALE";
-        tag.title = row.stale_reason || "";
-        td.appendChild(tag);
-      }
       if (row.scan_membership_label) {
         const tag = document.createElement("span");
         tag.className = "pill pill-neutral";
@@ -693,6 +688,19 @@ function comparisonValue(row, key) {
   return row.symbol;
 }
 
+function compareComparisonValues(av, bv, descending) {
+  if (av == null && bv == null) return 0;
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  const aNum = Number(av);
+  const bNum = Number(bv);
+  if (Number.isFinite(aNum) && Number.isFinite(bNum)) {
+    return descending ? bNum - aNum : aNum - bNum;
+  }
+  const order = String(av).localeCompare(String(bv));
+  return descending ? -order : order;
+}
+
 function comparisonRowsForView() {
   const classification = el("comparison-classification").value;
   const trendFilter = el("comparison-trend").value;
@@ -705,13 +713,11 @@ function comparisonRowsForView() {
   });
   const known = rows.filter((row) => comparisonValue(row, key) != null);
   const missing = rows.filter((row) => comparisonValue(row, key) == null);
-  known.sort((a, b) => {
-    const av = comparisonValue(a, key);
-    const bv = comparisonValue(b, key);
-    const order = typeof av === "number" && typeof bv === "number"
-      ? av - bv : String(av).localeCompare(String(bv));
-    return descending ? -order : order;
-  });
+  known.sort((a, b) => compareComparisonValues(
+    comparisonValue(a, key),
+    comparisonValue(b, key),
+    descending,
+  ));
   missing.sort((a, b) => a.symbol.localeCompare(b.symbol));
   return known.concat(missing);
 }
@@ -1232,6 +1238,16 @@ async function doExport() {
   }
 }
 
+function doExportCsv() {
+  if (!state.rows.length) {
+    setStatus("No rows to export.", true);
+    return;
+  }
+  const stem = `research-screener-${state.mode.toLowerCase()}-${exportTimestamp()}`;
+  downloadBlob(stem + ".csv", researchRowsToCsv(state.rows), "text/csv;charset=utf-8");
+  setStatus(`Downloaded CSV (${state.rows.length} row(s).`);
+}
+
 /* ---------------------------------------------------------------------- wire */
 
 function setMode(mode) {
@@ -1305,6 +1321,7 @@ function init() {
   el("auto-refresh").addEventListener("change", (event) => setAutoRefresh(event.target.checked));
   el("btn-refresh").addEventListener("click", () => { loadHealth(); loadScreener(); });
   el("btn-export").addEventListener("click", doExport);
+  el("btn-export-csv").addEventListener("click", doExportCsv);
   el("btn-more-filters").addEventListener("click", () => {
     const node = el("advanced-filters");
     node.hidden = !node.hidden;

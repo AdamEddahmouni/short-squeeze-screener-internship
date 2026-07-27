@@ -105,16 +105,16 @@ def evaluate_adam(inputs: dict[str, EvidenceInput], *, as_of: str | None = None)
     ignition, iw, ic, im, idisplay = _dimension(
         IGNITION, inputs, critical=ignition_critical
     )
-    coverage_pct = round((pw + iw) / 2.0, 4)
+    weight_coverage_pct = round((pw + iw) / 2.0, 4)
     if conflicts:
         coverage = CoverageCategory.CONFLICTED
     elif not (pressure_critical and ignition_critical):
         coverage = CoverageCategory.INSUFFICIENT
-    elif coverage_pct >= 85 and pressure is not None and ignition is not None:
+    elif weight_coverage_pct >= 85 and pressure is not None and ignition is not None:
         coverage = CoverageCategory.HIGH
-    elif coverage_pct >= 70 and pressure is not None and ignition is not None:
+    elif weight_coverage_pct >= 70 and pressure is not None and ignition is not None:
         coverage = CoverageCategory.MODERATE
-    elif coverage_pct >= 50:
+    elif weight_coverage_pct >= 50:
         coverage = CoverageCategory.LOW
     else:
         coverage = CoverageCategory.INSUFFICIENT
@@ -138,6 +138,13 @@ def evaluate_adam(inputs: dict[str, EvidenceInput], *, as_of: str | None = None)
         key for key in (*PRESSURE, *IGNITION) if _eligible(inputs.get(key), key)
     )
     missing = tuple(dict.fromkeys([*pm, *im]))
+    total_fields_required = len(PRESSURE) + len(IGNITION)
+    total_fields_available = len(used)
+    field_coverage_percent = (
+        None
+        if total_fields_required <= 0
+        else round(100.0 * total_fields_available / total_fields_required, 1)
+    )
     return MethodologyResult(
         methodology_id=ADAM_POLICY_ID,
         methodology_version="1.0.0",
@@ -148,13 +155,15 @@ def evaluate_adam(inputs: dict[str, EvidenceInput], *, as_of: str | None = None)
         ignition=ignition,
         evidence_coverage={
             "category": str(coverage),
-            "percent": coverage_pct,
+            "percent": field_coverage_percent,
+            "field_coverage_percent": field_coverage_percent,
+            "weight_coverage_percent": weight_coverage_pct,
             "pressure_fields_available": len(PRESSURE) - len(pm),
             "pressure_fields_required": len(PRESSURE),
             "ignition_fields_available": len(IGNITION) - len(im),
             "ignition_fields_required": len(IGNITION),
-            "total_fields_available": len(used),
-            "total_fields_required": len(PRESSURE) + len(IGNITION),
+            "total_fields_available": total_fields_available,
+            "total_fields_required": total_fields_required,
             "critical_domains_present": pressure_critical and ignition_critical,
             "provider_conflicts": bool(conflicts),
         },

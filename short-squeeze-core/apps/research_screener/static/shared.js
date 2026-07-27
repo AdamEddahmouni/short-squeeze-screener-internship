@@ -96,6 +96,128 @@ async function getCachedNews(symbol) {
   }
 }
 
+function csvEscape(value) {
+  if (value == null || value === "") return "";
+  const s = String(value);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function downloadBlob(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType || "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportTimestamp() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    d.getFullYear()
+    + pad(d.getMonth() + 1)
+    + pad(d.getDate())
+    + "T"
+    + pad(d.getHours())
+    + pad(d.getMinutes())
+    + pad(d.getSeconds())
+    + "Z"
+  );
+}
+
+const RESEARCH_CSV_FIELD_NAMES = [
+  "reference_price", "percentage_change", "relative_volume", "float_shares",
+  "short_float", "short_ratio", "shares_outstanding",
+  "borrow_fee", "borrow_availability", "catalyst", "news_count", "sentiment",
+  "sentiment_positive_count", "sentiment_neutral_count", "sentiment_negative_count",
+  "sentiment_model_id", "latest_news_at", "latest_headline",
+  "last", "bid", "ask", "previous_close", "open", "high", "low",
+  "historical_close", "provider_volume", "shortable",
+  "published_short_interest", "days_to_cover",
+];
+
+const RESEARCH_CSV_COLUMNS = [
+  "symbol", "data_mode", "mode_label", "case_id", "candidate_id", "event_timestamp",
+  "provider", "discovery_profile", "market_data_mode", "first_seen_at", "snapshot_at",
+  "stale", "stale_reason", "reference_price", "reference_price_status",
+  "reference_price_missing_reason", "last", "last_status", "bid", "bid_status", "ask",
+  "ask_status", "previous_close", "previous_close_status", "open", "open_status", "high",
+  "high_status", "low", "low_status", "historical_close", "historical_close_status",
+  "provider_volume", "provider_volume_status", "shortable", "shortable_status",
+  "published_short_interest", "published_short_interest_status", "days_to_cover",
+  "days_to_cover_status", "percentage_change", "percentage_change_status",
+  "percentage_change_missing_reason", "relative_volume", "relative_volume_status",
+  "float_shares", "float_shares_status", "short_float", "short_float_status",
+  "short_ratio", "short_ratio_status", "shares_outstanding", "shares_outstanding_status",
+  "borrow_fee", "borrow_fee_status", "borrow_availability", "borrow_availability_status",
+  "catalyst", "catalyst_status", "news_count", "news_count_status", "latest_news_at",
+  "latest_news_at_status", "latest_headline", "latest_headline_status", "sentiment",
+  "sentiment_status", "sentiment_positive_count", "sentiment_positive_count_status",
+  "sentiment_neutral_count", "sentiment_neutral_count_status", "sentiment_negative_count",
+  "sentiment_negative_count_status", "sentiment_model_id", "sentiment_model_id_status",
+  "pass_count", "fail_count", "unknown_count", "evidence_coverage", "research_detection",
+  "outcome_status", "freshness", "global_preflight_status", "phase3a_request_id",
+  "phase3a_result_id",
+];
+
+function researchField(row, name) {
+  return (row.fields || {})[name] || {};
+}
+
+function researchRowToCsvRecord(row) {
+  const counts = (row.phase3a && row.phase3a.counts) || {};
+  const pctField = researchField(row, "percentage_change");
+  const record = {
+    symbol: row.symbol,
+    data_mode: row.data_mode,
+    mode_label: row.mode_label || "",
+    case_id: row.case_id || "",
+    candidate_id: row.candidate_id || "",
+    event_timestamp: row.last_updated || "",
+    provider: pctField.provider || row.provider || "",
+    discovery_profile: row.discovery_profile || "",
+    market_data_mode: row.market_data_mode || "",
+    first_seen_at: row.first_seen_at || "",
+    snapshot_at: row.snapshot_at || "",
+    stale: row.stale == null ? "" : String(Boolean(row.stale)),
+    stale_reason: row.stale_reason || "",
+    pass_count: counts.PASS || 0,
+    fail_count: counts.FAIL || 0,
+    unknown_count: counts.UNKNOWN || 0,
+    evidence_coverage: (row.evidence_coverage && row.evidence_coverage.label) || "",
+    research_detection: (row.research_detection && row.research_detection.status) || "",
+    outcome_status: (row.outcome && row.outcome.status) || "",
+    freshness: row.freshness || "",
+    global_preflight_status: row.global_preflight_status || "",
+    phase3a_request_id: "",
+    phase3a_result_id: "",
+  };
+  RESEARCH_CSV_FIELD_NAMES.forEach((name) => {
+    const field = researchField(row, name);
+    record[name] = field.value == null ? "" : field.value;
+    record[name + "_status"] = field.status || "";
+    if (name === "percentage_change") {
+      record.percentage_change_missing_reason = field.missing_reason || "";
+    }
+    if (name === "reference_price") {
+      record.reference_price_missing_reason = field.missing_reason || "";
+    }
+  });
+  return record;
+}
+
+function researchRowsToCsv(rows) {
+  const lines = [RESEARCH_CSV_COLUMNS.join(",")];
+  rows.forEach((row) => {
+    const record = researchRowToCsvRecord(row);
+    lines.push(RESEARCH_CSV_COLUMNS.map((col) => csvEscape(record[col])).join(","));
+  });
+  return lines.join("\n");
+}
+
 function showToast(message, isError, durationMs) {
   let container = document.getElementById("toast-container");
   if (!container) {
