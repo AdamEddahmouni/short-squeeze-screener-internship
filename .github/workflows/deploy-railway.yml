@@ -73,6 +73,7 @@ jobs:
       - name: Wait for deployment to complete
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           # Public domain for post-deploy smoke (project tokens cannot list all projects)
           DEPLOY_URL: https://short-squeeze-screener-production.up.railway.app
         working-directory: short-squeeze-core/.railway-deploy
@@ -102,12 +103,12 @@ jobs:
               continue
             fi
 
-            echo "[$(date -u +%H:%M:%S)] $DEPLOYMENT_ID — $STATUS"
+            echo "[$(date -u +%H:%M:%S)] $DEPLOYMENT_ID - $STATUS"
 
             case "$STATUS" in
               SUCCESS)
                 echo ""
-                echo "✅  Deployment succeeded!"
+                echo "Deployment succeeded!"
                 echo "   URL: $DEPLOY_URL"
                 echo "::notice title=Railway Deploy::$DEPLOY_URL"
 
@@ -116,8 +117,8 @@ jobs:
                   -f target_url="$DEPLOY_URL" \
                   -f description="Deployed to Railway" \
                   -f context="Deploy to Railway" \
-                  --silent
-                echo "Commit status updated → $DEPLOY_URL"
+                  --silent || echo "Commit status update skipped"
+                echo "Commit status updated -> $DEPLOY_URL"
 
                 echo ""
                 echo "--- Health check ---"
