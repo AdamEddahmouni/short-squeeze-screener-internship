@@ -9,9 +9,8 @@ Combines:
 Then runs the Phase 2D readiness evaluation on each bundle.
 
 **Performance note:** ``build_point_in_time_evidence`` calls ``build_conflicts``
-which does O(n^2) pair comparisons across all bar observations (~2.7M per
-symbol with ~1 200 bars). Expect ~30-60 seconds per symbol.  Total: ~7-13
-minutes for all 13 symbols.
+which does O(n^2) pair comparisons across all bar observations (~7M per
+symbol with ~1 400 bars).  Symbols are processed in parallel by default.
 
 Each bundle is written to ``build/acquisition/evidence-bundles/`` immediately
 after construction so progress is never lost.  Re-run to resume without
@@ -21,16 +20,28 @@ Outcome-blind: no forward bars, no outcome data.
 
 Usage (from repository root)::
 
+    # Parallel (default — uses all CPU cores)
     python scripts/acquisition/build_evidence_bundles.py
+
+    # Sequential (original behaviour)
+    python scripts/acquisition/build_evidence_bundles.py --sequential
+
+    # Control parallelism
+    python scripts/acquisition/build_evidence_bundles.py --workers 4
 """
 
 from __future__ import annotations
 
+import argparse
+import concurrent.futures
+import contextlib
+import io
 import json
+import os
 import time as time_module
 from datetime import datetime, timezone
-from pathlib import Path
 from decimal import Decimal
+from pathlib import Path
 
 from squeeze_core.contracts import (
     AssetClass, DataFreshness, EventType, IngestionMethod,
@@ -114,7 +125,6 @@ def build_market_snapshot_observation(
             Decimal(str(evidence["change_percent"]))
             if evidence.get("change_percent") is not None else None
         ),
-        # volume and average_volume are not available in the scanner snapshot data.
         volume=None,
         average_volume=None,
         relative_volume=(
@@ -201,10 +211,6 @@ def try_load_catalyst_evidence(symbol: str) -> tuple[Observation, ...]:
     be performed in a separate step with the existing adapter infrastructure
     (squeeze_core.adapters.news, squeeze_core.adapters.sec_edgar).
     """
-    # Placeholder: returns empty. Catalyst evidence is deferred to a future step.
-    # When online acquisition is available, call:
-    #   news_adapter.fetch(symbol, before=BOUNDARY_TS)
-    #   sec_adapter.fetch(symbol, before=BOUNDARY_TS)
     return ()
 
 
@@ -246,93 +252,171 @@ def process_symbol(
     *,
     force: bool = False,
 ) -> dict | None:
-    """Build one evidence bundle, write it to disk, and return the readiness summary."""
+    """Build one evidence bundle, write it to disk, and return the readiness summary.
+
+    Also writes ``build-log.txt`` (same text as printed to stdout) and
+    ``build-metadata.json`` with per-phase timing breakdown.
+    """
     build_dir = BUILD_DIR / symbol
     bundle_path = build_dir / "bundle.json"
     summary_path = build_dir / "summary.json"
     metadata_path = build_dir / "build-metadata.json"
 
-    # Resume check -- skip if already complete.
-    if not force and bundle_path.exists() and summary_path.exists():
-        summary = json.loads(summary_path.read_bytes())
-        print(f"  [{symbol:6s}] SKIP (already built: {summary.get('bundle_id', '?')})")
-        return summary
+    # Capture all stdout during this call so it can be written to build-log.txt.
+    _stdout_capture = io.StringIO()
 
-    t_start = time_module.time()
-    print(f"  [{symbol:6s}] Loading bars ... ", end="", flush=True)
-    bar_observations = load_bars(symbol)
-    if not bar_observations:
-        print("NO BARS -- skipped")
+    def _p(*args, **kwargs):
+        """print() wrapper that flushes reliably for both real and captured stdout."""
+        kwargs.setdefault("flush", True)
+        print(*args, **kwargs)
+
+    with contextlib.redirect_stdout(_stdout_capture):
+        # Resume check -- skip if already complete.
+        if not force and bundle_path.exists() and summary_path.exists():
+            summary = json.loads(summary_path.read_bytes())
+            _p(f"  [{symbol:6s}] SKIP (already built: {summary.get('bundle_id', '?')})")
+            # Flush captured output to build-log.txt before returning.
+            build_dir.mkdir(parents=True, exist_ok=True)
+            (build_dir / "build-log.txt").write_text(_stdout_capture.getvalue(), encoding="utf-8")
+            return summary
+
+        t_start = time_module.time()
+        phases: dict[str, float] = {}
+
+        _p(f"  [{symbol:6s}] Loading bars ... ", end="")
+        bar_observations = load_bars(symbol)
+        if not bar_observations:
+            _p("NO BARS -- skipped")
+            build_dir.mkdir(parents=True, exist_ok=True)
+            (build_dir / "build-log.txt").write_text(_stdout_capture.getvalue(), encoding="utf-8")
+        (build_dir / "build-metadata.json").write_text(
+            json.dumps({
+                "symbol": symbol,
+                "built_at": datetime.now(UTC).isoformat(),
+                "status": "skipped_no_bars",
+            }, indent=2),
+            encoding="utf-8",
+        )
         return None
 
-    evidence = discovery_data.get(symbol, {})
-    snapshot = build_market_snapshot_observation(symbol, evidence, 1)
-    catalyst = try_load_catalyst_evidence(symbol)
-    observations = bar_observations + (snapshot,) + catalyst
+        phases["load_bars_s"] = time_module.time() - t_start
 
-    print(f"{len(bar_observations)} bars, building PITE bundle ... ", end="", flush=True)
+        evidence = discovery_data.get(symbol, {})
+        snapshot = build_market_snapshot_observation(symbol, evidence, 1)
+        catalyst = try_load_catalyst_evidence(symbol)
+        observations = bar_observations + (snapshot,) + catalyst
 
-    as_of = max(BOUNDARY_TS, RETRIEVAL_TS)
-    policy = PointInTimeEvidencePolicy(
-        as_of=as_of,
-        maximum_future_skew_ms=60_000,
-        allow_stale=True,
-        allow_delayed=True,
-        allow_unknown_freshness=True,
-        include_market_bars_domain=True,
-    )
+        _p(f"{len(bar_observations)} bars, building PITE bundle ... ", end="")
 
-    bundle = build_point_in_time_evidence(
-        symbol=symbol,
-        observations=observations,
-        policy=policy,
-    )
-    print("readiness ... ", end="", flush=True)
-    summary = readiness_summary(symbol, bundle)
-    t_done = time_module.time()
+        as_of = max(BOUNDARY_TS, RETRIEVAL_TS)
+        policy = PointInTimeEvidencePolicy(
+            as_of=as_of,
+            maximum_future_skew_ms=60_000,
+            allow_stale=True,
+            allow_delayed=True,
+            allow_unknown_freshness=True,
+            include_market_bars_domain=True,
+        )
 
-    build_dir.mkdir(parents=True, exist_ok=True)
-    bundle_path.write_text(
-        json.dumps(_serialisable(bundle.model_dump()), indent=2, ensure_ascii=False)
-    )
-    summary_path.write_text(
-        json.dumps(summary, indent=2, ensure_ascii=False)
-    )
-    metadata_path.write_text(
-        json.dumps({
-            "symbol": symbol,
-            "built_at": datetime.now(UTC).isoformat(),
-            "elapsed_s": round(t_done - t_start, 1),
-        }, indent=2)
-    )
+        t_build_start = time_module.time()
+        bundle = build_point_in_time_evidence(
+            symbol=symbol,
+            observations=observations,
+            policy=policy,
+        )
+        phases["build_bundle_s"] = time_module.time() - t_build_start
 
-    print(f"done ({t_done - t_start:.1f}s)")
-    print(f"         Bundle: {bundle.bundle_id}")
-    print(f"         Observations: {bundle.completeness_summary.included_observation_count} "
-          f"included / {bundle.completeness_summary.excluded_observation_count} excluded")
-    present = [d for d in bundle.source_coverage if d.state.value == "PRESENT"]
-    missing = [d for d in bundle.source_coverage if d.state.value == "MISSING"]
-    if present:
-        print(f"         Present domains: {', '.join(d.domain.value for d in present)}")
-    if missing:
-        print(f"         Missing domains: {', '.join(d.domain.value for d in missing)}")
-    fresh = bundle.freshness_summary
-    print(f"         Freshness: {fresh.historical_count} historical, "
-          f"{fresh.live_count} live, {fresh.delayed_count} delayed, "
-          f"{fresh.stale_count} stale")
-    print(f"         Written to: {build_dir}")
+        _p("readiness ... ", end="")
+        summary = readiness_summary(symbol, bundle)
+        t_done = time_module.time()
+        phases["total_s"] = t_done - t_start
+
+        build_dir.mkdir(parents=True, exist_ok=True)
+
+        t_ser_start = time_module.time()
+        bundle_path.write_text(
+            json.dumps(_serialisable(bundle.model_dump()), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        summary_path.write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        metadata_path.write_text(
+            json.dumps({
+                "symbol": symbol,
+                "built_at": datetime.now(UTC).isoformat(),
+                "elapsed_s": round(t_done - t_start, 1),
+                "phases": {k: round(v, 1) for k, v in phases.items()},
+                "bar_count": len(bar_observations),
+                "included_count": bundle.completeness_summary.included_observation_count,
+                "excluded_count": bundle.completeness_summary.excluded_observation_count,
+                "conflict_count": len(bundle.conflicts),
+                "diagnostic_count": len(bundle.diagnostics),
+            }, indent=2),
+            encoding="utf-8",
+        )
+        phases["serialize_s"] = time_module.time() - t_ser_start
+
+        _p(f"done ({t_done - t_start:.1f}s)")
+        _p(f"         Bundle: {bundle.bundle_id}")
+        _p(f"         Observations: {bundle.completeness_summary.included_observation_count} "
+           f"included / {bundle.completeness_summary.excluded_observation_count} excluded")
+        present = [d for d in bundle.source_coverage if d.state.value == "PRESENT"]
+        missing = [d for d in bundle.source_coverage if d.state.value == "MISSING"]
+        if present:
+            _p(f"         Present domains: {', '.join(d.domain.value for d in present)}")
+        if missing:
+            _p(f"         Missing domains: {', '.join(d.domain.value for d in missing)}")
+        fresh = bundle.freshness_summary
+        _p(f"         Freshness: {fresh.historical_count} historical, "
+           f"{fresh.live_count} live, {fresh.delayed_count} delayed, "
+           f"{fresh.stale_count} stale")
+        _p(f"         Phases: load={phases.get('load_bars_s', 0):.1f}s "
+           f"build={phases.get('build_bundle_s', 0):.1f}s "
+           f"serialize={phases.get('serialize_s', 0):.1f}s")
+        _p(f"         Written to: {build_dir}")
+
+        # Write build-log.txt with captured output.
+        (build_dir / "build-log.txt").write_text(_stdout_capture.getvalue(), encoding="utf-8")
 
     return summary
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Construct evidence bundles for all 13 IBKR pilot symbols."
+    )
+    parser.add_argument(
+        "--sequential", action="store_true",
+        help="Run sequentially (one symbol at a time). Default: parallel."
+    )
+    parser.add_argument(
+        "--workers", type=int, default=0,
+        help="Number of parallel workers (default: CPU count, capped at symbol count)."
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     discovery_data = load_discovery_data()
     results: list[dict] = []
     all_ok = True
 
+    max_workers: int | None
+    if args.sequential:
+        max_workers = 1
+    elif args.workers > 0:
+        max_workers = args.workers
+    else:
+        max_workers = min(len(SYMBOLS), os.cpu_count() or 4)
+
     print("=" * 74)
     print("  Phase 3E Stage 1 - Evidence Bundle Construction")
-    print("  (O(n^2) conflict detection; expect ~30-60s per symbol)")
+    print("  (O(n^2) conflict detection — expect ~30-60s per symbol)")
+    print(f"  Mode: {'SEQUENTIAL' if args.sequential else 'PARALLEL'}"
+          f"{'' if args.sequential else f' ({max_workers} workers)'}")
     print("  Re-run to resume without reprocessing completed symbols.")
     print("=" * 74)
     print(f"  Boundary:         {BOUNDARY_TS.isoformat()}")
@@ -341,12 +425,46 @@ def main() -> int:
     print(f"  Output directory: {BUILD_DIR}")
     print()
 
-    for symbol in SYMBOLS:
-        summary = process_symbol(symbol, discovery_data)
-        if summary is None:
-            all_ok = False
-        else:
-            results.append(summary)
+    if args.sequential or max_workers == 1:
+        # ── Sequential mode (original behaviour, one symbol at a time) ──
+        for symbol in SYMBOLS:
+            summary = process_symbol(symbol, discovery_data)
+            if summary is None:
+                all_ok = False
+            else:
+                results.append(summary)
+            print()
+    else:
+        # ── Parallel mode ──
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            future_to_symbol: dict[concurrent.futures.Future, str] = {}
+            for symbol in SYMBOLS:
+                future = executor.submit(process_symbol, symbol, discovery_data)
+                future_to_symbol[future] = symbol
+
+            remaining = len(future_to_symbol)
+            for future in concurrent.futures.as_completed(future_to_symbol):
+                remaining -= 1
+                symbol = future_to_symbol[future]
+                try:
+                    summary = future.result()
+                    if summary is None:
+                        all_ok = False
+                        print(f"  [{symbol:6s}] SKIPPED (no bars)  — {remaining} remaining")
+                    else:
+                        results.append(summary)
+                        inc = summary.get("included_count", 0)
+                        exc = summary.get("excluded_count", 0)
+                        doms = ", ".join(
+                            d for d, _ in summary.get("present_domains", [])
+                        )
+                        print(f"  [{symbol:6s}] DONE  — {inc} incl / {exc} excl"
+                              f"  — {doms}"
+                              f"  — {remaining} remaining")
+                except Exception as exc:
+                    print(f"  [{symbol:6s}] FAILED: {exc}  — {remaining} remaining")
+                    all_ok = False
+
         print()
 
     print("=" * 74)
