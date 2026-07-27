@@ -281,6 +281,8 @@ def _conflict(
 
 
 def _is_revision_pair(left: SemanticValue, right: SemanticValue) -> bool:
+    if left.observation.provenance.provider != right.observation.provenance.provider:
+        return False
     if left.observation.observation_id in right.observation.parent_observation_ids:
         return True
     if right.observation.observation_id in left.observation.parent_observation_ids:
@@ -440,18 +442,18 @@ def build_conflicts(
                 item.observation.observation_id,
             ),
         )
+        is_published_field = field.startswith("published_")
+        is_sec_field = field.startswith("sec_")
+        is_halt_field = field.startswith("halt_")
+        is_bar_field = field.startswith("bar_")
+        is_trade_field = field.startswith("trade_")
+        is_quote_field = field.startswith("quote_")
+        is_period_keyed = is_published_field or is_sec_field or is_halt_field or is_bar_field or is_trade_field or is_quote_field
         for left, right in combinations(values, 2):
-            is_published_field = field.startswith("published_")
-            is_sec_field = field.startswith("sec_")
-            is_halt_field = field.startswith("halt_")
-            is_bar_field = field.startswith("bar_")
-            is_trade_field = field.startswith("trade_")
-            is_quote_field = field.startswith("quote_")
-            is_period_keyed = is_published_field or is_sec_field or is_halt_field or is_bar_field or is_trade_field or is_quote_field
             if is_period_keyed and _is_revision_pair(left, right):
                 continue
             if is_period_keyed and left.comparison_period != right.comparison_period:
-                if is_trade_field or is_quote_field:
+                if is_trade_field or is_quote_field or is_bar_field:
                     continue
                 conflicts.append(
                     _conflict(left, right, ConflictClassification.TEMPORAL_DIFFERENCE)

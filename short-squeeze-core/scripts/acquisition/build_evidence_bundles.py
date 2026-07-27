@@ -289,15 +289,15 @@ def process_symbol(
             _p("NO BARS -- skipped")
             build_dir.mkdir(parents=True, exist_ok=True)
             (build_dir / "build-log.txt").write_text(_stdout_capture.getvalue(), encoding="utf-8")
-        (build_dir / "build-metadata.json").write_text(
-            json.dumps({
-                "symbol": symbol,
-                "built_at": datetime.now(UTC).isoformat(),
-                "status": "skipped_no_bars",
-            }, indent=2),
-            encoding="utf-8",
-        )
-        return None
+            (build_dir / "build-metadata.json").write_text(
+                json.dumps({
+                    "symbol": symbol,
+                    "built_at": datetime.now(UTC).isoformat(),
+                    "status": "skipped_no_bars",
+                }, indent=2),
+                encoding="utf-8",
+            )
+            return None
 
         phases["load_bars_s"] = time_module.time() - t_start
 
