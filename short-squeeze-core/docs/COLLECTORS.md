@@ -2,6 +2,8 @@
 
 Background collectors run alongside the live screener auto-refresh loop. They harvest **lawful supplemental evidence** (public FINRA files, SEC/RSS, configured REST APIs) and merge it into row cells through the same `FieldValue` provenance model.
 
+Operational recipes: [how-to-guides.md](how-to-guides.md#operate-collectors). Variable defaults also appear in [CONFIGURATION.md](CONFIGURATION.md).
+
 ## Policy
 
 | Tier | Sources | Default |

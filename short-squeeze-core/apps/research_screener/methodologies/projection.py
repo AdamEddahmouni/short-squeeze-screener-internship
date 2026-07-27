@@ -52,17 +52,45 @@ def evidence_from_row(row: dict[str, Any]) -> dict[str, EvidenceInput]:
     }
     borrow = _cell(row, "borrow_availability")
     float_item = inputs["float_shares"]
+    # Both legs must be present and research-admissible; prefer missingness over
+    # inventing a ratio from display-only provenance.
     if borrow.value is not None and float_item.value not in (None, 0):
+        both_admissible = bool(
+            borrow.research_admissible and float_item.research_admissible
+        )
         inputs["borrow_availability_pct_float"] = EvidenceInput(
-            **{
-                **borrow.__dict__,
-                "key": "borrow_availability_pct_float",
-                "value": 100.0 * float(borrow.value) / float(float_item.value),
-                "unit": "PERCENT_OF_FLOAT",
-                "research_admissible": (
-                    borrow.research_admissible and float_item.research_admissible
-                ),
-            }
+            key="borrow_availability_pct_float",
+            value=100.0 * float(borrow.value) / float(float_item.value),
+            unit="PERCENT_OF_FLOAT",
+            provider=(
+                "+".join(
+                    part for part in (borrow.provider, float_item.provider) if part
+                )
+                or None
+            ),
+            provider_field="Shortable Shares / Shares Float",
+            event_time=borrow.event_time or float_item.event_time,
+            received_time=borrow.received_time or float_item.received_time,
+            display_available=bool(
+                borrow.display_available and float_item.display_available
+            ),
+            research_admissible=both_admissible,
+            point_in_time_eligible=bool(
+                borrow.point_in_time_eligible and float_item.point_in_time_eligible
+            ),
+            fresh=bool(borrow.fresh and float_item.fresh),
+            conflict=bool(borrow.conflict or float_item.conflict),
+            missing_reason=(
+                None
+                if both_admissible
+                else "Borrow availability % float requires both IBKR shortable "
+                "shares and Finviz float to be research-admissible."
+            ),
+            evidence_id=(
+                f"computed:borrow_pct_float:{borrow.evidence_id or ''}"
+                f":{float_item.evidence_id or ''}"
+            ),
+            selection_reason="COMPUTED_FROM_IBKR_SHORTABLE_AND_FINVIZ_FLOAT",
         )
     return inputs
 

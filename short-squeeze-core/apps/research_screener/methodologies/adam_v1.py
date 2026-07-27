@@ -119,11 +119,12 @@ def evaluate_adam(inputs: dict[str, EvidenceInput], *, as_of: str | None = None)
     else:
         coverage = CoverageCategory.INSUFFICIENT
 
+    # LOW_COVERAGE still yields a classification when both dimensions scored at
+    # the Finviz floor (MIN_DIMENSION_WEIGHT=65). UNEVALUABLE is reserved for
+    # insufficient/conflicted evidence or a missing dimension score.
     if conflicts:
         classification = Classification.CONFLICTED
-    elif coverage in (CoverageCategory.INSUFFICIENT, CoverageCategory.LOW) or (
-        pressure is None or ignition is None
-    ):
+    elif coverage is CoverageCategory.INSUFFICIENT or pressure is None or ignition is None:
         classification = Classification.UNEVALUABLE
     elif pressure >= 70 and ignition >= 70 and coverage is CoverageCategory.HIGH:
         classification = Classification.PRIME

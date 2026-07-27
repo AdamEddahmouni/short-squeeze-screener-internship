@@ -17,6 +17,10 @@ intake/local-bars/
 exports/
 # Private provider credentials: never commit.
 .private/
+# Local env files — never commit secrets (keep .env.example)
+.env
+.env.*
+!.env.example
 # Ephemeral screener data logs: never commit.
 data/screener_logs/
 # Stray temp files

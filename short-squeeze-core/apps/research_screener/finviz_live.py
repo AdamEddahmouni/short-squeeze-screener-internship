@@ -447,6 +447,9 @@ class FinvizClient:
 
     def get_row(self, symbol: str) -> FinvizRow | None:
         needle = symbol.strip().upper()
+        # Mapping conflicts are ambiguous — withhold rather than guessing.
+        if needle in self._mapping_conflicts:
+            return None
         row = self._cache_by_symbol.get(needle)
         if row is not None:
             return row
@@ -457,7 +460,12 @@ class FinvizClient:
         return None
 
     def get_cached_rows(self) -> list[FinvizRow]:
-        return list(self._cache) if self._cache else []
+        if not self._cache:
+            return []
+        conflicts = set(self._mapping_conflicts)
+        if not conflicts:
+            return list(self._cache)
+        return [row for row in self._cache if row.ticker not in conflicts]
 
     def fetch_news(self, force: bool = False) -> dict[str, Any]:
         with self._lock:

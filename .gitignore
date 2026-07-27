@@ -16,6 +16,11 @@ desktop.ini
 # Runtime generated data
 data/
 
+# Local env files — never commit secrets (keep .env.example)
+.env
+.env.*
+!.env.example
+
 # Agent-generated reconstruction documents (reference only)
 docs/reconstruction/
 

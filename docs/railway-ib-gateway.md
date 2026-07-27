@@ -100,3 +100,6 @@ Deploy **gateway first**, wait until the container is running, then redeploy or 
 | Client id in use | Change `IBKR_CLIENT_ID` on screener |
 
 See also [deploy-workflow.md](./deploy-workflow.md).
+
+**Canonical package guide:** [`short-squeeze-core/docs/railway-ib-gateway.md`](../short-squeeze-core/docs/railway-ib-gateway.md)
+(Makefile targets and product docs point there).

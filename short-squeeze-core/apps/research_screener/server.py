@@ -39,6 +39,18 @@ MAX_BODY_BYTES = 2 * 1024 * 1024
 CSRF_TOKEN_COOKIE = "squeeze_csrf"
 CSRF_TOKEN_HEADER = "X-CSRF-Token"
 
+# Opt-in security gates. Defaults keep the current public Railway URL usable
+# without new secrets; enable explicitly in hardened deployments.
+# CSRF_PROTECTION=1  → enforce CSRF on state-changing methods
+# LOCK_SENSITIVE_API=1 → reject unauthenticated log/export/admin routes
+SENSITIVE_API_PREFIXES = (
+    "/api/export",
+    "/api/logs/",
+    "/api/collectors/",
+    "/api/live/clear",
+    "/api/logs",
+)
+
 RATE_LIMIT_WINDOW_S = 60
 RATE_LIMIT_MAX_REQUESTS = 300
 
@@ -96,7 +108,87 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
     def _check_csrf(self, method: str) -> bool:
-        return True
+        # Safe methods never require CSRF.
+        if method.upper() in ("GET", "HEAD", "OPTIONS"):
+            return True
+        cookie_token = self._cookie_value(CSRF_TOKEN_COOKIE)
+        # Soft-gate: if a CSRF cookie is already present, validate it even when
+        # CSRF_PROTECTION is off (local UI can adopt tokens without redeploy secrets).
+        enforce = self._csrf_protection_enabled() or bool(cookie_token)
+        if not enforce:
+            return True
+        header_token = self.headers.get(CSRF_TOKEN_HEADER) or ""
+        expected = cookie_token or self.csrf_token()
+        return bool(header_token) and secrets.compare_digest(header_token, expected)
+
+    @staticmethod
+    def _env_flag(name: str) -> bool:
+        return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+    @classmethod
+    def _csrf_protection_enabled(cls) -> bool:
+        """CSRF is opt-in via CSRF_PROTECTION (default off keeps Railway usable)."""
+        return cls._env_flag("CSRF_PROTECTION")
+
+    @classmethod
+    def _sensitive_api_locked(cls) -> bool:
+        return cls._env_flag("LOCK_SENSITIVE_API")
+
+    def _deployment_mode_str(self) -> str:
+        server = getattr(self, "server", None)
+        mode = getattr(server, "deployment_mode", None) if server is not None else None
+        if mode is not None:
+            return str(mode)
+        return os.environ.get("SQUEEZE_APP_MODE", "LOCAL_FULL")
+
+    def _is_cloud_mode(self) -> bool:
+        return self._deployment_mode_str() != "LOCAL_FULL"
+
+    def _cookie_value(self, name: str) -> str | None:
+        raw = self.headers.get("Cookie") or ""
+        for part in raw.split(";"):
+            part = part.strip()
+            if not part or "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            if key.strip() == name:
+                return value.strip()
+        return None
+
+    def _sensitive_route_allowed(self, route: str, method: str) -> bool:
+        if not self._sensitive_api_locked():
+            return True
+        # LOCAL_FULL remains open when locked; cloud requires a matching CSRF pair.
+        if self._deployment_mode_str() == "LOCAL_FULL":
+            return True
+        cookie_token = self._cookie_value(CSRF_TOKEN_COOKIE)
+        header_token = self.headers.get(CSRF_TOKEN_HEADER) or ""
+        if cookie_token and header_token and secrets.compare_digest(header_token, cookie_token):
+            return True
+        return False
+
+    def _is_sensitive_route(self, route: str) -> bool:
+        if route in ("/api/export", "/api/live/clear", "/api/logs/rotate", "/api/logs"):
+            return True
+        return route.startswith("/api/logs/") or route.startswith("/api/collectors/")
+
+    def _reject_if_sensitive_locked(self, route: str, method: str) -> bool:
+        """Return True when the request was rejected (caller should return)."""
+        if self._is_sensitive_route(route) and not self._sensitive_route_allowed(route, method):
+            self._error(
+                403,
+                "Sensitive API locked. Set LOCK_SENSITIVE_API=0 or provide a valid "
+                "CSRF token from /api/csrf-token (LOCAL_FULL remains open).",
+            )
+            return True
+        return False
+
+    def _public_error(self, status: int, exc: BaseException) -> None:
+        request_log.exception("request failed status=%s", status)
+        if self._is_cloud_mode() and status >= 500:
+            self._error(status, "Internal server error")
+        else:
+            self._error(status, f"{type(exc).__name__}: {exc}")
 
     def _send(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
@@ -143,12 +235,14 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         route = parsed.path
         query = parse_qs(parsed.query)
+        if self._reject_if_sensitive_locked(route, "GET"):
+            return
         try:
             self._route_get(route, query)
         except FrozenResearchUnavailable as exc:
             self._error(503, str(exc))
         except Exception as exc:  # noqa: BLE001 - a route fault must not kill the server
-            self._error(500, f"{type(exc).__name__}: {exc}")
+            self._public_error(500, exc)
 
     def _route_get(self, route: str, query: dict[str, list[str]]) -> None:
         if route == "/":
@@ -201,7 +295,32 @@ class ScreenerHandler(BaseHTTPRequestHandler):
                 payload, mode=str(self.server.deployment_mode),  # type: ignore[attr-defined]
             ))
         elif route == "/api/capabilities":
-            self._json(self._provider_capabilities())
+            self._json(self._provider_capabilities(self._deployment_mode_str()))
+        elif route == "/api/csrf-token":
+            token = self.csrf_token()
+            body = json.dumps({
+                "csrf_token": token,
+                "header": CSRF_TOKEN_HEADER,
+                "cookie": CSRF_TOKEN_COOKIE,
+                "csrf_protection": self._csrf_protection_enabled(),
+                "note": (
+                    "CSRF enforcement is off by default. Set CSRF_PROTECTION=1 to "
+                    "require this token on state-changing requests."
+                ),
+            }).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("X-Request-ID", self._request_id())
+            self.send_header(
+                "Set-Cookie",
+                f"{CSRF_TOKEN_COOKIE}={token}; Path=/; SameSite=Strict; HttpOnly",
+            )
+            self.end_headers()
+            self.wfile.write(body)
         elif route == "/api/coverage":
             self._json(self._coverage_summary())
         elif route == "/api/screener":
@@ -463,7 +582,7 @@ class ScreenerHandler(BaseHTTPRequestHandler):
                     "disclaimer": snapshot_module.DISCLAIMER,
                     "sort_keys": list(snapshot_module.SORT_KEYS),
                     "modes": [str(mode) for mode in snapshot_module.Mode],
-                    "export_dir": str(self.export_dir),
+                    "export_dir": self.export_dir.name,
                 }
             )
         else:
@@ -477,7 +596,8 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             for part in value.replace(",", " ").split()
         ]
 
-    def _provider_capabilities(self=None) -> dict[str, Any]:
+    @staticmethod
+    def _provider_capabilities(deployment_mode: str | None = None) -> dict[str, Any]:
         from .provider_capabilities import (
             Capability, CapabilityStatus, ProviderCapabilities, ProviderCapabilityRegistry,
         )
@@ -489,13 +609,11 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         current_rows = session_state.get_session().rows()
         from .config import resolve_application_config
 
+        mode = deployment_mode or os.environ.get("SQUEEZE_APP_MODE", "LOCAL_FULL")
         ibkr_config = resolve_application_config(
-            cli={"SQUEEZE_APP_MODE": str(self.server.deployment_mode)},  # type: ignore[attr-defined]
+            cli={"SQUEEZE_APP_MODE": str(mode)},
         ).providers.ibkr
-        cloud = bool(
-            self is not None
-            and str(self.server.deployment_mode) != "LOCAL_FULL"  # type: ignore[attr-defined]
-        )
+        cloud = str(mode) != "LOCAL_FULL"
         ibkr_disabled = not ibkr_config.enabled
         ibkr = ProviderCapabilities(
             provider="IBKR",
@@ -796,9 +914,16 @@ class ScreenerHandler(BaseHTTPRequestHandler):
 
         def _background_refresh():
             try:
-                session.refresh_all(limit=total)
+                # Invalidate the real ProviderBundle SEC cache before refresh so
+                # force-refresh re-queries EDGAR. The legacy module-level cache is
+                # cleared as well for any residual callers.
+                try:
+                    session.external_providers._sec_cache.clear()
+                except Exception:
+                    pass
                 from .session_state import _sec_cache
                 _sec_cache.clear()
+                session.refresh_all(limit=total)
             except Exception:
                 request_log.exception("Background refresh failed")
 
@@ -1204,6 +1329,8 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
+        if self._reject_if_sensitive_locked(parsed.path, "POST"):
+            return
         try:
             if parsed.path == "/api/export":
                 self._export(query)
@@ -1242,7 +1369,7 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         except FrozenResearchUnavailable as exc:
             self._error(503, str(exc))
         except Exception as exc:  # noqa: BLE001 - a route fault must not kill the server
-            self._error(500, f"{type(exc).__name__}: {exc}")
+            self._public_error(500, exc)
 
     def _serve_archive(self, name: str) -> None:
         """Serve a .tar.gz archive file as a downloadable attachment.
@@ -1311,14 +1438,17 @@ class ScreenerHandler(BaseHTTPRequestHandler):
                     if detail is not None:
                         detail.pop("chart", None)
             written = export_module.write_export(payload, self.export_dir, details=details)
-            if str(self.server.deployment_mode) != "LOCAL_FULL":  # type: ignore[attr-defined]
-                written = {key: Path(value).name for key, value in written.items()}
+            # Never return absolute filesystem paths in API JSON.
+            written = {
+                key: (Path(value).name if key != "stem" else value)
+                for key, value in written.items()
+            }
             result = {"written": written, "row_count": payload["row_count"]}
             self._json(compatible_envelope(result, mode=mode))
         except FrozenResearchUnavailable as exc:
             self._error(503, str(exc))
         except Exception as exc:  # noqa: BLE001
-            self._error(500, f"{type(exc).__name__}: {exc}")
+            self._public_error(500, exc)
 
 
 class ScreenerServer(ThreadingHTTPServer):

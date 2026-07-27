@@ -199,7 +199,7 @@ jobs:
             exit 1
           fi
           if ! railway up --detach --environment production --service ib-gateway; then
-            echo "::warning::IB Gateway deploy failed. Create a Railway service named ib-gateway in the same project (see docs/railway-ib-gateway.md)."
+            echo "::warning::IB Gateway deploy failed. Create a Railway service named ib-gateway in the same project (see short-squeeze-core/docs/railway-ib-gateway.md)."
             exit 0
           fi
           echo "IB Gateway deployment upload started."

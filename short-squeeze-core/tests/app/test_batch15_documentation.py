@@ -26,6 +26,7 @@ def test_professional_handoff_documentation_set_is_complete() -> None:
         "docs/LIMITATIONS.md",
         "docs/CHANGELOG.md",
         "docs/openapi.json",
+        "docs/railway-ib-gateway.md",
         "docs/release/privacy-and-handoff-audit.md",
     )
     assert all((ROOT / relative).is_file() for relative in required)
@@ -37,6 +38,8 @@ def test_environment_template_uses_only_safe_placeholders_and_actual_names() -> 
         "SQUEEZE_APP_MODE",
         "PORT",
         "LOG_LEVEL",
+        "CSRF_PROTECTION",
+        "LOCK_SENSITIVE_API",
         "FINVIZ_ENABLED",
         "FINVIZ_API_KEY",
         "NEWSAPI_ENABLED",
@@ -50,6 +53,9 @@ def test_environment_template_uses_only_safe_placeholders_and_actual_names() -> 
         "IBKR_HOST",
         "IBKR_PORT",
         "IBKR_CLIENT_ID",
+        "IBKR_USER_ID",
+        "IBKR_PASSWORD",
+        "IBKR_TRADE_MODE",
         "SENTIMENT_ENABLED",
         "SENTIMENT_PROVIDER",
         "SENTIMENT_MODEL_PATH",
@@ -84,6 +90,14 @@ def test_openapi_document_is_valid_json_and_matches_stable_contract() -> None:
     assert "/health" in document["paths"]
     assert "/ready" in document["paths"]
     assert "/api/v1/integration/manifest" in document["paths"]
+    assert "/api/csrf-token" in document["paths"]
+    assert "/api/collectors/status" in document["paths"]
+    assert "/api/collectors/symbol" in document["paths"]
+    csrf = document["paths"]["/api/csrf-token"]["get"]["responses"]["200"]
+    assert "application/json" in csrf["content"]
+    schema = document["components"]["schemas"]["CsrfTokenResponse"]
+    assert schema["properties"]["header"]["const"] == "X-CSRF-Token"
+    assert schema["properties"]["cookie"]["const"] == "squeeze_csrf"
     encoded = json.dumps(document).lower()
     assert "/orders" not in encoded
     assert "/account" not in encoded
@@ -125,13 +139,17 @@ def test_public_documents_do_not_contain_personal_or_academic_markers() -> None:
 
 
 def test_morning_check_and_next_handoff_use_requested_batch15_branch() -> None:
-    expected = "batch/professional-source-handoff-15"
+    # morning_check.ps1 tracks the current release branch/version; Batch 15
+    # handoff history remains in docs/batch-*-fresh-session-handoff.md (archive).
+    expected_branch = "main"
+    expected_version = "0.16.0"
     morning_check = (ROOT / "morning_check.ps1").read_text(encoding="utf-8")
 
-    assert expected in morning_check
+    assert expected_branch in morning_check
+    assert expected_version in morning_check
     assert "Working tree" in morning_check
     assert "Release source commit" in morning_check
     assert "Final test report" in morning_check
-    assert expected in (ROOT / "docs/batch-16-fresh-session-handoff.md").read_text(
-        encoding="utf-8"
-    )
+    assert "batch/professional-source-handoff-15" in (
+        ROOT / "docs/batch-16-fresh-session-handoff.md"
+    ).read_text(encoding="utf-8")

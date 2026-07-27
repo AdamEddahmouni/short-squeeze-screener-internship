@@ -1,6 +1,6 @@
 {
   "application_name": "Short Squeeze Research Screener",
-  "application_version": "0.15.0",
+  "application_version": "0.16.0",
   "api_version": "1.0.0",
   "schema_version": "batch14.integration.v1",
   "supported_modes": ["LOCAL_FULL", "CLOUD_PROVIDER_MODE", "FROZEN_DEMO"],

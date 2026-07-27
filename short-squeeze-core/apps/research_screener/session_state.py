@@ -153,6 +153,31 @@ def classify_freshness(age_seconds: float | None) -> Freshness:
     return Freshness.STALE
 
 
+def _freshness_from_timestamp(ts: str | None) -> Freshness:
+    """Derive freshness from a received/cache timestamp using existing TTL bands.
+
+    Within FRESH_WITHIN_S → CURRENT; within DELAYED_AFTER_S → DELAYED (still
+    scoring-eligible); older → STALE. Missing/unparseable → UNKNOWN_AGE.
+    """
+    if not ts:
+        return Freshness.UNKNOWN_AGE
+    try:
+        age = (_now().timestamp() - _parse_iso(str(ts), _now()).timestamp())
+    except (ValueError, TypeError, OSError):
+        return Freshness.UNKNOWN_AGE
+    return classify_freshness(age)
+
+
+def _sec_filing_event_time(sec_data: dict[str, Any]) -> str | None:
+    """Prefer filing ``filed_at`` over retrieval time for catalyst age."""
+    most_recent = sec_data.get("most_recent")
+    if isinstance(most_recent, dict):
+        filed_at = most_recent.get("filed_at")
+        if filed_at:
+            return str(filed_at)
+    return sec_data.get("retrieved_at")
+
+
 def _quote_data_mode(label: str) -> DataMode:
     """Map the provider's own market-data type onto the display mode. Never inferred."""
     return {
@@ -351,12 +376,15 @@ def short_pressure_fields(
 
     fv_row = external_providers.finviz_row(state.symbol)
     finviz_at = getattr(external_providers.finviz, "cached_at", None) or _iso(_now())
+    finviz_freshness = _freshness_from_timestamp(
+        getattr(external_providers.finviz, "cached_at", None)
+    )
 
     if shares_out is None and fv_row is not None and fv_row.shares_outstanding is not None:
         fields["shares_outstanding"] = known(
             float(fv_row.shares_outstanding), unit="SHARES", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=finviz_freshness, data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:shares_outstanding:{finviz_at}",
             readiness="DISPLAY_ONLY_DISTINCT_FROM_FLOAT",
             provider_field="Shares Out.",
@@ -373,7 +401,7 @@ def short_pressure_fields(
         fields["float_shares"] = known(
             float(fv_row.float_shares), unit="SHARES", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=finviz_freshness, data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:float:{finviz_at}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_PUBLISHED_FLOAT",
             provider_field=float_provider_field,
@@ -391,7 +419,7 @@ def short_pressure_fields(
         fields["short_float"] = known(
             float(fv_row.short_float_pct), unit="PERCENT", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=finviz_freshness, data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:short_float:{finviz_at}",
             readiness="DISPLAY_AVAILABLE_PROVIDER_SNAPSHOT_NOT_RESEARCH_ADMISSIBLE",
             provider_field="Short Float",
@@ -408,7 +436,7 @@ def short_pressure_fields(
         fields["published_short_interest"] = known(
             float(fv_row.short_float_pct), unit="PERCENT", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=finviz_freshness, data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:si_pct:{finviz_at}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
             provider_field="Short Float",
@@ -435,7 +463,7 @@ def short_pressure_fields(
         fields["borrow_fee"] = known(
             float(borrow_fee_value), unit="PERCENT_ANNUALIZED", provider="IBKR",
             event_time=received, received_time=received,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=_freshness_from_timestamp(received), data_mode=DataMode.HISTORICAL,
             evidence_id=f"borrow_fee:{state.symbol}:{received}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
             provider_field="Borrow Fee (Tick 258)",
@@ -453,7 +481,7 @@ def short_pressure_fields(
         fields["short_ratio"] = known(
             float(fv_row.short_ratio), unit="RATIO", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=finviz_freshness, data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:short_ratio:{finviz_at}",
             readiness="DISPLAY_AVAILABLE_NOT_CANONICAL_DAYS_TO_COVER",
             provider_field="Short Ratio",
@@ -468,7 +496,7 @@ def short_pressure_fields(
         fields["days_to_cover"] = known(
             float(fv_row.short_ratio), unit="DAYS", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=finviz_freshness, data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:dtc:{finviz_at}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
             provider_field="Short Ratio",
@@ -482,6 +510,9 @@ def short_pressure_fields(
             "DAYS_TO_COVER_NOT_AVAILABLE",
         )
 
+    # Estimated DTC from Short Float / Avg Volume is a weaker proxy: show it for
+    # display but keep it RESEARCH_INADMISSIBLE so missing Short Ratio does not
+    # silently inflate Pressure scores with synthetic certainty.
     if (
         fv_row is not None
         and fields["days_to_cover"].status != ValueStatus.KNOWN
@@ -498,13 +529,13 @@ def short_pressure_fields(
             provider="Finviz Elite",
             event_time=finviz_at,
             received_time=finviz_at,
-            freshness=Freshness.CURRENT,
+            freshness=finviz_freshness,
             data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:dtc_est:{finviz_at}",
-            readiness="RESEARCH_ADMISSIBLE_COMPUTED_METRIC",
+            readiness="DISPLAY_ONLY_ESTIMATED_PROXY",
             provider_field="Short Float / Avg Volume",
             selection_reason="ESTIMATED_WHEN_SHORT_RATIO_MISSING",
-            research_admissibility="RESEARCH_ADMISSIBLE",
+            research_admissibility="RESEARCH_INADMISSIBLE",
         )
 
     # Halt status from generic tick 49
@@ -550,12 +581,17 @@ def short_pressure_fields(
             "BORROW_AVAILABILITY_PERMISSION_UNAVAILABLE",
         )
     else:
+        # Research-admissible when IBKR supplies shortable shares; projection
+        # still requires Finviz float as the other leg for % float.
         fields["borrow_availability"] = known(
             float(shares), unit="SHARES", provider="IBKR",
             event_time=quote.received_at, received_time=quote.received_at,
-            freshness=Freshness.CURRENT, data_mode=mode,
+            freshness=_freshness_from_timestamp(quote.received_at), data_mode=mode,
             evidence_id=f"quote:{state.symbol}:shortable_shares:{quote.received_at}",
-            readiness="DISPLAY_ONLY_NOT_RULE_EVIDENCE",
+            readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
+            provider_field="Shortable Shares",
+            selection_reason="IBKR_SHORTABLE_SHARES_TICK",
+            research_admissibility="RESEARCH_ADMISSIBLE",
         )
     return fields
 
@@ -617,11 +653,13 @@ def catalyst_fields(
             data_mode=DataMode.UNAVAILABLE, freshness=Freshness.NOT_APPLICABLE,
         )
     elif sec_data.get("available"):
+        filing_event = _sec_filing_event_time(sec_data)
+        retrieved_at = sec_data.get("retrieved_at")
         fields["sec_filings"] = known(
             sec_data["catalyst_count"], unit="FILING_COUNT", provider="SEC_EDGAR",
-            event_time=sec_data.get("retrieved_at"), received_time=sec_data.get("retrieved_at"),
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
-            evidence_id=f"sec:{state.symbol}:filings:{sec_data.get('retrieved_at')}",
+            event_time=filing_event, received_time=retrieved_at,
+            freshness=_freshness_from_timestamp(retrieved_at), data_mode=DataMode.HISTORICAL,
+            evidence_id=f"sec:{state.symbol}:filings:{filing_event or retrieved_at}",
             readiness="DISPLAY_ONLY_PUBLIC_FILINGS",
         )
         state._sec_data = sec_data
@@ -876,15 +914,21 @@ def metric_fields(
         fv_row = external_providers.finviz_row(state.symbol)
         finviz_at = getattr(external_providers.finviz, "cached_at", None) or _iso(_now())
         if fv_row is not None and fv_row.change_pct is not None:
+            # Finviz day-change is a weaker proxy for canonical PERCENTAGE_RETURN.
+            # Keep it displayable but RESEARCH_INADMISSIBLE so it does not silently
+            # unlock Ignition scoring when IBKR return evidence is missing.
             fields["percentage_change"] = known(
                 float(fv_row.change_pct), unit="PERCENT", provider="Finviz Elite",
                 event_time=finviz_at, received_time=finviz_at,
-                freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+                freshness=_freshness_from_timestamp(
+                    getattr(external_providers.finviz, "cached_at", None)
+                ),
+                data_mode=DataMode.HISTORICAL,
                 evidence_id=f"finviz:{state.symbol}:change_pct:{finviz_at}",
-                readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
+                readiness="DISPLAY_ONLY_PROVIDER_DAY_CHANGE",
                 provider_field="Change",
                 selection_reason="FINVIZ_FALLBACK_WHEN_IBKR_RETURN_UNAVAILABLE",
-                research_admissibility="RESEARCH_ADMISSIBLE",
+                research_admissibility="RESEARCH_INADMISSIBLE",
             )
         else:
             fields["percentage_change"] = _unknown(reason, "PERCENTAGE_RETURN_UNAVAILABLE")
@@ -895,7 +939,10 @@ def metric_fields(
         fields["relative_volume"] = known(
             float(fv_row.rel_volume), unit="RATIO", provider="Finviz Elite",
             event_time=finviz_at, received_time=finviz_at,
-            freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+            freshness=_freshness_from_timestamp(
+                getattr(external_providers.finviz, "cached_at", None)
+            ),
+            data_mode=DataMode.HISTORICAL,
             evidence_id=f"finviz:{state.symbol}:rel_volume:{finviz_at}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
             provider_field="Relative Volume",

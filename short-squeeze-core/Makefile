@@ -19,7 +19,7 @@
 
 .PHONY: help up up-full build dev logs logs-screener logs-gateway
 .PHONY: down stop clean clean-cache ps pull doctor doctor-json
-.PHONY: deploy deploy-sync deploy-ib-gateway railway-sync-ib-gateway-vars tidy precommit precommit-quick install-hooks test-quick
+.PHONY: deploy deploy-sync deploy-ib-gateway railway-sync-ib-gateway-vars check-railway-mirror tidy precommit precommit-quick install-hooks test-quick
 
 # ── Help ──────────────────────────────────────────────────────────────
 
@@ -136,6 +136,9 @@ deploy-sync: ## Sync latest source into .railway-deploy/ (dry-run before deploy)
 	rsync -a --delete tools/     .railway-deploy/tools/
 	cp  pyproject.toml            .railway-deploy/pyproject.toml
 	@printf "\n  \033[32mOK\033[0m Source synced. Run \033[33mmake deploy\033[0m to deploy.\n"
+
+check-railway-mirror: ## Fail if .railway-deploy drifts from apps/src/scripts/tools (prep only)
+	python tools/check_railway_mirror.py
 
 deploy: deploy-sync ## Sync latest source and deploy to Railway (mirrors CI pipeline)
 	@printf "\033[32m. Deploying to Railway...\033[0m\n"

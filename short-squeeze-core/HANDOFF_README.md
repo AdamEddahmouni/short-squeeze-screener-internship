@@ -1,14 +1,17 @@
 # Integration-Team Handoff
 
-This package contains a read-only research screener, deterministic demonstration
-data, an HTTP API, provider adapters, offline tests, deployment files, and release
-verification tools.
+Version **0.16.0**. This package contains a read-only research screener,
+deterministic demonstration data, an HTTP API, provider adapters, offline tests,
+deployment files, and release verification tools.
+
+Full documentation map: [docs/README.md](docs/README.md).  
+Step-by-step tutorial: [docs/getting-started.md](docs/getting-started.md).
 
 ## First run
 
 1. Create a Python 3.12 virtual environment.
 2. Install with `python -m pip install -e ".[test]"`.
-3. Copy `.env.example` to a private file.
+3. Copy `.env.example` to a private file (`.env` is gitignored).
 4. Start with `python -m apps.research_screener --mode FROZEN_DEMO --no-browser`.
 5. Open `http://127.0.0.1:8787/`.
 6. Run `python tools/integration_acceptance.py --mode frozen`.

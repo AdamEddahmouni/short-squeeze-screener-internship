@@ -1,91 +1,94 @@
 # Architecture
 
+Explanation of how the research screener is structured. For tasks, see
+[how-to-guides.md](how-to-guides.md). For contracts, see [API.md](API.md).
+
+## What this system is
+
+A read-only HTTP application that:
+
+1. Collects provider evidence into typed field values with provenance.
+2. Projects candidates through independent methodologies.
+3. Exposes Scanner and Advanced Research UIs plus a versioned integration API.
+
+It does not trade, hold account state, or assert predictive validity.
+
 ## Application surfaces
 
-The application serves two distinct interfaces from a single backend:
+| Surface | Paths | Role |
+|---|---|---|
+| Scanner | `/` | Default table: price, change, pressure, ignition, coverage, classification, news, sentiment |
+| Advanced Research | `/advanced`, `/index.html`, `/research` | Canonical Phase 3A rules, diagnostics, methodologies, frozen research, manifest |
 
-- **Scanner** (`/`): Default user experience. Clean financial-terminal table
-  with symbol, price, change %, pressure, ignition, evidence coverage,
-  classification, news, and sentiment. Compact filters and sortable columns.
-  Click-to-expand detail drawer with headlines, sentiment summary, methodology
-  comparison, and missing evidence.
-- **Advanced Research** (`/advanced`, `/index.html`, `/research`): Full
-  developer/research dashboard with 25 canonical Phase 3A rules, provider
-  diagnostics, methodology comparison landscape, frozen research, integration
-  manifest, and deployment information.
+Both surfaces share one backend API and methodology engine.
 
-Both interfaces use the same backend API and methodology engine. No
-methodology is duplicated.
+## Runtime modes
 
-## Runtime
+| Mode | Bind | Private `.private` file | IBKR local probe | Typical use |
+|---|---|---|---|---|
+| `FROZEN_DEMO` | `127.0.0.1` | Never | No | Evaluation, offline demos |
+| `LOCAL_FULL` | `127.0.0.1` | Allowed | Optional | Operator workstation |
+| `CLOUD_PROVIDER_MODE` | `0.0.0.0:$PORT` | Never | No local probe | Containers, Railway |
 
-`apps/research_screener` is a Python HTTP application with static HTML, CSS, and
-JavaScript. `server.py` exposes read-only JSON endpoints and serves both
-interfaces. `session_state.py` coordinates discovery, current evidence, provider
-refresh, and methodology projection.
+Default native port is **8787**. Docker Compose publishes host **8787** to container
+**8080** (`PORT=8080` inside the image). Railway uses the platform `PORT`.
 
-## Configuration boundary
+## Runtime layout
 
-`config.py` resolves immutable application and provider settings. Entry points
-choose whether a local private file is eligible; library imports never load it.
-Provider construction consumes the resolved configuration, so replacing or
-disabling credentials does not require code changes.
+`apps/research_screener` is the product package:
 
-## Provider boundary
+- `server.py` — HTTP routes, static assets, optional CSRF / sensitive-API gates
+- `session_state.py` — discovery, refresh cadence, row projection
+- `config.py` / `credentials.py` — immutable resolved settings; imports never load private files
+- `methodologies/` — legacy, peer-reference, Evidence-Gated Prime projections
+- `collectors/` — optional supplemental evidence schedulers
+- `squeeze_core` (under `src/`) — canonical evaluation, metrics, research policies
 
-Provider adapters normalize data into `FieldValue` objects containing value, unit,
-provider, event time, receipt time, freshness, data mode, evidence ID, and
-readiness. Missing, disabled, unavailable, and conflicted states remain distinct.
-Independent calls never substitute a current value for unavailable historical
-evidence.
-
-### Provider refresh order
-
-Per-symbol refresh fires in a round-robin slice respecting IBKR pacing limits
-(60 requests per 10-minute rolling window, 3 symbols per cycle at 30s cadence).
-
-External providers (Finviz Elite, NewsAPI, Finnhub, SEC EDGAR, Borrow Fee)
-refresh concurrently alongside the per-symbol cycle. Provider caches respect
-individual TTLs (300-900s depending on provider).
-
-## Evidence projection pipeline
+## Evidence pipeline
 
 ```
-Provider data → session_state fields → evidence_from_row() →
-EvidenceInputs → evaluate_adam() → Pressure / Ignition / Classification
+Provider / collector data
+  → FieldValue (unit, times, freshness, admissibility, provenance)
+  → session row / evidence_from_row()
+  → EvidenceInputs
+  → evaluate_adam() (Evidence-Gated Prime)
+  → Pressure / Ignition / Classification on the row
 ```
 
-The methodology evaluation (`adam_v1.py`) is called from `project_candidate()`
-in the session row builder. It receives EvidenceInputs derived from live
-provider fields with research admissibility gating. The result (pressure,
-ignition, classification, coverage) is attached to each row and consumed by
-both the Scanner and Advanced Research interfaces.
+Canonical Phase 3A evaluation remains in `squeeze_core` and is independent of the
+live Prime projection. Missing evidence stays `UNKNOWN`; display-only fields do
+not satisfy research rules by label similarity alone.
 
-## Methodology boundary
+## Provider refresh
 
-The legacy, peer-reference, and Evidence-Gated Prime implementations live under
-`methodologies/`. Canonical Phase 3A evaluation remains in `squeeze_core`.
-Projection code is additive: it does not mutate the canonical registry or frozen
-artifacts.
+Per-symbol refresh uses a round-robin slice with IBKR pacing constraints.
+External providers (Finviz, NewsAPI, Finnhub, SEC, borrow fee) refresh alongside
+that cycle. Caches retain last-good data and surface staleness explicitly.
 
-The verified Phase 3D acquisition packages remain the point-in-time evidence
-foundation used by the canonical pipeline. They are preserved for integrity and
-do not initiate Phase 3E.
+## Phase flags (product vs research)
 
-## Metrics
+| Phase | Product meaning |
+|---|---|
+| Phase 3A | Preregistered canonical rule evaluation; `UNKNOWN` ≠ fail |
+| Phase 3B / 3C | Research publication and descriptive analysis tooling |
+| Phase 3D | Verified point-in-time acquisition packages used as integrity foundation |
+| Phase 3E | Outcome-oriented research acquisition exists as **offline tooling and historical reports** for a pilot cohort; it is **not** wired into the live screener scoring loop and does **not** complete predictive validation |
 
-Bar acceleration (`src/squeeze_core/metrics/bar_acceleration.py`) computes the
-excess return of the most recent completed bar relative to the trimmed mean of
-preceding bar returns. Catalyst age is derived from the most recent news
-headline or SEC filing timestamp, whichever is newer.
+Historical `phase-*.md` / `batch-*.md` files record work; [README.md](README.md)
+marks them as archive relative to current-truth docs.
 
 ## Release boundary
 
-`release-files.json` is the distribution allowlist.
-`tools/build_handoff_release.py` copies only those files into a new staging
-directory, writes metadata and checksums, runs `tools/release_audit.py`, and then
-creates the ZIP. Private files and Git history are outside this boundary.
+`release-files.json` allowlists distribution contents.
+`tools/build_handoff_release.py` stages files, writes checksums, runs
+`tools/release_audit.py`, and builds a ZIP. Private config, Git history, and raw
+provider caches stay outside the release.
 
-The release builder auto-detects the project version from `pyproject.toml`.
-The `--version` flag is available for overrides but defaults to the authoritative
-project version.
+Version is read from `pyproject.toml` (currently **0.16.0**).
+
+## Related reading
+
+- [Reproducibility](reproducibility.md)
+- [PROVIDERS.md](PROVIDERS.md)
+- [METHODOLOGIES.md](METHODOLOGIES.md)
+- [SECURITY.md](SECURITY.md)

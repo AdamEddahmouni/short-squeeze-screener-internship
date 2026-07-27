@@ -6,8 +6,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $python = Join-Path $root '.venv\Scripts\python.exe'
-$expectedBranch = 'batch/professional-source-handoff-15'
-$releaseVersion = '0.15.0'
+$expectedBranch = 'main'
+$releaseVersion = '0.16.0'
 $releaseName = "short-squeeze-research-screener-$releaseVersion"
 $releaseDir = Join-Path $root "dist\$releaseName"
 $zipPath = Join-Path $root "dist\$releaseName.zip"

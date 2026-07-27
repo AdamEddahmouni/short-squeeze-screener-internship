@@ -173,7 +173,7 @@ def _rotate_logs() -> dict[str, Any]:
     return {
         "rotated": removed,
         "archived_size_mb": round(removed_size / (1024 * 1024), 2),
-        "archive_path": str(archive_path),
+        "archive_path": archive_path.name,
         "archive_name": archive_name,
         "remaining_files": len(files) - removed,
         "trigger": (
@@ -447,7 +447,7 @@ def list_archives() -> dict[str, Any]:
             total_size += stat.st_size
             archives.append({
                 "name": entry.name,
-                "path": str(entry),
+                "path": entry.name,
                 "size_bytes": stat.st_size,
                 "size_mb": round(stat.st_size / (1024 * 1024), 2),
                 "created_at": datetime.fromtimestamp(
@@ -460,7 +460,7 @@ def list_archives() -> dict[str, Any]:
         "available": len(archives) > 0,
         "count": len(archives),
         "total_size_mb": round(total_size / (1024 * 1024), 2),
-        "archive_directory": str(archive_dir),
+        "archive_directory": _ARCHIVE_SUBDIR,
         "archives": archives,
         "generated_at": _now_iso(),
     }
@@ -489,7 +489,7 @@ def log_status(*, tail_lines: int = 20) -> dict[str, Any]:
             if stat.st_size > _MAX_FILE_BYTES:
                 files.append({
                     "name": entry.name,
-                    "path": str(entry),
+                    "path": entry.name,
                     "size_bytes": stat.st_size,
                     "line_count": -1,
                     "modified_at": datetime.fromtimestamp(
@@ -518,7 +518,7 @@ def log_status(*, tail_lines: int = 20) -> dict[str, Any]:
 
             files.append({
                 "name": entry.name,
-                "path": str(entry),
+                "path": entry.name,
                 "size_bytes": stat.st_size,
                 "line_count": line_count,
                 "modified_at": datetime.fromtimestamp(
@@ -531,7 +531,7 @@ def log_status(*, tail_lines: int = 20) -> dict[str, Any]:
     return {
         "logging_enabled": _log_enabled,
         "session_id": session,
-        "log_directory": str(directory),
+        "log_directory": directory.name,
         "file_count": len(files),
         "files": files,
         "generated_at": _now_iso(),
@@ -548,7 +548,7 @@ def log_status(*, tail_lines: int = 20) -> dict[str, Any]:
                 ),
                 "usage_pct_files": round(len(files) / max(_ROTATE_MAX_FILES, 1) * 100, 1),
             },
-            "archive_directory": str(directory / _ARCHIVE_SUBDIR),
+            "archive_directory": _ARCHIVE_SUBDIR,
             "check_interval_writes": _ROTATE_CHECK_INTERVAL,
             "rotation_enabled": _log_enabled,
         },
