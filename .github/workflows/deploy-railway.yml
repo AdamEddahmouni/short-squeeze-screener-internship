@@ -34,6 +34,7 @@ on:
       - "short-squeeze-core/pyproject.toml"
       # The deploy directory itself (e.g. Dockerfile, railway.toml)
       - "short-squeeze-core/.railway-deploy/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -54,13 +55,20 @@ jobs:
           cp  short-squeeze-core/pyproject.toml            short-squeeze-core/.railway-deploy/pyproject.toml
 
       - name: Install Railway CLI
-        run: bash <(curl -fsSL railway.com/install.sh)
+        run: |
+          bash <(curl -fsSL railway.com/install.sh)
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
 
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         working-directory: short-squeeze-core/.railway-deploy
-        run: railway up --detach --environment production
+        run: |
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "::error::RAILWAY_TOKEN repository secret is not set. Create a deploy token in Railway Dashboard → Project → Settings → Tokens, then add it as a GitHub Actions secret named RAILWAY_TOKEN."
+            exit 1
+          fi
+          railway up --detach --environment production --service short-squeeze-screener
 
       - name: Wait for deployment to complete
         env:

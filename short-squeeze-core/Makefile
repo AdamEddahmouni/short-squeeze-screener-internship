@@ -141,9 +141,10 @@ deploy: deploy-sync ## Sync latest source and deploy to Railway (mirrors CI pipe
 	@if ! command -v railway >/dev/null 2>&1; then \
 		printf "  Railway CLI not found, installing...\n"; \
 		bash <(curl -fsSL railway.com/install.sh); \
+		. "$$HOME/.railway/env" 2>/dev/null || export PATH="$$HOME/.railway/bin:$$PATH"; \
 	fi
 	@printf "  \033[36m3/4\033[0m Uploading to Railway...\n"
-	cd .railway-deploy && railway up --detach --environment production
+	cd .railway-deploy && railway up --detach --environment production --service short-squeeze-screener
 	@printf "  \033[36m4/4\033[0m Deployment initiated.\n"
 	@printf "\n  \033[36m->\033[0m Track progress at \033[4mhttps://railway.app/project/\033[0m\n"
 	@printf "  \033[36m->\033[0m Or push to main and watch the GitHub Action.\n"

@@ -40,4 +40,4 @@ EXPOSE 8080
 # Mode is determined entirely by the SQUEEZE_APP_MODE env var at runtime.
 # docker-compose.yml sets SQUEEZE_APP_MODE=CLOUD_PROVIDER_MODE by default.
 # The local override (docker-compose.local.yml) changes it to LOCAL_FULL.
-CMD ["python", "-m", "apps.research_screener", "--no-browser"]
+CMD ["python", "-m", "apps.research_screener", "--mode", "CLOUD_PROVIDER_MODE", "--no-browser"]

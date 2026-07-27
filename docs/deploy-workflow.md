@@ -214,6 +214,12 @@ in the cloud and the server will fail to start.
 
 ## Troubleshooting
 
+### "railway: command not found" in GitHub Actions
+
+The install script places the binary in `~/.railway/bin`. The workflow adds that
+directory to `GITHUB_PATH` after install. If you fork the workflow, preserve that
+step before any `railway` command.
+
 ### Workflow does not run after push
 
 Check that the push touches files inside one of the trigger paths (see above).
@@ -230,11 +236,16 @@ GitHub secret.
 The polling step fetches build logs automatically and prints them in the
 workflow run. Common causes:
 
+- **Wrong build context (monorepo)** — the Docker build context must be
+  `short-squeeze-core`. In Railway → Service → Settings, set **Root Directory**
+  to `/short-squeeze-core` and **Config file** to `/short-squeeze-core/railway.toml`.
+  Without this, `COPY apps` fails with `"/scripts": not found`.
 - **Missing `RAILWAY_TOKEN`** — the environment variable is not set in the
   workflow.
 - **Dependency install fails** — check `pyproject.toml` for version conflicts.
-- **Health check timeout** — the `/health` endpoint must return 200 within 30
-  seconds. Check that the server starts correctly and binds to `$PORT`.
+- **Health check timeout** — the `/health` endpoint must return 200 within the
+  configured timeout. Cloud deploys must run `CLOUD_PROVIDER_MODE` (bind
+  `0.0.0.0:$PORT`); see `short-squeeze-core/Dockerfile` `CMD`.
 
 ### "Deployment succeeded" but app shows errors
 
