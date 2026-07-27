@@ -17,7 +17,6 @@ short-squeeze-core/__pycache__/
 short-squeeze-core/*.py[cod]
 short-squeeze-core/docs/
 short-squeeze-core/tests/
-short-squeeze-core/tools/
 short-squeeze-core/operator-kits/
 short-squeeze-core/start_server.py
 short-squeeze-core/launch.py

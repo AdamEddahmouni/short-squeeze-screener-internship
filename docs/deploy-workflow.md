@@ -229,26 +229,42 @@ step before any `railway` command.
 
 ### Workflow does not run after push
 
-Check that the push touches files inside one of the trigger paths (see above).
-Pushes that only change `README.md` or `docs/` will not trigger a deploy.
+Every push to `main` triggers the deploy workflow. If it still does not run,
+confirm `.github/workflows/deploy-railway.yml` exists on the branch you pushed.
 
-### "Could not resolve Railway project/service from token"
+### Red X on commits: `short-squeeze-screener - short-squeeze-screener`
 
-The `RAILWAY_TOKEN` secret is either missing, expired, or not scoped to the
-correct project. Re-generate the token in the Railway dashboard and update the
-GitHub secret.
+That status comes from **Railway’s GitHub integration** (not only Actions). It
+fails when Railway builds from the **monorepo root** but the Dockerfile expects
+`short-squeeze-core/` paths. This repo ships a root **`Dockerfile`** and
+**`railway.toml`** for that integration.
+
+If you still see failures:
+
+1. Railway → **short-squeeze-screener** service → **Settings** → **Root Directory**
+   should be **empty** (repository root) or match where `railway.toml` lives.
+2. Remove or disconnect **orphan services** linked to the same repo
+   (e.g. old `short-squeeze`, `heartfelt-victory` projects) — they show as
+   separate failed “production” deployments on GitHub.
+3. Re-run **Actions → Deploy to Railway → Run workflow** on `main`.
 
 ### Build fails in Railway
 
 The polling step fetches build logs automatically and prints them in the
 workflow run. Common causes:
 
-- **Wrong build context (monorepo)** — the Docker build context must be
-  `short-squeeze-core`. In Railway → Service → Settings, set **Root Directory**
-  to `/short-squeeze-core` and **Config file** to `/short-squeeze-core/railway.toml`.
-  Without this, `COPY apps` fails with `"/scripts": not found`.
+- **Wrong build context (monorepo)** — use the repository-root `Dockerfile`
+  (prefixed `COPY short-squeeze-core/...`). For CLI deploys from
+  `short-squeeze-core/.railway-deploy/`, the build context is that folder
+  instead (see workflow `rsync` step).
 - **Missing `RAILWAY_TOKEN`** — the environment variable is not set in the
   workflow.
+
+### "Could not resolve Railway project/service from token"
+
+The `RAILWAY_TOKEN` secret is either missing, expired, or not scoped to the
+correct project. Re-generate the token in the Railway dashboard and update the
+GitHub secret.
 - **Dependency install fails** — check `pyproject.toml` for version conflicts.
 - **Health check timeout** — the `/health` endpoint must return 200 within the
   configured timeout. Cloud deploys must run `CLOUD_PROVIDER_MODE` (bind

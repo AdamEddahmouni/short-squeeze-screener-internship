@@ -26,15 +26,6 @@ name: Deploy to Railway
 on:
   push:
     branches: [main]
-    paths:
-      # Source directories that feed into the deploy copy
-      - "short-squeeze-core/apps/**"
-      - "short-squeeze-core/src/**"
-      - "short-squeeze-core/scripts/**"
-      - "short-squeeze-core/tools/**"
-      - "short-squeeze-core/pyproject.toml"
-      # The deploy directory itself (e.g. Dockerfile, railway.toml)
-      - "short-squeeze-core/.railway-deploy/**"
   workflow_dispatch:
 
 permissions:
