@@ -18,6 +18,7 @@ from typing import Any
 
 from . import discovery as discovery_module
 from .ibkr_session import (
+    APP_CLIENT_ID_SEQUENCE,
     BORROW_FEE_GENERIC_TICK_LIST,
     QuoteTicks,
     ScannerRow,
@@ -141,14 +142,42 @@ class ProviderUnavailable(RuntimeError):
     """The gateway could not be reached, or ``ibapi`` is not installed."""
 
 
+@dataclass(frozen=True, slots=True)
+class IbkrEndpoint:
+    """Explicit IB Gateway socket target (cloud sidecar or remote host)."""
+
+    host: str
+    port: int
+    client_id_sequence: tuple[int, ...] = APP_CLIENT_ID_SEQUENCE
+
+
+def ibkr_endpoint_from_config(ibkr) -> IbkrEndpoint | None:
+    if not ibkr.enabled:
+        return None
+    sequence = tuple(
+        dict.fromkeys((ibkr.client_id, *APP_CLIENT_ID_SEQUENCE))
+    )
+    return IbkrEndpoint(host=ibkr.host, port=ibkr.port, client_id_sequence=sequence)
+
+
+def _is_loopback_host(host: str) -> bool:
+    return host.strip().lower() in {"127.0.0.1", "localhost"}
+
+
 class LiveProvider:
     """A lazily connected, reconnectable, single-conversation read-only provider."""
 
-    def __init__(self, *, session_factory=None) -> None:
+    def __init__(
+        self,
+        *,
+        ibkr_endpoint: IbkrEndpoint | None = None,
+        session_factory=None,
+    ) -> None:
         self._lock = threading.RLock()
         self._session: Any = None
         self._connection: Any = None
         self._session_factory = session_factory
+        self._ibkr_endpoint = ibkr_endpoint
         self._req_id = 1000
         self.connection_status = CallStatus("IB Gateway")
         self.scanner_status = CallStatus("Scanner")
@@ -191,7 +220,10 @@ class LiveProvider:
             try:
                 ensure_tools_importable()
                 from tools.ibkr_historical_export import policy as ibkr_policy
-                from tools.ibkr_historical_export.collector import probe_and_connect
+                from tools.ibkr_historical_export.collector import (
+                    connect_configured,
+                    probe_and_connect,
+                )
             except ImportError as exc:
                 self.connection_status.failed(
                     "The official IBKR API package is not importable in this environment, "
@@ -204,9 +236,17 @@ class LiveProvider:
 
             original = ibkr_policy.CLIENT_ID_SEQUENCE
             try:
-                # Application client IDs, disjoint from the research exporter's.
                 ibkr_policy.CLIENT_ID_SEQUENCE = APP_CLIENT_ID_SEQUENCE
-                session, result = probe_and_connect(self._build_session)
+                endpoint = self._ibkr_endpoint
+                if endpoint is not None and not _is_loopback_host(endpoint.host):
+                    session, result = connect_configured(
+                        self._build_session,
+                        endpoint.host,
+                        endpoint.port,
+                        endpoint.client_id_sequence,
+                    )
+                else:
+                    session, result = probe_and_connect(self._build_session)
             except Exception as exc:  # noqa: BLE001
                 self.connection_status.failed(f"{type(exc).__name__}: {exc}")
                 raise ProviderUnavailable(str(exc)) from exc
@@ -215,16 +255,19 @@ class LiveProvider:
 
             if session is None:
                 self.connection_status.failed(
-                    "No local IB Gateway / TWS API socket accepted a read-only connection. "
-                    "Start IB Gateway, or use Frozen Research mode.",
+                    "No IB Gateway / TWS API socket accepted a read-only connection. "
+                    "Verify IBKR_HOST, IBKR_PORT, and IBKR_CLIENT_ID, or use Frozen Research mode.",
                     ProviderCallState.UNAVAILABLE,
                 )
                 raise ProviderUnavailable(self.connection_status.detail)
 
             self._session = session
             self._connection = result
+            observed_host = (
+                self._ibkr_endpoint.host if self._ibkr_endpoint is not None else "127.0.0.1"
+            )
             self.connection_status.succeeded(
-                f"Connected read-only on 127.0.0.1:{getattr(result, 'observed_port', '?')}"
+                f"Connected read-only on {observed_host}:{getattr(result, 'observed_port', '?')}"
             )
             try:
                 session.request_market_data_type(REQUESTED_MARKET_DATA_TYPE)
@@ -581,13 +624,13 @@ class LiveProvider:
 
 
 class CloudUnavailableProvider(LiveProvider):
-    """IBKR boundary for cloud/demo modes; never attempts a loopback connection."""
+    """IBKR stub when cloud mode runs without ``IBKR_ENABLED``."""
 
     def __init__(self) -> None:
         super().__init__()
         self.connection_status.failed(
-            "IBKR is unavailable in cloud mode. No connection to the user's local "
-            "Gateway is attempted.",
+            "IBKR is disabled for this cloud deployment. Set IBKR_ENABLED=true and "
+            "configure IBKR_HOST, IBKR_PORT, and IBKR_CLIENT_ID to connect a gateway.",
             ProviderCallState.UNAVAILABLE,
         )
 
@@ -613,8 +656,10 @@ __all__ = [
     "CallStatus",
     "CloudUnavailableProvider",
     "CurrentBar",
+    "IbkrEndpoint",
     "LiveProvider",
     "ProviderCallState",
     "ProviderUnavailable",
     "SymbolCollection",
+    "ibkr_endpoint_from_config",
 ]

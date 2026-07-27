@@ -802,21 +802,18 @@ body.scanner .status-line:not([hidden]) { margin: 6px 16px 0; }
   color: var(--text);
 }
 .news-headline-line a,
-.detail-news-list a,
-.detail-news-link {
+.detail-news-list a {
   color: #8fc4ff;
   text-decoration: none;
   font-weight: 500;
 }
 .news-headline-line a:hover,
-.detail-news-list a:hover,
-.detail-news-link:hover {
+.detail-news-list a:hover {
   color: #b8d9ff;
   text-decoration: underline;
 }
 .news-headline-line a:visited,
-.detail-news-list a:visited,
-.detail-news-link:visited {
+.detail-news-list a:visited {
   color: #a8c8f0;
 }
 .news-headline-line .muted {

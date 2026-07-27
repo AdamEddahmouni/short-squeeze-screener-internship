@@ -174,3 +174,50 @@ jobs:
           echo "::error::Timed out waiting for Railway deployment after ${TIMEOUT}s"
           echo "::endgroup::"
           exit 1
+
+  deploy-ib-gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: |
+          bash <(curl -fsSL railway.com/install.sh)
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
+
+      - name: Deploy IB Gateway to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: short-squeeze-core/.railway-deploy/ib-gateway
+        run: |
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "::error::RAILWAY_TOKEN repository secret is not set."
+            exit 1
+          fi
+          if ! railway up --detach --environment production --service ib-gateway; then
+            echo "::warning::IB Gateway deploy failed. Create a Railway service named ib-gateway in the same project (see docs/railway-ib-gateway.md)."
+            exit 0
+          fi
+          echo "IB Gateway deployment upload started."
+
+      - name: Wait for IB Gateway deployment
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: short-squeeze-core/.railway-deploy/ib-gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVICE_NAME="ib-gateway"
+          sleep 10
+          for _ in $(seq 1 12); do
+            RESPONSE=$(railway deployment list --json --service "$SERVICE_NAME" --environment production 2>/dev/null || echo "[]")
+            STATUS=$(echo "$RESPONSE" | jq -r '.[0].status // "unknown"')
+            echo "ib-gateway: $STATUS"
+            case "$STATUS" in
+              SUCCESS) exit 0 ;;
+              FAILED|CRASHED) exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "::warning::Timed out waiting for ib-gateway; check Railway dashboard."

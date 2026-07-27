@@ -359,7 +359,11 @@ def research_summary() -> dict[str, Any]:
     }
 
 
-def health(*, cloud_mode: bool = False) -> dict[str, Any]:
+def health(
+    *,
+    cloud_mode: bool = False,
+    deployment_mode: str | None = None,
+) -> dict[str, Any]:
     """Provider health. Never claims availability from the presence of code."""
     from . import session_state
 
@@ -373,9 +377,25 @@ def health(*, cloud_mode: bool = False) -> dict[str, Any]:
         frozen_available = bool(load_frozen_demo()["rows"])
 
     from .provider_session import CloudUnavailableProvider
-    if cloud_mode or isinstance(session.provider, CloudUnavailableProvider):
+    from .config import resolve_application_config
+
+    ibkr_enabled = resolve_application_config(
+        cli=(
+            {"SQUEEZE_APP_MODE": deployment_mode}
+            if deployment_mode
+            else (
+                {"SQUEEZE_APP_MODE": "CLOUD_PROVIDER_MODE"}
+                if cloud_mode
+                else None
+            )
+        ),
+    ).providers.ibkr.enabled
+    if isinstance(session.provider, CloudUnavailableProvider) or (
+        cloud_mode and not ibkr_enabled
+    ):
         cloud_detail = (
-            "Local IB Gateway is unavailable in cloud mode and no loopback probe is made."
+            "IBKR is disabled for this cloud deployment. Set IBKR_ENABLED=true and "
+            "configure IBKR_HOST, IBKR_PORT, and IBKR_CLIENT_ID."
         )
         entries = [
             {"name": "IB Gateway", "state": "UNAVAILABLE", "detail": cloud_detail},

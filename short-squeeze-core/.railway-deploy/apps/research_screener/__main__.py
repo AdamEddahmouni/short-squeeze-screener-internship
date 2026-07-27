@@ -10,7 +10,7 @@ import webbrowser
 from pathlib import Path
 
 from . import APP_TITLE, DISCLAIMER
-from .deployment import DeploymentMode, RuntimeConfig, resolve_runtime
+from .deployment import DeploymentMode, RuntimeConfig, deployment_mode, resolve_runtime
 from .credentials import default_private_path
 from .config import resolve_application_config
 from .paths import FrozenLayout
@@ -167,8 +167,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # Preload private provider credentials into os.environ so provider init
     # code (which reads from env vars) sees the keys before the config
-    # pipeline processes them.  Only preload in LOCAL_FULL mode.
-    if private_file and private_file.is_file():
+    # pipeline processes them. Only preload in LOCAL_FULL mode.
+    selected_mode = deployment_mode(args.mode or os.environ.get("SQUEEZE_APP_MODE"))
+    if (
+        private_file
+        and private_file.is_file()
+        and selected_mode is DeploymentMode.LOCAL_FULL
+    ):
         from .config import load_private_env
         load_private_env(private_file, verbose=True)
 
@@ -201,8 +206,17 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("  FinBERT sentiment          : DISABLED")
     if runtime_config.enable_local_ibkr:
+        from .provider_session import LiveProvider, ibkr_endpoint_from_config
         from .session_state import ScreenerSession, reset_session
-        reset_session(ScreenerSession(external_providers=runtime))
+
+        reset_session(ScreenerSession(
+            provider=LiveProvider(
+                ibkr_endpoint=ibkr_endpoint_from_config(
+                    application_config.providers.ibkr,
+                ),
+            ),
+            external_providers=runtime,
+        ))
     else:
         from .provider_session import CloudUnavailableProvider
         from .session_state import ScreenerSession, reset_session

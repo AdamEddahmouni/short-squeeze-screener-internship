@@ -206,9 +206,16 @@ environment variables. Set these in the Railway Dashboard → Project → Variab
 | `FINNHUB_KEY` | Yes | Finnhub API key |
 | `NEWSAPI_KEY` | No | NewsAPI key (for news enrichment) |
 | `SQUEEZE_APP_MODE` | Auto (set by `railway.toml`) | Runs in `CLOUD_PROVIDER_MODE`. Override per-service in Railway dashboard if needed. |
+| `IBKR_ENABLED` | No (default `false` in cloud) | Set `true` to connect a user-supplied IB Gateway (sidecar or remote host). |
+| `IBKR_HOST` | When IBKR enabled | Gateway hostname (e.g. Railway private domain for a gateway service). |
+| `IBKR_PORT` | When IBKR enabled | `4004` paper / `4003` live (`gnzsnz` image internal API ports on Railway private network). |
 
-Do **not** set `IBKR_ENABLED=true` on Railway — the IB Gateway is not available
-in the cloud and the server will fail to start.
+For a managed sidecar, see **[railway-ib-gateway.md](./railway-ib-gateway.md)** (`ib-gateway` service + `IBKR_HOST=ib-gateway.railway.internal`).
+| `IBKR_CLIENT_ID` | When IBKR enabled | TWS API client id (must not collide with other sessions). |
+| `IBKR_USER_ID` | Optional | IB account username when running the bundled Docker IB Gateway image. |
+| `IBKR_PASSWORD` | Optional | IB account password for the Docker IB Gateway image. |
+
+Do **not** set `IBKR_ENABLED=true` without a reachable `IBKR_HOST` — the screener will attempt a read-only API connection on bootstrap.
 
 ---
 

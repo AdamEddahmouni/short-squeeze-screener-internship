@@ -57,6 +57,32 @@ def test_cloud_provider_configuration_reads_named_environment_only(monkeypatch):
         reset_runtime()
 
 
+def test_cloud_ibkr_enabled_from_environment(monkeypatch):
+    from apps.research_screener.config import resolve_application_config
+
+    monkeypatch.setenv("IBKR_ENABLED", "true")
+    monkeypatch.setenv("IBKR_HOST", "ib-gateway.example.invalid")
+    monkeypatch.setenv("IBKR_PORT", "4002")
+    monkeypatch.setenv("IBKR_CLIENT_ID", "27201")
+    config = resolve_application_config(
+        cli={"SQUEEZE_APP_MODE": "CLOUD_PROVIDER_MODE"},
+    )
+    assert config.providers.ibkr.enabled is True
+    assert config.providers.ibkr.host == "ib-gateway.example.invalid"
+    assert config.providers.ibkr.port == 4002
+    assert config.providers.ibkr.client_id == 27201
+
+
+def test_cloud_ibkr_defaults_disabled_without_explicit_env(monkeypatch):
+    from apps.research_screener.config import resolve_application_config
+
+    monkeypatch.delenv("IBKR_ENABLED", raising=False)
+    config = resolve_application_config(
+        cli={"SQUEEZE_APP_MODE": "CLOUD_PROVIDER_MODE"},
+    )
+    assert config.providers.ibkr.enabled is False
+
+
 @pytest.mark.parametrize(
     ("values", "expected"),
     [
@@ -180,7 +206,8 @@ def test_api_responses_do_not_leak_secrets_or_local_paths(api_server):
             assert forbidden not in encoded
 
 
-def test_cloud_capability_report_never_claims_local_ibkr_connected(tmp_path):
+def test_cloud_capability_report_never_claims_local_ibkr_connected(tmp_path, monkeypatch):
+    monkeypatch.delenv("IBKR_ENABLED", raising=False)
     server = build_server(
         find_free_port(9150),
         export_dir=tmp_path,
@@ -194,14 +221,14 @@ def test_cloud_capability_report_never_claims_local_ibkr_connected(tmp_path):
         _, health = get_json(base, "/api/health")
         gateway = next(item for item in health["providers"] if item["name"] == "IB Gateway")
         assert gateway["state"] == "UNAVAILABLE"
-        assert "no loopback probe" in gateway["detail"].lower()
+        assert "ibkr" in gateway["detail"].lower()
         assert health["readiness"]["demo_ready"] is True
 
         _, payload = get_json(base, "/api/capabilities")
         ibkr = payload["providers"]["IBKR"]
         assert ibkr["configured"] is False
         assert ibkr["connected"] is False
-        assert "cloud mode" in ibkr["capabilities"]["DISCOVERY"]["detail"].lower()
+        assert "disabled" in ibkr["capabilities"]["DISCOVERY"]["detail"].lower()
 
         _, frozen = get_json(base, "/api/frozen/candidates")
         assert frozen["data"]["source_kind"] == "SANITIZED_AGGREGATE"

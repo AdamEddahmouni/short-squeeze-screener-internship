@@ -14,9 +14,10 @@ Usage
 What it does
 ------------
   1. Reads provider credentials ONLY from environment variables
-     (``FINVIZ_API_KEY``, ``NEWSAPI_KEY``, ``FINNHUB_KEY``, etc.)
+     (``FINVIZ_API_KEY``, ``NEWSAPI_KEY``, ``FINNHUB_KEY``, ``IBKR_*``, etc.)
   2. Does NOT load any local file — ``.private/providers.env`` is suppressed
-  3. Never probes a local IB Gateway (none exists in the cloud)
+  3. Never probes a local IB Gateway unless ``IBKR_ENABLED=true`` and
+     ``IBKR_HOST`` / ``IBKR_PORT`` / ``IBKR_CLIENT_ID`` are set (remote gateway)
   4. Uses ``FROZEN_DEMO`` research data packaged in the deployment image
   5. Starts the HTTP server on ``0.0.0.0:<PORT>`` (all interfaces)
   6. No browser — this is headless by design

@@ -319,6 +319,9 @@ def resolve_application_config(
     )
 
     merged = dict(SAFE_DEFAULTS)
+    if mode is DeploymentMode.CLOUD_PROVIDER_MODE:
+        # Cloud deploys opt in to IBKR explicitly; local defaults stay enabled.
+        merged["IBKR_ENABLED"] = "false"
     sources: dict[str, str] = {key: "default" for key in merged}
     for label, values in (
         ("private_file", private_values),
@@ -379,7 +382,7 @@ def resolve_application_config(
         ),
         ibkr=IbkrProviderConfig(
             _boolean("IBKR_ENABLED", merged["IBKR_ENABLED"])
-            and mode is DeploymentMode.LOCAL_FULL,
+            and mode is not DeploymentMode.FROZEN_DEMO,
             merged["IBKR_HOST"],
             ibkr_port,
             ibkr_client_id,

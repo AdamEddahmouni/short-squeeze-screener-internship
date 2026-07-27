@@ -183,6 +183,7 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         elif route == "/api/health":
             payload = snapshot_module.health(
                 cloud_mode=str(self.server.deployment_mode) != "LOCAL_FULL",  # type: ignore[attr-defined]
+                deployment_mode=str(self.server.deployment_mode),  # type: ignore[attr-defined]
             )
             self._json(compatible_envelope(
                 payload, mode=str(self.server.deployment_mode),  # type: ignore[attr-defined]
@@ -486,22 +487,50 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         runtime = get_runtime()
         from . import session_state
         current_rows = session_state.get_session().rows()
+        from .config import resolve_application_config
 
-        # IBKR is intentionally local-only. Cloud capability reporting must not imply
-        # that the user's loopback Gateway is reachable from a hosted container.
+        ibkr_config = resolve_application_config(
+            cli={"SQUEEZE_APP_MODE": str(self.server.deployment_mode)},  # type: ignore[attr-defined]
+        ).providers.ibkr
         cloud = bool(
             self is not None
             and str(self.server.deployment_mode) != "LOCAL_FULL"  # type: ignore[attr-defined]
         )
+        ibkr_disabled = not ibkr_config.enabled
         ibkr = ProviderCapabilities(
-            provider="IBKR", configured=not cloud, connected=not cloud,
+            provider="IBKR",
+            configured=ibkr_config.enabled,
+            connected=(
+                session_state.get_session().provider.connected
+                if ibkr_config.enabled
+                else False
+            ),
         )
-        if cloud:
+        if ibkr_disabled:
             ibkr.set_not_configured(
                 Capability.DISCOVERY, Capability.DELAYED_QUOTE,
                 Capability.HISTORICAL_BARS, Capability.SHORTABILITY,
                 Capability.BORROW_FEE, Capability.SHORTABLE_SHARES, Capability.HALTS,
-                detail="Local IB Gateway is unavailable in cloud mode and is never contacted.",
+                detail=(
+                    "IBKR is disabled. Set IBKR_ENABLED=true and IBKR_HOST / IBKR_PORT / "
+                    "IBKR_CLIENT_ID to connect a gateway."
+                ),
+            )
+        elif cloud:
+            ibkr.set_available(
+                Capability.DISCOVERY, Capability.DELAYED_QUOTE, Capability.HISTORICAL_BARS,
+                detail=(
+                    f"Configured for remote gateway at {ibkr_config.host}:{ibkr_config.port}. "
+                    "Connection is established on first use."
+                ),
+            )
+            ibkr.set_permission_unavailable(
+                Capability.BORROW_FEE, Capability.SHORTABLE_SHARES,
+                detail="Requires market data entitlement not available.",
+            )
+            ibkr.set_available(
+                Capability.SHORTABILITY,
+                detail="Generic tick 236 (shortable indicator) when gateway is connected.",
             )
         else:
             ibkr.set_available(
@@ -512,7 +541,7 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             Capability.REALTIME_QUOTE,
             detail="Real-time quotes require a market data subscription not present.",
         )
-        if not cloud:
+        if not ibkr_disabled and not cloud:
             ibkr.set_permission_unavailable(
                 Capability.BORROW_FEE, Capability.SHORTABLE_SHARES,
                 detail="Requires market data entitlement not available.",
@@ -525,8 +554,12 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             row.get("fields", {}).get("halted", {}).get("status") == "KNOWN"
             for row in current_rows
         )
-        if cloud:
-            pass
+        if ibkr_disabled or cloud:
+            if cloud and ibkr_config.enabled and halt_observed:
+                ibkr.set_available(
+                    Capability.HALTS,
+                    detail="Generic callback tick type 49 (halted) observed.",
+                )
         elif halt_observed:
             ibkr.set_available(
                 Capability.HALTS,

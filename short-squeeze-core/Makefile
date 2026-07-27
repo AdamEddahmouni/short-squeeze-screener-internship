@@ -19,7 +19,7 @@
 
 .PHONY: help up up-full build dev logs logs-screener logs-gateway
 .PHONY: down stop clean clean-cache ps pull doctor doctor-json
-.PHONY: deploy deploy-sync tidy precommit precommit-quick install-hooks test-quick
+.PHONY: deploy deploy-sync deploy-ib-gateway railway-sync-ib-gateway-vars tidy precommit precommit-quick install-hooks test-quick
 
 # ── Help ──────────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ help: ## Show this help
 	@printf "  \033[36mmake doctor\033[0m         Print credential/provider report\n"
 	@printf "  \033[36mmake doctor-json\033[0m     Print report as JSON via jq\n"
 	@printf "  \033[36mmake deploy\033[0m        Sync source + deploy to Railway\n"
+	@printf "  \033[36mmake deploy-ib-gateway\033[0m  Deploy IB Gateway sidecar to Railway\n"
 	@printf "  \033[36mmake deploy-sync\033[0m    Sync source into .railway-deploy/ only\n"
 	@printf "  \033[36mmake tidy\033[0m          Git garbage collection and cleanup\n"
 	@printf "  \033[36mmake precommit\033[0m         Run import checks and lint before committing\n"
@@ -148,6 +149,39 @@ deploy: deploy-sync ## Sync latest source and deploy to Railway (mirrors CI pipe
 	@printf "  \033[36m4/4\033[0m Deployment initiated.\n"
 	@printf "\n  \033[36m->\033[0m Track progress at \033[4mhttps://railway.app/project/\033[0m\n"
 	@printf "  \033[36m->\033[0m Or push to main and watch the GitHub Action.\n"
+
+deploy-ib-gateway: ## Deploy IB Gateway sidecar (see docs/railway-ib-gateway.md)
+	@printf "\033[32m. Deploying IB Gateway to Railway...\033[0m\n"
+	@if ! command -v railway >/dev/null 2>&1; then \
+		printf "  Railway CLI not found, installing...\n"; \
+		bash <(curl -fsSL railway.com/install.sh); \
+		. "$$HOME/.railway/env" 2>/dev/null || export PATH="$$HOME/.railway/bin:$$PATH"; \
+	fi
+	cd .railway-deploy/ib-gateway && railway up --detach --environment production --service ib-gateway
+	@printf "\n  \033[32mOK\033[0m IB Gateway deploy initiated.\n"
+	@printf "  Set TWS_USERID/TWS_PASSWORD on the ib-gateway service and IBKR_HOST=ib-gateway.railway.internal on the screener.\n"
+	@printf "  Or run \033[33mmake railway-sync-ib-gateway-vars\033[0m after adding IBKR_USER_ID/IBKR_PASSWORD to .private/providers.env\n"
+
+railway-sync-ib-gateway-vars: ## Push IBKR_USER_ID/PASSWORD from .private/providers.env → Railway ib-gateway
+	@printf "\033[32m. Syncing IB Gateway credentials to Railway (ib-gateway service)...\033[0m\n"
+	@PRIVATE=".private/providers.env"; \
+	if [ ! -f "$$PRIVATE" ]; then \
+	  printf "\033[31mMissing $$PRIVATE — add IBKR_USER_ID and IBKR_PASSWORD first.\033[0m\n"; exit 1; \
+	fi; \
+	USER_ID=$$(grep -E '^IBKR_USER_ID=' "$$PRIVATE" | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//;s/["'\'']$$//'); \
+	PASS=$$(grep -E '^IBKR_PASSWORD=' "$$PRIVATE" | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//;s/["'\'']$$//'); \
+	if [ -z "$$USER_ID" ] || [ -z "$$PASS" ]; then \
+	  printf "\033[31mIBKR_USER_ID and IBKR_PASSWORD must be set in $$PRIVATE\033[0m\n"; exit 1; \
+	fi; \
+	if ! command -v railway >/dev/null 2>&1; then \
+	  printf "  Railway CLI not found, installing...\n"; \
+	  bash <(curl -fsSL railway.com/install.sh); \
+	  . "$$HOME/.railway/env" 2>/dev/null || export PATH="$$HOME/.railway/bin:$$PATH"; \
+	fi; \
+	printf '%s' "$$USER_ID" | railway variable set TWS_USERID --stdin --skip-deploys --service ib-gateway --environment production; \
+	printf '%s' "$$PASS" | railway variable set TWS_PASSWORD --stdin --skip-deploys --service ib-gateway --environment production; \
+	railway redeploy --service ib-gateway --environment production --yes; \
+	printf "\n  \033[32mOK\033[0m Gateway credentials updated and redeploy triggered.\n"
 
 # ── Maintenance ───────────────────────────────────────────────────────
 
