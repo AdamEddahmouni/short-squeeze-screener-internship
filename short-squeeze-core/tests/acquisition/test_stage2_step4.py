@@ -187,13 +187,13 @@ def test_outcomes_no_reference_bar_marks_unavailable(step4_in_tmp) -> None:
 def test_outcomes_partial_window_with_no_crossing(step4_in_tmp) -> None:
     """Bars cover part of the window but stop early -> PARTIAL + max_up partial."""
     step4 = step4_in_tmp
+    _populate_all_forward_csvs(step4, [])  # empty CSVs for non-target symbols FIRST
     _write_forward_csv([
         ("2026-07-21T13:38:00Z", "19.10"),  # first in-window (reference)
         ("2026-07-21T14:00:00Z", "20.00"),
         ("2026-07-21T15:00:00Z", "21.00"),
         ("2026-07-21T16:00:00Z", "21.50"),
     ], step4.INTAKE_RAW_DIR / "XNCR-forward-outcome.csv")
-    _populate_all_forward_csvs(step4, [])
     step4.compute_outcomes(force=True)
     obs = step4.RetrospectiveOutcomeObservation.model_validate_json(
         step4.OUTCOMES_DIR.joinpath("XNCR", "outcome_observation.json").read_bytes()
@@ -209,6 +209,7 @@ def test_outcomes_partial_window_with_no_crossing(step4_in_tmp) -> None:
 def test_outcomes_substantial_upward_crossing_detected(step4_in_tmp) -> None:
     """A +30% bar in a complete +24h window produces SUBSTANTIAL_UPWARD_MOVE."""
     step4 = step4_in_tmp
+    _populate_all_forward_csvs(step4, [])  # empty CSVs for non-target symbols FIRST
     _write_forward_csv([
         ("2026-07-21T13:38:00Z", "10.00"),  # first in-window (reference)
         ("2026-07-21T14:00:00Z", "13.00"),  # +30% (crosses +25%)
@@ -219,7 +220,6 @@ def test_outcomes_substantial_upward_crossing_detected(step4_in_tmp) -> None:
         # COMPLETE.
         ("2026-07-22T13:37:55Z", "10.20"),
     ], step4.INTAKE_RAW_DIR / "GPRE-forward-outcome.csv")
-    _populate_all_forward_csvs(step4, [])
     step4.compute_outcomes(force=True)
     obs = step4.RetrospectiveOutcomeObservation.model_validate_json(
         step4.OUTCOMES_DIR.joinpath("GPRE", "outcome_observation.json").read_bytes()
@@ -232,9 +232,9 @@ def test_outcomes_substantial_upward_crossing_detected(step4_in_tmp) -> None:
 
 def test_outcomes_reference_price_is_decimal_typed(step4_in_tmp) -> None:
     step4 = step4_in_tmp
+    _populate_all_forward_csvs(step4, [])  # empty CSVs for non-target symbols FIRST
     _write_forward_csv([("2026-07-21T13:38:00Z", "7.89")],
                       step4.INTAKE_RAW_DIR / "BHVN-forward-outcome.csv")
-    _populate_all_forward_csvs(step4, [])
     step4.compute_outcomes(force=True)
     obs = step4.RetrospectiveOutcomeObservation.model_validate_json(
         step4.OUTCOMES_DIR.joinpath("BHVN", "outcome_observation.json").read_bytes()
@@ -310,7 +310,15 @@ def test_publish_produces_registry_batch_and_dataset(step4_in_tmp) -> None:
     step4 = step4_in_tmp
     from squeeze_core.evaluation import CandidateEvaluationResult
     from squeeze_core.evaluation.serialization import serialize_candidate_evaluation
+    from tests.research.helpers import BASE_EVALUATION
 
+    # ``BASE_EVALUATION`` is a fully-validated ``CandidateEvaluationResult``
+    # with real ``rule_results`` matching the canonical Phase 3A policy.
+    # Reusing it (with per-symbol overrides) lets the batch reader in
+    # ``squeeze_core.research.batch`` process every entry instead of skipping
+    # all 13 due to a stub-evaluation interpreter mismatch. ``model_copy``
+    # is the idiomatic Pydantic v2 way to derive a frozen copy with field
+    # overrides; the underlying ``BASE_EVALUATION`` is not mutated.
     for s in step4.SYMBOLS:
         freeze_dir = step4.FREEZE_DIR / s
         freeze_dir.mkdir(parents=True, exist_ok=True)
@@ -319,12 +327,14 @@ def test_publish_produces_registry_batch_and_dataset(step4_in_tmp) -> None:
         request_path.write_bytes(step4.canonical_json_bytes({
             "symbol": s, "as_of": step4.PHASE_3A_AS_OF.isoformat(), "kind": "request",
         }))
-        result = CandidateEvaluationResult(
-            deterministic_id=f"eval-{s}",
-            policy_version=step4.PHASE_3A_POLICY_VERSION,
-            rule_results=tuple(),
-        )
+        result = BASE_EVALUATION.model_copy(update={
+            "symbol": s,
+            "as_of": step4.PHASE_3A_AS_OF,
+        })
         result_path.write_bytes(serialize_candidate_evaluation(result))
+        # Roundtrip the JSON via Pydantic so the test fails fast if
+        # canonical overrides produce a payload the batch reader rejects.
+        CandidateEvaluationResult.model_validate_json(result_path.read_bytes())
         meta = {
             "symbol": s,
             "freeze_timestamp_utc": datetime.now(UTC).isoformat(),
@@ -356,8 +366,10 @@ def test_publish_produces_registry_batch_and_dataset(step4_in_tmp) -> None:
         step4.PHASE3B_DIR.joinpath("phase_3b_research_dataset.json").read_bytes()
     )
     assert len(dataset.rows) == 13
+    # Empty forward CSVs -> UNAVAILABLE observation completeness -> per
+    # ``label_outcome`` policy v1, the label is ``OUTCOME_UNKNOWN``.
     assert all(
-        r.outcome_label.value == "OUTCOME_INSUFFICIENT_DATA" for r in dataset.rows
+        r.outcome_label.value == "OUTCOME_UNKNOWN" for r in dataset.rows
     )
     jsonl_bytes = step4.PHASE3B_DIR.joinpath("phase_3b_research_dataset.jsonl").read_bytes()
     assert jsonl_bytes.count(b"\n") == 13

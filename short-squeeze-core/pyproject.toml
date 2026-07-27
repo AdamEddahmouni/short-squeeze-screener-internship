@@ -27,5 +27,5 @@ squeeze-core = "squeeze_core.__main__:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-addopts = "-q --basetemp=.pytest-tmp"
+addopts = "-q -p no:cacheprovider"
 testpaths = ["tests"]

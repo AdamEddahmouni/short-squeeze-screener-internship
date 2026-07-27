@@ -59,6 +59,7 @@ from squeeze_core.research.batch import run_research_batch
 from squeeze_core.research.dataset import build_research_dataset
 from squeeze_core.research.models import (
     BatchEvaluationRequest,
+    BatchEvaluationResult,
     CandidateCaseRegistry,
     CandidateCaseRegistryEntry,
     CandidateCaseStatus,
@@ -67,6 +68,7 @@ from squeeze_core.research.models import (
     OriginalPlatformStatus,
     OrderingPolicy,
     OutcomeCompleteness,
+    ResearchDataset,
     RetrospectiveOutcomeObservation,
 )
 from squeeze_core.research.policies import (
@@ -512,17 +514,15 @@ def run_leakage_audit() -> dict:
 
     # 4) The on-disk freeze matches its declared SHA-256 (no drift).
     shas_ok, sha_report = _freeze_metadata_sha_matches()
-    # sha_report is "failures" when not ok, "confirm" samples when ok.
+    # ``sha_report`` is a list of ``{symbol, kind, sha256}`` confirmations
+    # when ``shas_ok`` is True, or a list of failure dicts without the
+    # ``sha256`` key when it is False. ``len`` is the right report either
+    # way. The helper is annotated ``-> tuple[bool, list[dict]]`` so it
+    # always returns a list; no defensive isinstance guard needed.
     checks["freeze_metadata_sha_matches"] = {
         "passed": shas_ok,
-        "sample_size": (
-            len(sha_report) if isinstance(sha_report, list)
-            and sha_report
-            and isinstance(sha_report[0], dict)
-            and "sha256" in sha_report[0]
-            else len(failures := sha_report)
-        ),
-        "samples": sha_report if isinstance(sha_report, list) else [],
+        "sample_size": len(sha_report),
+        "samples": sha_report,
         "failures": sha_report if not shas_ok else [],
         "rationale": (
             "freeze_metadata.json SHA-256 hashes must match the on-disk "
@@ -533,10 +533,19 @@ def run_leakage_audit() -> dict:
 
     # 5) Outcome manifest is a distinct contract from evaluation freeze.
     manifest_path = OUTCOMES_DIR / "outcomes_manifest.json"
+    # Recursively scan FREEZE_DIR for any outcomes_manifest.json — a smuggled
+    # duplicate (whether at the top level or nested under a subdirectory)
+    # would let the same JSON masquerade as either contract.
+    freeze_resolved = FREEZE_DIR.resolve()
+    smuggled = sorted(
+        str(p.relative_to(short_squeeze_root))
+        for p in freeze_resolved.rglob("outcomes_manifest.json")
+    )
     separate = (
         manifest_path.exists()
-        and OUTCOMES_DIR.resolve() != FREEZE_DIR.resolve()
-        and not manifest_path.resolve().is_relative_to(FREEZE_DIR.resolve())
+        and OUTCOMES_DIR.resolve() != freeze_resolved
+        and not manifest_path.resolve().is_relative_to(freeze_resolved)
+        and not smuggled
     )
     checks["outcome_manifest_separate"] = {
         "passed": separate,
@@ -546,9 +555,12 @@ def run_leakage_audit() -> dict:
             str(manifest_path.relative_to(short_squeeze_root))
             if manifest_path.exists() else None
         ),
+        "smuggled_manifest_paths": smuggled,
         "rationale": (
             "phase_3d_outcome_leakage_policy.v1 -- "
-            "'The outcome manifest is a separate contract from the evaluation freeze.'"
+            "'The outcome manifest is a separate contract from the "
+            "evaluation freeze.' No copy of outcomes_manifest.json may "
+            "appear anywhere inside the freeze tree."
         ),
     }
 
@@ -792,41 +804,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    print(
-        f"[step4] mode={args.step} force={args.force} "
-        f"workers={os.cpu_count() or 1}",
-        flush=True,
-    )
-
-    if args.step in ("outcomes", "all"):
-        summary = compute_outcomes(force=args.force)
-        print(
-            f"[step4] outcomes: new={summary['newly_computed']} "
-            f"resumed={summary['skipped_existing']}",
-            flush=True,
-        )
-
-    if args.step in ("audit", "all"):
-        audit = run_leakage_audit()
-        print(
-            f"[step4] audit: {'PASS' if audit['audit_passed'] else 'FAIL'}",
-            flush=True,
-        )
-        if args.step == "audit" and not audit["audit_passed"]:
-            return 1
-
-    if args.step in ("publish", "all"):
-        publish = publish_phase3b_dataset(force=args.force)
-        print(
-            f"[step4] publish: {publish['status']} "
-            f"rows={publish.get('row_count', 0)} "
-            f"id={publish.get('dataset_id', '-')[:16]}…",
-            flush=True,
-        )
-
-    return 0
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     print(
