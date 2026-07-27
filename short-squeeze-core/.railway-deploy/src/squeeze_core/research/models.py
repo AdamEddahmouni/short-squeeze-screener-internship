@@ -318,6 +318,8 @@ class ResearchClassificationResult(BaseModel):
     classification: ResearchCaseClassification
     detection_result_id: str
     outcome_label_result_id: str
+    evaluable_pair: bool = False
+    unevaluable_cause: str | None = None
     deterministic_id: str | None = None
 
     @model_validator(mode="after")
