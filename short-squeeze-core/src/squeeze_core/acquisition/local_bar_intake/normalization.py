@@ -110,14 +110,28 @@ def _interval_duration(interval: BarInterval) -> timedelta | None:
     }[interval.unit]
 
 
+# Provider-name token identifying Interactive Brokers as the data source.
+# IBKR TRADES bars have honestly UNKNOWN volume-adjustment and timestamp semantics
+# (see ADR 0066). These UNKNOWN values are accepted with documented provenance.
+_IBKR_PROVIDER_TOKEN = "Interactive Brokers"
+
+
+def _is_ibkr_provider(manifest: IntakeManifest) -> bool:
+    """Check whether the manifest declares an Interactive Brokers source."""
+    return _IBKR_PROVIDER_TOKEN.lower() in manifest.provider_name.lower()
+
+
 def _manifest_semantic_codes(manifest: IntakeManifest) -> set[IntakeReasonCode]:
     codes: set[IntakeReasonCode] = set()
+    is_ibkr = _is_ibkr_provider(manifest)
     if manifest.timestamp_semantics not in {TimestampSemantics.START, TimestampSemantics.END}:
-        codes.add(IntakeReasonCode.MISSING_TIMESTAMP_SEMANTICS)
+        if not is_ibkr:
+            codes.add(IntakeReasonCode.MISSING_TIMESTAMP_SEMANTICS)
     if manifest.price_adjustment_semantics is PriceAdjustmentSemantics.UNKNOWN:
         codes.add(IntakeReasonCode.MISSING_ADJUSTMENT_SEMANTICS)
     if manifest.volume_adjustment_semantics is VolumeAdjustmentSemantics.UNKNOWN:
-        codes.add(IntakeReasonCode.MISSING_ADJUSTMENT_SEMANTICS)
+        if not is_ibkr:
+            codes.add(IntakeReasonCode.MISSING_ADJUSTMENT_SEMANTICS)
     if manifest.corporate_action_handling is CorporateActionHandling.UNKNOWN:
         codes.add(IntakeReasonCode.MISSING_ADJUSTMENT_SEMANTICS)
     else:
