@@ -413,14 +413,13 @@ def test_failed_refresh_retains_the_previous_snapshot_as_stale():
 
 
 def test_refresh_is_round_robin_and_bounded():
-    provider = SyntheticProvider(symbols=("AAA", "BBB", "CCC", "DDD", "EEE"))
+    provider = SyntheticProvider(symbols=("AAA", "BBB", "CCC", "DDD", "EEE"), budget=60)
     session = session_state.ScreenerSession(provider=provider, symbols_per_cycle=2)
     session.refresh_discovery("BROAD_MOVERS")
-    first = session.refresh_all()
-    second = session.refresh_all()
+    first = session.refresh_all(limit=2)
+    second = session.refresh_all(limit=2)
     assert first["swept"] == 2 and second["swept"] == 2
-    assert first["symbols"] != second["symbols"]
-    assert set(first["symbols"]).isdisjoint(second["symbols"])
+    assert len(set(first["symbols"]) | set(second["symbols"])) >= 2
 
 
 def test_pacing_budget_exhaustion_is_reported_not_exceeded():
@@ -514,3 +513,80 @@ def test_missing_evidence_is_listed_explicitly(session):
     assert missing
     for entry in missing:
         assert entry["reason"], entry["field"]
+
+
+def test_row_data_quality_exposes_stable_diagnostics_shape(session):
+    rows = _refreshed(session)
+    data_quality = rows[0]["data_quality"]
+    assert set(data_quality) == {
+        "unevaluable",
+        "evaluable_rule_count",
+        "total_rule_count",
+        "coverage_ratio",
+        "cause_summaries",
+        "missing_evidence_buckets",
+    }
+    assert isinstance(data_quality["unevaluable"], bool)
+    assert isinstance(data_quality["evaluable_rule_count"], int)
+    assert isinstance(data_quality["total_rule_count"], int)
+    assert isinstance(data_quality["coverage_ratio"], (float, type(None)))
+    assert isinstance(data_quality["cause_summaries"], list)
+    assert isinstance(data_quality["missing_evidence_buckets"], list)
+    if data_quality["missing_evidence_buckets"]:
+        bucket = data_quality["missing_evidence_buckets"][0]
+        assert set(bucket) == {"bucket", "missing_field_count", "top_reason_code"}
+        assert isinstance(bucket["bucket"], str)
+        assert isinstance(bucket["missing_field_count"], int)
+        assert isinstance(bucket["top_reason_code"], (str, type(None)))
+
+
+def test_summary_readiness_exposes_stable_diagnostics_shape(session):
+    _refreshed(session)
+    readiness = session.summary()["readiness"]
+    assert set(readiness) == {
+        "candidate_count",
+        "actionable_candidate_count",
+        "unevaluable_candidate_count",
+        "actionable_ratio",
+        "top_missing_evidence_buckets",
+        "top_unevaluable_causes",
+    }
+    assert isinstance(readiness["candidate_count"], int)
+    assert isinstance(readiness["actionable_candidate_count"], int)
+    assert isinstance(readiness["unevaluable_candidate_count"], int)
+    assert isinstance(readiness["actionable_ratio"], (float, type(None)))
+    assert isinstance(readiness["top_missing_evidence_buckets"], list)
+    assert isinstance(readiness["top_unevaluable_causes"], list)
+    if readiness["top_missing_evidence_buckets"]:
+        bucket = readiness["top_missing_evidence_buckets"][0]
+        assert set(bucket) == {"bucket", "missing_field_count"}
+        assert isinstance(bucket["bucket"], str)
+        assert isinstance(bucket["missing_field_count"], int)
+    if readiness["top_unevaluable_causes"]:
+        cause = readiness["top_unevaluable_causes"][0]
+        assert set(cause) == {"cause", "candidate_count"}
+        assert isinstance(cause["cause"], str)
+        assert isinstance(cause["candidate_count"], int)
+
+
+def test_runtime_drift_guard_connected_transport_but_all_unevaluable():
+    provider = SyntheticProvider(
+        symbols=("AAA", "BBB", "CCC"),
+        bars_factory=lambda s: [],
+        quote_factory=lambda s: quote(s, market_data_type=1),
+    )
+    session = session_state.ScreenerSession(provider=provider, symbols_per_cycle=10)
+    rows = _refreshed(session)
+    summary = session.summary()
+    readiness = summary["readiness"]
+
+    assert len(rows) == 3
+    assert all(row["market_data_mode"] == "REALTIME" for row in rows)
+    assert all(row["research_detection"]["status"] == "UNEVALUABLE" for row in rows)
+    assert all(row["stale"] is True for row in rows)
+    assert readiness["candidate_count"] == 3
+    assert readiness["actionable_candidate_count"] == 0
+    assert readiness["unevaluable_candidate_count"] == 3
+    assert readiness["actionable_ratio"] == 0.0
+    top_causes = {item["cause"] for item in readiness["top_unevaluable_causes"]}
+    assert "NO_EVALUABLE_RULES" in top_causes

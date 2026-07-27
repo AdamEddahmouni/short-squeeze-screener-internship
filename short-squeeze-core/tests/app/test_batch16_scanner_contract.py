@@ -79,7 +79,7 @@ def test_scanner_has_detail_drawer_elements():
 def test_scanner_js_defines_expected_columns():
     script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
     for col in ("symbol", "price", "percentage_change", "relative_volume",
-                "float_shares", "short_float", "short_ratio", "pressure",
+                "float_shares", "short_float", "days_to_cover", "borrow", "pressure",
                 "ignition", "evidence_coverage", "news", "sentiment",
                 "classification", "why_listed", "updated"):
         assert f"key: \"{col}\"" in script or f"'{col}'" in script
@@ -112,6 +112,28 @@ def test_scanner_js_missing_sorts_last():
 def test_scanner_js_withheld_score_shows_insufficient():
     script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
     assert "Insufficient evidence" in script
+
+
+def test_scanner_js_reads_backend_readiness_contract_keys():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    for key in (
+        "summary.readiness",
+        "candidate_count",
+        "actionable_candidate_count",
+        "unevaluable_candidate_count",
+        "top_unevaluable_causes",
+    ):
+        assert key in script
+
+
+def test_scanner_js_reads_row_data_quality_contract_keys():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    for key in (
+        "row.data_quality",
+        "cause_summaries",
+        "missing_evidence_buckets",
+    ):
+        assert key in script
 
 
 def test_scanner_js_coverage_categories():
@@ -147,7 +169,7 @@ def test_scanner_js_detail_sections():
     # The scanner's buildDetail shows core sections; the full set lives in the
     # advanced page (app.js / index.html). The contract verifies the scanner has
     # the sections it actually renders.
-    for section in ("HEADER", "SHORT PRESSURE", "IGNITION"):
+    for section in ("HEADER", "SHORT PRESSURE", "IGNITION", "NEWS"):
         assert section in script
 
 

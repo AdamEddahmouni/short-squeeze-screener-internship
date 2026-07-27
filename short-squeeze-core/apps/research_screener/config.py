@@ -30,15 +30,37 @@ SAFE_DEFAULTS = {
     "SENTIMENT_ENABLED": "true",
     "SENTIMENT_PROVIDER": "keyword",
     "SENTIMENT_BATCH_SIZE": "8",
-    "NEWS_PROVIDER_ORDER": "Finnhub News,NewsAPI,Finviz News",
+    "NEWS_PROVIDER_ORDER": "Finviz Elite,Finnhub News,NewsAPI",
     "NEWS_CACHE_TTL_SECONDS": "900",
     "NEWS_MAX_HEADLINES_PER_SYMBOL": "30",
     "QUOTE_REFRESH_SECONDS": "15",
     "SCANNER_REFRESH_SECONDS": "180",
+    "CURRENT_SCREEN_CAP": "50",
+    "FINVIZ_TOP_N": "50",
+    "SCANNER_ROW_LIMIT": "50",
+    "SYMBOLS_PER_CYCLE": "3",
+    "SYMBOLS_PER_CYCLE_MAX": "6",
+    "TARGET_LIVE_CANDIDATES": "50",
     "FRESHNESS_CURRENT_SECONDS": "90",
     "FRESHNESS_DELAYED_SECONDS": "600",
     "MAX_CHART_POINTS": "400",
     "SEC_USER_AGENT": "ResearchScreener/1.0 integration@example.invalid",
+    "COLLECTORS_ENABLED": "true",
+    "COLLECTOR_TICK_SECONDS": "30",
+    "COLLECTOR_MAX_SYMBOLS_PER_TICK": "10",
+    "COLLECTOR_MAX_REQUESTS_PER_MINUTE": "60",
+    "COLLECTOR_ORDER": "FinraPublishedSI,FinraDailyVolume,RssNews,SecRss,Polygon,AlphaVantage,Yfinance,Reddit,Stocktwits",
+    "COLLECTOR_OVERRIDE_POLICY": "never",
+    "FINRA_SI_COLLECTOR_ENABLED": "true",
+    "FINRA_DAILY_VOLUME_COLLECTOR_ENABLED": "true",
+    "RSS_NEWS_ENABLED": "true",
+    "SEC_RSS_COLLECTOR_ENABLED": "true",
+    "YFINANCE_COLLECTOR_ENABLED": "false",
+    "REDDIT_COLLECTOR_ENABLED": "false",
+    "STOCKTWITS_COLLECTOR_ENABLED": "false",
+    "POLYGON_COLLECTOR_ENABLED": "false",
+    "ALPHA_VANTAGE_COLLECTOR_ENABLED": "false",
+    "COLLECTOR_CACHE_ENABLED": "true",
     "IBKR_HOST": "127.0.0.1",
     "IBKR_PORT": "4001",
     "IBKR_CLIENT_ID": "123",
@@ -339,7 +361,9 @@ def resolve_application_config(
         news=NewsConfig(
             provider_order=[
                 p.strip()
-                for p in merged.get("NEWS_PROVIDER_ORDER", "NewsAPI,Finnhub News,Finviz News").split(",")
+                for p in merged.get(
+                    "NEWS_PROVIDER_ORDER", "Finviz Elite,Finnhub News,NewsAPI"
+                ).split(",")
                 if p.strip()
             ],
             cache_ttl_seconds=_integer(

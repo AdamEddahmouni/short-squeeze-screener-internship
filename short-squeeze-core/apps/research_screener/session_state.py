@@ -21,9 +21,20 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from . import current_eval, discovery as discovery_module
-from .finviz_live import select_ranked_finviz_top_n
+from .finviz_live import FinvizRow, select_ranked_finviz_top_n
+from .squeeze_priority import (
+    rank_symbols_for_refresh,
+    score_discovery_symbol,
+    sort_rows_for_display,
+)
+from .provider_session import (
+    CurrentBar,
+    HISTORICAL_PACING_WINDOW_S,
+    LiveProvider,
+    SymbolCollection,
+)
 from .live_providers import ProviderBundle, enrich_candidate as _enrich_candidate
-from .provider_session import CurrentBar, LiveProvider, SymbolCollection
+from .collectors import get_collector_bundle, supplemental_fields
 from .truth import DataMode, FieldValue, Freshness, ValueStatus, known, missing
 
 #: Default cadences. Both are configurable and both stay inside provider pacing.
@@ -39,12 +50,18 @@ MIN_SCANNER_REFRESH_S = 30
 #: so 3 symbols per cycle is exactly the budget. Candidates are refreshed round-robin, so
 #: a 25-name screen sweeps fully about every four minutes and every row carries its own
 #: age and freshness. This is a real provider constraint, not a UI choice.
-DEFAULT_SYMBOLS_PER_CYCLE = 3
+DEFAULT_SYMBOLS_PER_CYCLE = int(os.environ.get("SYMBOLS_PER_CYCLE", "3"))
+SYMBOLS_PER_CYCLE_MAX = int(os.environ.get("SYMBOLS_PER_CYCLE_MAX", "6"))
 
-#: Hard max candidates on the CURRENT screen after IBKR + Finviz top-N merge.
-CURRENT_SCREEN_CAP = int(os.environ.get("CURRENT_SCREEN_CAP", "30"))
-#: Max Finviz-only additions (IBKR first, then Finviz top-up to the cap).
-FINVIZ_TOP_N = int(os.environ.get("FINVIZ_TOP_N", "15"))
+#: Hard max candidates on the CURRENT screen after discovery union + score trim.
+CURRENT_SCREEN_CAP = int(os.environ.get("CURRENT_SCREEN_CAP", "50"))
+#: Finviz pool size when building the discovery union (trimmed by squeeze score).
+FINVIZ_TOP_N = int(os.environ.get("FINVIZ_TOP_N", "50"))
+#: IBKR scanner ``numberOfRows`` for discovery profiles.
+SCANNER_ROW_LIMIT = int(os.environ.get("SCANNER_ROW_LIMIT", "50"))
+TARGET_LIVE_CANDIDATES = int(
+    os.environ.get("TARGET_LIVE_CANDIDATES", str(CURRENT_SCREEN_CAP))
+)
 
 #: Multiplier applied to refresh cadences when markets are closed.
 #: Off-hours, the screener chills out to preserve API quotas (IBKR, NewsAPI, Finnhub).
@@ -62,6 +79,25 @@ DELAYED_AFTER_S = int(os.environ.get("FRESHNESS_DELAYED_SECONDS", "600"))
 NOT_IN_SCAN_LABEL = "NO LONGER IN CURRENT SCANNER"
 
 CURRENT_MODE_LABEL = "CURRENT DISCOVERY"
+
+
+def _discovery_profile_for_run(
+    profile: discovery_module.DiscoveryProfile, *, row_limit: int
+) -> discovery_module.DiscoveryProfile:
+    if profile.scanner is None:
+        return profile
+    from dataclasses import replace
+
+    scanner = replace(profile.scanner, number_of_rows=max(1, int(row_limit)))
+    return replace(profile, scanner=scanner)
+
+
+def _finviz_row_map(rows: list[Any]) -> dict[str, FinvizRow]:
+    out: dict[str, FinvizRow] = {}
+    for row in rows or []:
+        if isinstance(row, FinvizRow) and row.ticker:
+            out[row.ticker.upper()] = row
+    return out
 
 
 def _now() -> datetime:
@@ -180,6 +216,9 @@ class CandidateState:
     transitions: list[RuleTransition] = field(default_factory=list)
     last_outcomes: dict[str, str] = field(default_factory=dict)
     _sec_data: dict[str, Any] | None = None
+    discovery_score: float = 0.0
+    last_pressure: float = 0.0
+    last_ignition: float = 0.0
 
     @property
     def symbol(self) -> str:
@@ -430,8 +469,8 @@ def short_pressure_fields(
         )
     else:
         fields["days_to_cover"] = _not_configured(
-            "Canonical days to cover requires published short interest and "
-            "admissible average volume. Neither is currently available.",
+            "Finviz Short Ratio (days to cover) is not present in the current "
+            "Elite export snapshot for this symbol.",
             "DAYS_TO_COVER_NOT_AVAILABLE",
         )
 
@@ -815,8 +854,7 @@ class ScreenerSession:
         self.quote_refresh_s = max(MIN_QUOTE_REFRESH_S, int(quote_refresh_s))
         self.scanner_refresh_s = max(MIN_SCANNER_REFRESH_S, int(scanner_refresh_s))
         self.symbols_per_cycle = max(1, int(symbols_per_cycle))
-        self._cursor = 0
-        self.profile_id = "BROAD_MOVERS"
+        self.profile_id = "HISTORICAL_RUBRIC_LIKE"
         self.auto_refresh = False
         self.states: dict[str, CandidateState] = {}
         self.last_discovery_at: str | None = None
@@ -831,6 +869,8 @@ class ScreenerSession:
         #: Wall-clock timestamp of the last discovery scan. Bootstrap seeds this
         #: so ``_loop`` does not immediately rediscover after a successful boot scan.
         self._last_scan_ts: float = 0.0
+        self._gap_buckets_by_symbol: dict[str, list[str]] = {}
+        self.collector_bundle = None
 
     # ------------------------------------------------------------- policies
 
@@ -855,11 +895,9 @@ class ScreenerSession:
     def refresh_discovery(self, profile_id: str | None = None) -> dict[str, Any]:
         """Re-run the scanner and rebuild the curated CURRENT screen.
 
-        Finviz Elite export is fetched to warm the enrichment cache, but only a
-        ranked top-N of Finviz rows (not already in the IBKR found set) become
-        candidates. The active set is rebuilt each discovery from IBKR found +
-        Finviz top-N under ``CURRENT_SCREEN_CAP``; history is retained for
-        symbols that remain, and manual symbols are always kept.
+        IBKR and ranked Finviz symbols form a union, scored by squeeze priority, then
+        trimmed to ``CURRENT_SCREEN_CAP``. History is retained for symbols that remain;
+        manual symbols are always kept.
         """
         profile_id = profile_id or self.profile_id
         profile = self.profiles.get(profile_id)
@@ -869,22 +907,24 @@ class ScreenerSession:
             self.last_discovery_at = _iso(_now())
             return {"discovered": len(self.states), "manual": True}
 
-        found = self.provider.run_discovery(profile) or []
+        screen_cap = max(1, CURRENT_SCREEN_CAP)
+        run_profile = _discovery_profile_for_run(
+            profile, row_limit=min(SCANNER_ROW_LIMIT, screen_cap)
+        )
+        found = self.provider.run_discovery(run_profile, limit=screen_cap) or []
         now = _iso(_now())
         self.last_discovery_at = now
 
-        # Warm Finviz enrichment cache; select only ranked top-N for candidates.
         finviz_rows: list[Any] = []
         try:
             if self.external_providers.finviz.configured:
                 self.external_providers.finviz.fetch_screener(force=True)
                 finviz_rows = self.external_providers.finviz.get_cached_rows() or []
         except Exception:
-            pass  # Finviz is supplementary; failure must not break IBKR discovery
+            pass
 
         with self._lock:
             if not found and not finviz_rows:
-                # A scanner failure must not destroy the existing screen.
                 for state in self.states.values():
                     state.candidate.in_current_scan = False
                 return {
@@ -893,77 +933,88 @@ class ScreenerSession:
                     "retained": len(self.states),
                 }
 
-            screen_cap = max(1, CURRENT_SCREEN_CAP)
-            finviz_top_n = max(0, FINVIZ_TOP_N)
-
-            # IBKR first; truncate if discovery alone exceeds the cap.
-            ibkr_candidates = list(found[:screen_cap])
-            ibkr_symbols = {candidate.symbol for candidate in ibkr_candidates}
-
-            finviz_slots = max(0, min(finviz_top_n, screen_cap - len(ibkr_candidates)))
+            finviz_pool = screen_cap if FINVIZ_TOP_N <= 0 else min(screen_cap, FINVIZ_TOP_N)
             ranked_finviz = select_ranked_finviz_top_n(
-                finviz_rows, exclude=ibkr_symbols, limit=finviz_slots,
+                finviz_rows, exclude=set(), limit=max(1, finviz_pool),
             )
-            finviz_symbols = {row.ticker for row in ranked_finviz if row.ticker}
+            finviz_by_symbol = _finviz_row_map(ranked_finviz)
 
-            selected = ibkr_symbols | finviz_symbols
+            ibkr_by_symbol = {c.symbol: c for c in found}
+            union_symbols = set(ibkr_by_symbol) | set(finviz_by_symbol)
+
+            scored: list[tuple[float, str]] = []
+            for symbol in union_symbols:
+                candidate = ibkr_by_symbol.get(symbol)
+                ibkr_rank = candidate.provider_rank if candidate else None
+                fv_row = finviz_by_symbol.get(symbol)
+                scored.append((
+                    score_discovery_symbol(symbol, fv_row, ibkr_rank),
+                    symbol,
+                ))
+            scored.sort(key=lambda item: (-item[0], item[1]))
+            top_symbols = {symbol for _score, symbol in scored[:screen_cap]}
+
             manual_symbols = {
                 symbol
                 for symbol, state in self.states.items()
                 if state.candidate.profile_id == "MANUAL_SYMBOL"
             }
-            keep = selected | manual_symbols
+            keep = top_symbols | manual_symbols
 
             previous = self.states
             rebuilt: dict[str, CandidateState] = {}
-
-            for candidate in ibkr_candidates:
-                existing = previous.get(candidate.symbol)
-                if existing is None:
-                    rebuilt[candidate.symbol] = CandidateState(candidate=candidate)
-                else:
-                    existing.candidate.provider_rank = candidate.provider_rank
-                    existing.candidate.discovered_at = candidate.discovered_at
-                    existing.candidate.in_current_scan = True
-                    existing.candidate.profile_id = candidate.profile_id
-                    if existing.candidate.con_id is None:
-                        existing.candidate.con_id = candidate.con_id
-                    rebuilt[candidate.symbol] = existing
-
+            ibkr_count = 0
             finviz_added = 0
-            for fv_row in ranked_finviz:
-                fv_sym = fv_row.ticker
-                if not fv_sym or fv_sym in rebuilt:
+
+            for score, symbol in scored:
+                if symbol not in top_symbols:
                     continue
-                existing = previous.get(fv_sym)
-                if existing is None:
-                    rebuilt[fv_sym] = CandidateState(
-                        candidate=discovery_module.CurrentDiscoveryCandidate(
-                            symbol=fv_sym, profile_id="FINVIZ_SCREENER",
-                            long_name=fv_row.company or "",
-                        )
-                    )
+                candidate = ibkr_by_symbol.get(symbol)
+                fv_row = finviz_by_symbol.get(symbol)
+                existing = previous.get(symbol)
+                if candidate is not None:
+                    ibkr_count += 1
+                    if existing is None:
+                        state = CandidateState(candidate=candidate)
+                    else:
+                        existing.candidate.provider_rank = candidate.provider_rank
+                        existing.candidate.discovered_at = candidate.discovered_at
+                        existing.candidate.in_current_scan = True
+                        existing.candidate.profile_id = candidate.profile_id
+                        if existing.candidate.con_id is None:
+                            existing.candidate.con_id = candidate.con_id
+                        state = existing
                 else:
-                    existing.candidate.in_current_scan = True
-                    existing.candidate.profile_id = "FINVIZ_SCREENER"
-                    if fv_row.company and not existing.candidate.long_name:
-                        existing.candidate.long_name = fv_row.company
-                    rebuilt[fv_sym] = existing
-                finviz_added += 1
+                    finviz_added += 1
+                    if existing is None:
+                        state = CandidateState(
+                            candidate=discovery_module.CurrentDiscoveryCandidate(
+                                symbol=symbol,
+                                profile_id="FINVIZ_SCREENER",
+                                long_name=(fv_row.company if fv_row else "") or "",
+                            )
+                        )
+                    else:
+                        existing.candidate.in_current_scan = True
+                        existing.candidate.profile_id = "FINVIZ_SCREENER"
+                        if fv_row and fv_row.company and not existing.candidate.long_name:
+                            existing.candidate.long_name = fv_row.company
+                        state = existing
+                state.discovery_score = score
+                rebuilt[symbol] = state
 
             for symbol in manual_symbols:
                 if symbol in rebuilt:
                     continue
                 state = previous[symbol]
-                state.candidate.in_current_scan = symbol in ibkr_symbols
+                state.candidate.in_current_scan = symbol in ibkr_by_symbol
                 rebuilt[symbol] = state
 
-            # Drop states no longer selected (old Finviz flood / left the scan).
             self.states = {symbol: rebuilt[symbol] for symbol in rebuilt if symbol in keep}
 
             return {
-                "discovered": len(ibkr_candidates) + finviz_added,
-                "ibkr": len(ibkr_candidates),
+                "discovered": len(self.states),
+                "ibkr": ibkr_count,
                 "finviz": finviz_added,
                 "cap": screen_cap,
                 "error": None,
@@ -1107,6 +1158,8 @@ class ScreenerSession:
 
     def _record_history(self, state: CandidateState) -> None:
         row = self.row_for(state)
+        state.last_pressure = float(row.get("pressure") or 0.0)
+        state.last_ignition = float(row.get("ignition") or 0.0)
         last = row["fields"]["last"]["value"]
         if last is None:
             last = row["fields"]["historical_close"]["value"]
@@ -1123,23 +1176,83 @@ class ScreenerSession:
         )
         del state.history[:-MAX_HISTORY_PER_SYMBOL]
 
-    def refresh_all(self, *, limit: int | None = None) -> dict[str, Any]:
-        """Refresh one round-robin slice of the screen, inside the provider pacing budget.
-
-        Also triggers Finviz Elite and NewsAPI provider-side refreshes concurrently
-        where safe. Individual failures stay per-symbol.
-        """
+    def compute_symbols_per_cycle(self) -> int:
+        """Adaptive IBKR historical batch size under the rolling pacing window."""
         with self._lock:
-            all_symbols = list(self.states)
-        if not all_symbols:
+            total = len(self.states)
+        if total <= 0:
+            return 0
+
+        multiplier = _market_cadence_multiplier()
+        effective_sleep = max(1, self.quote_refresh_s * multiplier)
+        cycles_left = max(1, HISTORICAL_PACING_WINDOW_S // effective_sleep)
+
+        budget = None
+        if hasattr(self.provider, "historical_budget_remaining"):
+            budget = int(self.provider.historical_budget_remaining())
+        elif hasattr(self.provider, "pacing_state"):
+            pacing = self.provider.pacing_state() or {}
+            if "remaining" in pacing:
+                budget = int(pacing["remaining"])
+
+        if budget is None:
+            take = self.symbols_per_cycle
+        else:
+            adaptive = max(1, budget // cycles_left)
+            take = min(
+                SYMBOLS_PER_CYCLE_MAX,
+                max(self.symbols_per_cycle, adaptive),
+            )
+
+        return min(total, max(1, take))
+
+    def refresh_all(self, *, limit: int | None = None) -> dict[str, Any]:
+        """Refresh a squeeze-priority slice of the screen inside the pacing budget."""
+        with self._lock:
+            states_snapshot = dict(self.states)
+        total = len(states_snapshot)
+        if total <= 0:
             self.last_refresh_at = _iso(_now())
             return {"refreshed": 0, "errors": [], "at": self.last_refresh_at,
                     "swept": 0, "total": 0}
 
-        take = min(len(all_symbols), limit if limit is not None else self.symbols_per_cycle)
-        start = self._cursor % len(all_symbols)
-        symbols = [all_symbols[(start + offset) % len(all_symbols)] for offset in range(take)]
-        self._cursor = (start + take) % len(all_symbols)
+        take = (
+            min(total, limit)
+            if limit is not None
+            else self.compute_symbols_per_cycle()
+        )
+
+        finviz_rows: list[Any] = []
+        try:
+            finviz_rows = self.external_providers.finviz.get_cached_rows() or []
+        except Exception:
+            pass
+        finviz_by_symbol = _finviz_row_map(finviz_rows)
+
+        now = _now()
+        row_by_symbol: dict[str, dict[str, Any]] = {}
+        age_by_symbol: dict[str, float | None] = {}
+        for symbol, state in states_snapshot.items():
+            row_by_symbol[symbol] = self.row_for(state)
+            age_by_symbol[symbol] = _snapshot_age_seconds(state.snapshot_at, now)
+
+        self._gap_buckets_by_symbol = {
+            symbol: [
+                str(bucket.get("bucket"))
+                for bucket in row_by_symbol[symbol]
+                .get("data_quality", {})
+                .get("missing_evidence_buckets", [])
+                if bucket.get("bucket")
+            ]
+            for symbol in row_by_symbol
+        }
+
+        symbols = rank_symbols_for_refresh(
+            states_snapshot,
+            row_by_symbol=row_by_symbol,
+            finviz_by_symbol=finviz_by_symbol,
+            age_by_symbol=age_by_symbol,
+        )[:take]
         provider_refresh = self.external_providers.refresh_all(symbols)
 
         errors: list[dict[str, str]] = []
@@ -1160,7 +1273,7 @@ class ScreenerSession:
 
         data_logger.log_refresh_event({
             "refreshed": len(symbols), "errors": errors, "at": self.last_refresh_at,
-            "total": len(all_symbols), "providers": self.external_providers.status(),
+            "total": total, "providers": self.external_providers.status(),
         })
         rows = self.rows()
         if rows:
@@ -1168,8 +1281,9 @@ class ScreenerSession:
 
         return {
             "refreshed": len(symbols), "errors": errors, "at": self.last_refresh_at,
-            "swept": len(symbols), "total": len(all_symbols),
+            "swept": len(symbols), "total": total,
             "symbols": symbols,
+            "symbols_per_cycle": take,
             "providers": self.external_providers.status(),
             "provider_refresh": provider_refresh,
             "pacing": self.provider.pacing_state()
@@ -1199,6 +1313,9 @@ class ScreenerSession:
     def stop_auto_refresh(self) -> None:
         self.auto_refresh = False
         self._stop.set()
+        from .collector_session import stop_collectors_for_session
+
+        stop_collectors_for_session(self)
 
     def _loop(self) -> None:
         while not self._stop.is_set():
@@ -1249,11 +1366,21 @@ class ScreenerSession:
         fields.update(metric_fields(state, self.external_providers))
         fields.update(short_pressure_fields(state, self.external_providers))
         fields.update(catalyst_fields(state, self.external_providers))
+        bundle = self.collector_bundle or get_collector_bundle()
+        fields.update(
+            supplemental_fields(
+                state.symbol,
+                fields,
+                bundle.store,
+                external_providers=self.external_providers,
+            )
+        )
         fields = _enrich_candidate(
             state.symbol, fields,
             finviz=self.external_providers.finviz_row(state.symbol),
             finnhub_price=self.external_providers.finnhub_price_for(state.symbol),
         )
+        field_dict = {name: value.as_dict() for name, value in fields.items()}
 
         evaluation = state.evaluation
         total = len(self.policy.enabled_rule_ids)
@@ -1292,7 +1419,7 @@ class ScreenerSession:
             "data_mode": str(_quote_data_mode(market_data_mode)),
             "market_data_mode": market_data_mode,
             "mode_label": CURRENT_MODE_LABEL,
-            "fields": {name: value.as_dict() for name, value in fields.items()},
+            "fields": field_dict,
             "phase3a": {
                 "counts": counts,
                 "total_rules": total,
@@ -1311,6 +1438,14 @@ class ScreenerSession:
                 "total": total,
                 "label": f"{supported} / {total} rules supported",
             },
+            "data_quality": _row_data_quality(
+                total_rules=total,
+                supported_rules=supported,
+                detection=detection,
+                counts=counts,
+                fields=field_dict,
+                stale=bool(state.stale),
+            ),
             "sec_filings": state._sec_data if state._sec_data else None,
             "freshness": str(freshness),
             "age_seconds": None if age is None else round(age, 1),
@@ -1335,12 +1470,13 @@ class ScreenerSession:
             [point.last for point in state.history],
             field="last",
         )
+        projected["discovery_score"] = state.discovery_score
         return projected
 
     def rows(self) -> list[dict[str, Any]]:
         with self._lock:
             states = list(self.states.values())
-        return [self.row_for(state) for state in states]
+        return sort_rows_for_display([self.row_for(state) for state in states])
 
     def detail(self, symbol: str) -> dict[str, Any] | None:
         with self._lock:
@@ -1509,16 +1645,35 @@ class ScreenerSession:
         detection_counts: dict[str, int] = {}
         partial = 0
         evaluable: set[str] = set()
+        missing_bucket_counts: dict[str, int] = {}
+        cause_counts: dict[str, int] = {}
+        actionable = 0
         for row in rows:
             status = row["research_detection"]["status"]
             detection_counts[status] = detection_counts.get(status, 0) + 1
             coverage = row["evidence_coverage"]
             if 0 < coverage["supported"] < coverage["total"]:
                 partial += 1
+            dq = row.get("data_quality", {})
+            if int(dq.get("evaluable_rule_count", 0)) > 0:
+                actionable += 1
+            for bucket in dq.get("missing_evidence_buckets", []):
+                key = str(bucket.get("bucket", "")).strip()
+                if key:
+                    missing_bucket_counts[key] = (
+                        missing_bucket_counts.get(key, 0)
+                        + int(bucket.get("missing_field_count", 0))
+                    )
+            for cause in dq.get("cause_summaries", []):
+                cause_key = str(cause).strip()
+                if cause_key:
+                    cause_counts[cause_key] = cause_counts.get(cause_key, 0) + 1
         with self._lock:
             for state in self.states.values():
                 if state.evaluation is not None:
                     evaluable.update(current_eval.evaluable_rule_ids(state.evaluation))
+        candidate_count = len(rows)
+        unevaluable_count = detection_counts.get("UNEVALUABLE", 0)
         return {
             "label": CURRENT_MODE_LABEL,
             "disclaimer": discovery_module.DISCOVERY_DISCLAIMER,
@@ -1529,6 +1684,29 @@ class ScreenerSession:
                 "UNKNOWN",
             ),
             "research_detection_counts": detection_counts,
+            "readiness": {
+                "candidate_count": candidate_count,
+                "actionable_candidate_count": actionable,
+                "unevaluable_candidate_count": unevaluable_count,
+                "actionable_ratio": (
+                    None
+                    if candidate_count == 0 else round(actionable / candidate_count, 4)
+                ),
+                "top_missing_evidence_buckets": [
+                    {"bucket": key, "missing_field_count": count}
+                    for key, count in sorted(
+                        missing_bucket_counts.items(),
+                        key=lambda item: (-item[1], item[0]),
+                    )[:5]
+                ],
+                "top_unevaluable_causes": [
+                    {"cause": key, "candidate_count": count}
+                    for key, count in sorted(
+                        cause_counts.items(),
+                        key=lambda item: (-item[1], item[0]),
+                    )[:5]
+                ],
+            },
             "partial_evidence_candidates": partial,
             "evaluable_rules": sorted(evaluable),
             "evaluable_rule_count": len(evaluable),
@@ -1560,6 +1738,97 @@ def _parse_iso(value: str | None, fallback: datetime) -> datetime:
         return fallback
 
 
+def _snapshot_age_seconds(snapshot_at: str | None, now: datetime) -> float | None:
+    if not snapshot_at:
+        return None
+    return (now - _parse_iso(snapshot_at, now)).total_seconds()
+
+
+def _bucket_for_reason_code(reason_code: str) -> str:
+    """Map a field-level reason code into a stable diagnostic bucket."""
+    code = (reason_code or "").upper()
+    if not code:
+        return "UNKNOWN_MISSING_INPUT"
+    if "SHORT" in code or "BORROW" in code:
+        return "SHORT_PRESSURE_INPUTS_MISSING"
+    if "FLOAT" in code or "SHARES" in code:
+        return "FLOAT_OR_SHARE_BASIS_MISSING"
+    if "QUOTE" in code or "PRICE" in code or "BARS" in code:
+        return "PRICE_OR_QUOTE_INPUTS_MISSING"
+    if "NEWS" in code or "CATALYST" in code or "SEC" in code or "SENTIMENT" in code:
+        return "CATALYST_INPUTS_MISSING"
+    if "VOLUME" in code:
+        return "VOLUME_INPUTS_MISSING"
+    return "OTHER_INPUTS_MISSING"
+
+
+def _missing_evidence_buckets(fields: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aggregate missing field reason-codes into stable bucket counts."""
+    bucket_counts: dict[str, int] = {}
+    reason_counts: dict[str, int] = {}
+    for cell in fields.values():
+        if cell.get("status") == "KNOWN":
+            continue
+        reason_code = str(cell.get("missing_reason_code") or "").strip().upper()
+        bucket = _bucket_for_reason_code(reason_code)
+        bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+        if reason_code:
+            reason_counts[reason_code] = reason_counts.get(reason_code, 0) + 1
+    return [
+        {
+            "bucket": bucket,
+            "missing_field_count": count,
+            "top_reason_code": (
+                max(
+                    (
+                        code for code in reason_counts
+                        if _bucket_for_reason_code(code) == bucket
+                    ),
+                    key=lambda code: reason_counts[code],
+                    default=None,
+                )
+            ),
+        }
+        for bucket, count in sorted(bucket_counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
+def _row_data_quality(
+    *,
+    total_rules: int,
+    supported_rules: int,
+    detection: dict[str, Any],
+    counts: dict[str, int],
+    fields: dict[str, dict[str, Any]],
+    stale: bool,
+) -> dict[str, Any]:
+    """Produce additive, stable readiness diagnostics for one row."""
+    unevaluable = str(detection.get("status", "")) == "UNEVALUABLE"
+    unknown_rules = int(counts.get("UNKNOWN", 0))
+    insufficient_rules = int(counts.get("INSUFFICIENT_DATA", 0))
+    cause_summaries: list[str] = []
+    if stale:
+        cause_summaries.append("STALE_SNAPSHOT")
+    if supported_rules == 0:
+        cause_summaries.append("NO_EVALUABLE_RULES")
+    if unknown_rules > 0:
+        cause_summaries.append("UNKNOWN_RULE_OUTCOMES_PRESENT")
+    if insufficient_rules > 0:
+        cause_summaries.append("INSUFFICIENT_RULE_EVIDENCE_PRESENT")
+    if unevaluable and not cause_summaries:
+        cause_summaries.append("UNEVALUABLE_CLASSIFICATION")
+    return {
+        "unevaluable": unevaluable,
+        "evaluable_rule_count": supported_rules,
+        "total_rule_count": total_rules,
+        "coverage_ratio": (
+            None if total_rules <= 0 else round(supported_rules / total_rules, 4)
+        ),
+        "cause_summaries": cause_summaries,
+        "missing_evidence_buckets": _missing_evidence_buckets(fields),
+    }
+
+
 _SESSION: ScreenerSession | None = None
 _SESSION_LOCK = threading.Lock()
 
@@ -1570,7 +1839,13 @@ def get_session() -> ScreenerSession:
     with _SESSION_LOCK:
         if _SESSION is None:
             from .live_providers import get_runtime
-            _SESSION = ScreenerSession(external_providers=get_runtime())
+
+            _SESSION = ScreenerSession(
+                external_providers=get_runtime(),
+                quote_refresh_s=DEFAULT_QUOTE_REFRESH_S,
+                scanner_refresh_s=DEFAULT_SCANNER_REFRESH_S,
+                symbols_per_cycle=DEFAULT_SYMBOLS_PER_CYCLE,
+            )
         return _SESSION
 
 
@@ -1615,6 +1890,26 @@ def discovery_cadence() -> dict[str, Any]:
             break
         candidate += timedelta(days=1)
 
+    effective_quote = session.quote_refresh_s * multiplier
+    candidate_count = len(session.states)
+    screen_cap = max(1, CURRENT_SCREEN_CAP)
+    batch = session.compute_symbols_per_cycle() if candidate_count else 0
+    cycles_per_sweep = (
+        max(1, (candidate_count + batch - 1) // batch) if batch else 0
+    )
+    estimated_sweep_minutes = (
+        round(cycles_per_sweep * effective_quote / 60.0, 1)
+        if cycles_per_sweep
+        else None
+    )
+
+    pacing_remaining = None
+    if hasattr(session.provider, "historical_budget_remaining"):
+        pacing_remaining = session.provider.historical_budget_remaining()
+    elif hasattr(session.provider, "pacing_state"):
+        pacing = session.provider.pacing_state() or {}
+        pacing_remaining = pacing.get("remaining")
+
     return {
         "generated_at": _iso(now),
         "market": {
@@ -1633,20 +1928,28 @@ def discovery_cadence() -> dict[str, Any]:
             "base_scanner_refresh_s": session.scanner_refresh_s,
             "effective_scanner_refresh_s": session.scanner_refresh_s * multiplier,
             "symbols_per_cycle": session.symbols_per_cycle,
+            "symbols_per_cycle_max": SYMBOLS_PER_CYCLE_MAX,
+            "effective_symbols_per_cycle": batch,
             "last_refresh_at": session.last_refresh_at,
             "next_refresh_at": session.next_refresh_at,
         },
         "discovery": {
             "profile": session.profile_id,
             "last_discovery_at": session.last_discovery_at,
-            "candidate_count": len(session.states),
+            "candidate_count": candidate_count,
+            "target_screen_cap": screen_cap,
+            "current_screen_cap": screen_cap,
+            "estimated_full_sweep_minutes": estimated_sweep_minutes,
+        },
+        "pacing": {
+            "historical_budget_remaining": pacing_remaining,
         },
         "api_quota": {
             "ibkr_budget_note": (
                 f"IBKR allows 60 requests per rolling 10 minutes. "
-                f"At {session.quote_refresh_s * multiplier}s per cycle with "
-                f"{session.symbols_per_cycle} symbols/cycle, the effective rate is "
-                f"{session.symbols_per_cycle * 60 / (session.quote_refresh_s * multiplier):.1f} "
+                f"At {effective_quote}s per cycle with "
+                f"up to {batch or session.symbols_per_cycle} symbols/cycle, the effective rate is "
+                f"{(batch or session.symbols_per_cycle) * 600 / effective_quote:.1f} "
                 f"requests per 10 minutes."
             ),
             "off_hours_multiplier": OFF_HOURS_MULTIPLIER,
@@ -1660,6 +1963,9 @@ __all__ = [
     "DEFAULT_QUOTE_REFRESH_S",
     "DEFAULT_SCANNER_REFRESH_S",
     "FINVIZ_TOP_N",
+    "SCANNER_ROW_LIMIT",
+    "SYMBOLS_PER_CYCLE_MAX",
+    "TARGET_LIVE_CANDIDATES",
     "MAX_HISTORY_PER_SYMBOL",
     "NOT_IN_SCAN_LABEL",
     "CandidateState",

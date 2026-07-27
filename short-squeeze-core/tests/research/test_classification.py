@@ -42,3 +42,21 @@ def test_later_outcome_work_does_not_mutate_phase_3a_evaluation():
         "detection-a", "outcome-a",
     )
     assert serialize_candidate_evaluation(BASE_EVALUATION) == before
+
+
+def test_classification_additive_diagnostics_for_evaluable_pair():
+    result = classify_research_case(
+        "CASE-A", DetectionStatus.DETECTED, OutcomeLabel.SUBSTANTIAL_UPWARD_MOVE,
+        "detection-a", "outcome-a",
+    )
+    assert result.evaluable_pair is True
+    assert result.unevaluable_cause is None
+
+
+def test_classification_additive_diagnostics_for_unevaluable_pair():
+    result = classify_research_case(
+        "CASE-A", DetectionStatus.UNEVALUABLE, OutcomeLabel.SUBSTANTIAL_UPWARD_MOVE,
+        "detection-a", "outcome-a",
+    )
+    assert result.evaluable_pair is False
+    assert result.unevaluable_cause == "DETECTION_STATUS_UNEVALUABLE"

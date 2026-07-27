@@ -315,6 +315,25 @@ class ScreenerHandler(BaseHTTPRequestHandler):
             from .news_live import get_news_orchestrator
             orch = get_news_orchestrator()
             self._json(envelope(orch.status(), mode=str(self.server.deployment_mode)))
+        elif route == "/api/collectors/status":
+            from .collectors import get_collector_bundle
+
+            bundle = get_collector_bundle()
+            self._json(
+                envelope(bundle.status(), mode=str(self.server.deployment_mode))
+            )
+        elif route == "/api/collectors/symbol":
+            symbol = (query.get("symbol") or [""])[0].upper()
+            if not symbol:
+                self._json(
+                    envelope({"error": "symbol required"}, mode=str(self.server.deployment_mode)),
+                    400,
+                )
+                return
+            from .collectors import get_collector_bundle
+
+            detail = get_collector_bundle().store.symbol_detail(symbol)
+            self._json(envelope(detail, mode=str(self.server.deployment_mode)))
         elif route == "/api/news/symbol":
             symbol = (query.get("symbol") or [""])[0].upper()
             if not symbol:

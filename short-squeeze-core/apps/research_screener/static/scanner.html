@@ -26,12 +26,17 @@
       <button id="btn-mode-live" class="mode-toggle" type="button" title="Real-time IBKR discovery + live providers">LIVE</button>
       <span id="mode-indicator" class="mode-indicator" style="margin-left:8px;font-size:12px;font-weight:700"></span>
     </div>
+    <div class="readiness-inline">
+      <span id="transport-ready" class="ready-badge none" title="Transport readiness">TRANSPORT UNKNOWN</span>
+      <span id="classification-ready" class="ready-badge none" title="Classification readiness">CLASSIFICATION UNKNOWN</span>
+    </div>
     <a id="advanced-link" class="advanced-link" href="/advanced" title="Research & Diagnostics">Advanced</a>
   </div>
 </header>
 
 <div id="banners" class="banners"></div>
 <div id="provider-bar"></div>
+<div id="data-quality-strip" class="data-quality-strip"></div>
 
 <nav class="scanner-controls">
   <div class="control-group">
@@ -105,6 +110,13 @@
     <span id="refresh-clock" class="muted"></span>
   </div>
 </nav>
+<div id="triage-filters" class="triage-filters"></div>
+<section id="blocker-panel" class="blocker-panel">
+  <button id="blocker-toggle" class="blocker-toggle" type="button" aria-expanded="false">
+    Blocker Drilldown
+  </button>
+  <div id="blocker-content" class="blocker-content" hidden></div>
+</section>
 
 <p id="status-line" class="status-line"></p>
 
@@ -122,6 +134,12 @@
   <aside id="news-feed-panel" class="news-feed-panel">
     <div class="news-feed-header">
       <h2 class="news-feed-title">LIVE NEWS FEED</h2>
+      <div id="news-panel-controls" class="news-panel-controls">
+        <button class="news-panel-btn active" data-news-panel="default" type="button">Default</button>
+        <button class="news-panel-btn" data-news-panel="compact" type="button">Compact</button>
+        <button class="news-panel-btn" data-news-panel="wide" type="button">Wide</button>
+        <button class="news-panel-btn" data-news-panel="collapsed" type="button">Hide</button>
+      </div>
       <div id="news-feed-toggles" class="news-feed-toggles">
         <button class="nf-pill active" data-nf-filter="">All Candidates</button>
         <button class="nf-pill" data-nf-filter="PRIME">PRIME Candidates</button>
@@ -130,6 +148,8 @@
       </div>
       <span id="news-feed-updated" class="news-feed-updated"></span>
     </div>
+    <div id="news-feed-health" class="news-feed-health"></div>
+    <div id="collectors-health" class="collectors-health"></div>
     <div id="news-feed-list" class="news-feed-list">
       <div class="news-feed-empty">Loading headlines…</div>
     </div>

@@ -5,10 +5,16 @@ const state = {
   filteredRows: [],
   selected: null,
   summary: null,
+  providerCaps: null,
   autoTimer: null,
   sortKey: null,
   sortDesc: false,
   mode: "FROZEN",
+  triageFilter: "",
+  blockerFilter: null,
+  blockerOpen: false,
+  newsPanelMode: "default",
+  newsMeta: null,
 };
 
 /* ------------------------------------------------------------------ fetching */
@@ -23,6 +29,85 @@ function cv(row, name) {
 
 function cf(row, name) {
   return (row.fields || {})[name] || null;
+}
+
+function isEvaluable(row) {
+  var c = classification(row);
+  return c !== "UNEVALUABLE" && c !== "CONFLICTED";
+}
+
+function hasMissingCoreShortInterest(row) {
+  var core = ["short_float", "days_to_cover", "borrow_fee"];
+  return core.some(function (name) {
+    var field = cf(row, name);
+    return !field || field.status !== "KNOWN";
+  });
+}
+
+function isInsufficient(row) {
+  var cov = coveragePct(row);
+  return cov == null || cov < 40 || row.pressure == null || row.ignition == null;
+}
+
+function dataQuality(row) {
+  return row && row.data_quality ? row.data_quality : {};
+}
+
+function bucketCountForRow(row, bucket) {
+  var buckets = dataQuality(row).missing_evidence_buckets || [];
+  for (var i = 0; i < buckets.length; i += 1) {
+    if (buckets[i] && buckets[i].bucket === bucket) {
+      return Number(buckets[i].missing_field_count || 0);
+    }
+  }
+  return 0;
+}
+
+function hasCause(row, cause) {
+  var causes = dataQuality(row).cause_summaries || [];
+  return causes.indexOf(cause) !== -1;
+}
+
+function missingLabel(field, fallbackLabel) {
+  if (!field) {
+    return { label: fallbackLabel || "Missing", tip: "No evidence cell returned." };
+  }
+  if (field.status === "KNOWN") return null;
+  var code = String(field.missing_reason_code || "").toUpperCase();
+  var reason = String(field.missing_reason || "");
+  var reasonLower = reason.toLowerCase();
+  var label = field.status.replace(/_/g, " ");
+  if (field.status === "NOT_CONFIGURED") {
+    if (reasonLower.indexOf("not connected") !== -1 || reasonLower.indexOf("disconnected") !== -1) label = "Provider disconnected";
+    else if (code.indexOf("NOT_AVAILABLE") !== -1 || code.indexOf("NOT_CONFIGURED") !== -1) label = "Field not published";
+    else label = "Not configured";
+  } else if (field.status === "UNAVAILABLE") {
+    label = "Permission unavailable";
+  } else if (field.status === "UNKNOWN") {
+    if (code.indexOf("NO_BARS") !== -1 || code.indexOf("STALE") !== -1) label = "Stale snapshot";
+    else label = "Awaiting ticks";
+  } else if (field.status === "NOT_COLLECTED") {
+    label = "Not collected";
+  } else if (field.status === "BLOCKED") {
+    label = "Blocked";
+  }
+  var bits = [];
+  bits.push("Status: " + field.status);
+  if (field.missing_reason) bits.push(field.missing_reason);
+  if (field.missing_reason_code) bits.push("Code: " + field.missing_reason_code);
+  if (field.provider) bits.push("Provider: " + field.provider);
+  return { label: label, tip: bits.join(" \u00b7 ") };
+}
+
+function appendMissingLabel(td, field, fallbackLabel) {
+  var m = missingLabel(field, fallbackLabel);
+  if (!m) return false;
+  var span = document.createElement("span");
+  span.className = "muted";
+  span.textContent = m.label;
+  if (m.tip) span.title = m.tip;
+  td.appendChild(span);
+  return true;
 }
 
 function classification(row) {
@@ -88,9 +173,8 @@ var SCANNER_COLUMNS = [
   { label: "REL VOL", key: "relative_volume", sortable: true },
   { label: "FLOAT", key: "float_shares", sortable: true, secondary: true },
   { label: "SHORT FLOAT %", key: "short_float", sortable: true, secondary: true },
-  { label: "SHORT RATIO", key: "short_ratio", sortable: true, secondary: true },
   { label: "DAYS TO COVER", key: "days_to_cover", sortable: true, secondary: true },
-  { label: "BORROW", key: "borrow", sortable: false, secondary: true },
+  { label: "BORROW", key: "borrow", sortable: true, secondary: true },
   { label: "PRESSURE", key: "pressure", sortable: true, emphasis: true },
   { label: "IGNITION", key: "ignition", sortable: true, emphasis: true },
   { label: "EVIDENCE", key: "evidence_coverage", sortable: true, emphasis: true },
@@ -129,7 +213,6 @@ function valueFor(row, key) {
     }
     case "float_shares": return cv(row, "float_shares");
     case "short_float": return cv(row, "short_float");
-    case "short_ratio": return cv(row, "short_ratio");
     case "days_to_cover": return cv(row, "days_to_cover");
     case "borrow": return cv(row, "borrow_fee") || cv(row, "shortable");
     case "pressure": return row.pressure;
@@ -182,11 +265,7 @@ function cellContent(row, col) {
 
   if (col.key === "pressure" || col.key === "ignition") {
     if (value == null) {
-      var insufficient = document.createElement("span");
-      insufficient.className = "muted";
-      insufficient.textContent = MISSING;
-      insufficient.title = "Insufficient evidence";
-      td.appendChild(insufficient);
+      appendMissingLabel(td, null, "Insufficient inputs");
       return td;
     }
     var v = Number(value);
@@ -222,8 +301,10 @@ function cellContent(row, col) {
   if (col.key === "sentiment") {
     var sentSpan = document.createElement("span");
     if (!value) {
-      sentSpan.textContent = MISSING;
+      var sentField = cf(row, "sentiment");
+      sentSpan.textContent = (missingLabel(sentField, "No sentiment") || {}).label || "No sentiment";
       sentSpan.className = "muted";
+      sentSpan.title = sentField && sentField.missing_reason ? sentField.missing_reason : "";
     } else {
       sentSpan.textContent = value;
       sentSpan.style.color = sentimentColor(value);
@@ -236,7 +317,7 @@ function cellContent(row, col) {
 
   if (col.key === "news") {
     if (value == null) {
-      td.textContent = MISSING;
+      appendMissingLabel(td, cf(row, "news_count"), "No headlines");
       td.className = td.className + " muted";
       return td;
     }
@@ -245,7 +326,11 @@ function cellContent(row, col) {
   }
 
   if (col.key === "percentage_change") {
-    if (value == null) { td.textContent = MISSING; td.className = td.className + " muted"; return td; }
+    if (value == null) {
+      appendMissingLabel(td, cf(row, "percentage_change"), "No return data");
+      td.className = td.className + " muted";
+      return td;
+    }
     var changeColor = value >= 0 ? "#56d68b" : "#ff7d7d";
     td.textContent = (value >= 0 ? "+" : "") + value.toFixed(2) + "%";
     td.style.color = changeColor;
@@ -254,7 +339,11 @@ function cellContent(row, col) {
   }
 
   if (col.key === "borrow") {
-    if (value == null) { td.textContent = MISSING; td.className = td.className + " muted"; return td; }
+    if (value == null) {
+      appendMissingLabel(td, cf(row, "borrow_fee") || cf(row, "shortable"), "No borrow data");
+      td.className = td.className + " muted";
+      return td;
+    }
     var borrowRate = cv(row, "borrow_fee");
     var shortableVal = cv(row, "shortable");
     var parts = [];
@@ -278,13 +367,43 @@ function cellContent(row, col) {
   }
 
   if (value === null || value === undefined) {
-    td.textContent = MISSING;
+    appendMissingLabel(td, cf(row, col.key), "Missing");
     td.className = td.className + " muted";
     return td;
   }
 
   td.textContent = typeof value === "number" ? Number(value).toLocaleString() : String(value);
   return td;
+}
+
+var SORT_DESC_FIRST_KEYS = [
+  "percentage_change", "pressure", "ignition", "relative_volume",
+  "short_float", "days_to_cover", "news",
+];
+
+var CLASSIFICATION_SORT_ORDER = {
+  PRIME: 0, SUBPRIME: 1, WATCH: 2, CONFLICTED: 3, NOT_QUALIFIED: 4, UNEVALUABLE: 5,
+};
+
+var SENTIMENT_SORT_ORDER = {
+  POSITIVE: 0, MIXED: 1, NEUTRAL: 2, NEGATIVE: 3,
+};
+
+function sortValueFor(row, key) {
+  if (key === "updated") {
+    var ts = row.last_updated ? Date.parse(row.last_updated) : NaN;
+    return Number.isFinite(ts) ? ts : null;
+  }
+  if (key === "classification") {
+    var cls = classification(row);
+    return CLASSIFICATION_SORT_ORDER[cls] != null ? CLASSIFICATION_SORT_ORDER[cls] : 9;
+  }
+  if (key === "sentiment") {
+    var label = sentimentLabel(row);
+    if (!label) return null;
+    return SENTIMENT_SORT_ORDER[label] != null ? SENTIMENT_SORT_ORDER[label] : 9;
+  }
+  return valueFor(row, key);
 }
 
 function renderHead() {
@@ -301,11 +420,17 @@ function renderHead() {
       }
       th.addEventListener("click", function () {
         if (state.sortKey === col.key) {
-          state.sortDesc = !state.sortDesc;
+          if (state.sortDesc) {
+            state.sortKey = null;
+            state.sortDesc = false;
+          } else {
+            state.sortDesc = true;
+          }
         } else {
           state.sortKey = col.key;
-          state.sortDesc = false;
+          state.sortDesc = SORT_DESC_FIRST_KEYS.indexOf(col.key) !== -1;
         }
+        renderHead();
         renderRows(state.filteredRows);
       });
     }
@@ -322,13 +447,13 @@ function sortRows(rows) {
   var known = [];
   var missing = [];
   rows.forEach(function (row) {
-    var v = valueFor(row, key);
+    var v = sortValueFor(row, key);
     if (v == null || v === undefined) missing.push(row);
     else known.push(row);
   });
   known.sort(function (a, b) {
-    var av = valueFor(a, key);
-    var bv = valueFor(b, key);
+    var av = sortValueFor(a, key);
+    var bv = sortValueFor(b, key);
     if (typeof av === "string" && typeof bv === "string") {
       return state.sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
     }
@@ -344,7 +469,8 @@ function defaultSort(rows) {
   return rows.slice().sort(function (a, b) {
     var aCls = classification(a);
     var bCls = classification(b);
-    return (order[aCls] || 9) - (order[bCls] || 9) || (b.pressure || 0) - (a.pressure || 0);
+    return (order[aCls] || 9) - (order[bCls] || 9)
+      || ((b.pressure || 0) + (b.ignition || 0)) - ((a.pressure || 0) + (a.ignition || 0));
   });
 }
 
@@ -366,13 +492,12 @@ function renderRows(rows) {
   }
 
   var prevCls = null;
-  var groupCount = 0;
+  var showClassDividers = !state.sortKey || state.sortKey === "classification";
 
   rows.forEach(function (row, idx) {
     var cls = classification(row);
 
-    // Count rows in current classification group
-    if (cls !== prevCls) {
+    if (showClassDividers && cls !== prevCls) {
       // Section divider header
       var div = document.createElement("tr");
       div.className = "cls-divider cls-" + cls;
@@ -453,6 +578,93 @@ function renderSummary(rows) {
 
   div.textContent = parts.join("  \u00b7  ");
   div.title = "Summary of current candidates";
+  renderReadiness(rows);
+  renderDataQuality(rows);
+  renderTriageFilters(rows);
+  renderBlockerPanel(rows);
+}
+
+function renderReadiness(rows) {
+  var transportNode = el("transport-ready");
+  var classNode = el("classification-ready");
+  if (!transportNode || !classNode) return;
+  var summaryProviders = (state.summary && state.summary.providers) || {};
+  var providers = Object.keys(summaryProviders).length
+    ? summaryProviders
+    : ((state.providerCaps && state.providerCaps.providers) || {});
+  var providerIds = Object.keys(providers);
+  var connectedCount = providerIds.filter(function (id) {
+    var provider = providers[id] || {};
+    return !!(provider.connected || provider.connection_ready);
+  }).length;
+  var transportReady = state.mode === "CURRENT" && connectedCount > 0;
+  transportNode.textContent = transportReady ? "TRANSPORT LIVE" : "TRANSPORT LIMITED";
+  transportNode.className = "ready-badge " + (transportReady ? "ok" : "none");
+  transportNode.title = transportReady
+    ? connectedCount + " providers connected."
+    : "Live data path is not confirmed. Connected providers: " + connectedCount + ".";
+
+  var readiness = (state.summary && state.summary.readiness) || null;
+  var evaluable = readiness
+    ? Number(readiness.actionable_candidate_count || 0)
+    : rows.filter(isEvaluable).length;
+  var candidateCount = readiness
+    ? Number(readiness.candidate_count || rows.length)
+    : rows.length;
+  var ratio = candidateCount ? Math.round((evaluable / candidateCount) * 100) : 0;
+  var classReady = evaluable > 0;
+  classNode.textContent = classReady ? "CLASSIFICATION READY" : "CLASSIFICATION BLOCKED";
+  classNode.className = "ready-badge " + (classReady ? "ok" : "bad");
+  classNode.title = evaluable + "/" + candidateCount + " evaluable candidates (" + ratio + "%).";
+}
+
+function renderDataQuality(rows) {
+  var strip = el("data-quality-strip");
+  if (!strip) return;
+  strip.textContent = "";
+  if (!rows.length) return;
+
+  var readiness = (state.summary && state.summary.readiness) || null;
+  var candidateCount = readiness ? Number(readiness.candidate_count || rows.length) : rows.length;
+  var actionableCount = readiness ? Number(readiness.actionable_candidate_count || 0) : rows.filter(isEvaluable).length;
+  var unevaluableCount = readiness ? Number(readiness.unevaluable_candidate_count || 0) : rows.filter(function (row) { return classification(row) === "UNEVALUABLE"; }).length;
+  var staleRows = rows.filter(function (row) { return !!row.stale; });
+  var insufficientRows = rows.filter(isInsufficient);
+  var missingCoreRows = rows.filter(hasMissingCoreShortInterest);
+
+  var chips = [
+    { text: "Evaluable " + actionableCount + "/" + candidateCount },
+    { text: "Stale " + staleRows.length, tone: staleRows.length ? "warn" : "" },
+    { text: "Insufficient " + insufficientRows.length, tone: insufficientRows.length ? "warn" : "" },
+    { text: "Missing core SI " + missingCoreRows.length, tone: missingCoreRows.length ? "bad" : "" },
+  ];
+  if (unevaluableCount) {
+    chips.push({
+      text: "UNEVALUABLE " + unevaluableCount,
+      tone: "bad",
+      title: buildUnevaluableDiagnostics(rows),
+    });
+  }
+
+  chips.forEach(function (chip) {
+    var span = document.createElement("span");
+    span.className = "quality-chip" + (chip.tone ? " " + chip.tone : "");
+    span.textContent = chip.text;
+    if (chip.title) span.title = chip.title;
+    strip.appendChild(span);
+  });
+}
+
+function buildUnevaluableDiagnostics(rows) {
+  var readiness = (state.summary && state.summary.readiness) || null;
+  if (readiness && (readiness.top_unevaluable_causes || []).length) {
+    return ["Top UNEVALUABLE causes (backend):"]
+      .concat(readiness.top_unevaluable_causes.map(function (item) {
+        return item.cause + ": " + item.candidate_count;
+      }))
+      .join("\n");
+  }
+  return "UNEVALUABLE diagnostics are unavailable in summary.readiness.";
 }
 
 function renderBanner(mode) {
@@ -466,6 +678,106 @@ function renderBanner(mode) {
     banners.appendChild(b);
   }
   // In live mode (or empty string), no banner — clean interface for Railway
+}
+
+function renderTriageFilters(rows) {
+  var wrap = el("triage-filters");
+  if (!wrap) return;
+  wrap.textContent = "";
+  var defs = [
+    { id: "", label: "All", count: rows.length },
+    { id: "evaluable", label: "Evaluable", count: rows.filter(isEvaluable).length },
+    { id: "stale", label: "Stale", count: rows.filter(function (row) { return !!row.stale; }).length },
+    { id: "insufficient", label: "Insufficient", count: rows.filter(isInsufficient).length },
+    { id: "missing_core_si", label: "Missing Core SI", count: rows.filter(hasMissingCoreShortInterest).length },
+  ];
+  defs.forEach(function (def) {
+    var btn = document.createElement("button");
+    btn.className = "triage-btn" + (state.triageFilter === def.id ? " active" : "");
+    btn.type = "button";
+    btn.setAttribute("data-triage", def.id);
+    btn.textContent = def.label + " (" + def.count + ")";
+    wrap.appendChild(btn);
+  });
+}
+
+function aggregateRowBlockers(rows) {
+  var causeCounts = {};
+  var bucketCounts = {};
+  rows.forEach(function (row) {
+    var dq = dataQuality(row);
+    (dq.cause_summaries || []).forEach(function (cause) {
+      causeCounts[cause] = (causeCounts[cause] || 0) + 1;
+    });
+    (dq.missing_evidence_buckets || []).forEach(function (bucketItem) {
+      var key = bucketItem.bucket;
+      if (!key) return;
+      bucketCounts[key] = (bucketCounts[key] || 0) + Number(bucketItem.missing_field_count || 0);
+    });
+  });
+  var causes = Object.keys(causeCounts).map(function (key) {
+    return { key: key, count: causeCounts[key] };
+  }).sort(function (a, b) { return b.count - a.count || a.key.localeCompare(b.key); });
+  var buckets = Object.keys(bucketCounts).map(function (key) {
+    return { key: key, count: bucketCounts[key] };
+  }).sort(function (a, b) { return b.count - a.count || a.key.localeCompare(b.key); });
+  return { causes: causes, buckets: buckets };
+}
+
+function renderBlockerPanel(rows) {
+  var content = el("blocker-content");
+  var toggle = el("blocker-toggle");
+  if (!content || !toggle) return;
+  toggle.setAttribute("aria-expanded", state.blockerOpen ? "true" : "false");
+  content.hidden = !state.blockerOpen;
+  content.textContent = "";
+  if (!state.blockerOpen) return;
+
+  var agg = aggregateRowBlockers(rows);
+  if (!agg.causes.length && !agg.buckets.length) {
+    var empty = document.createElement("span");
+    empty.className = "muted";
+    empty.textContent = "No blocker diagnostics available.";
+    content.appendChild(empty);
+    return;
+  }
+
+  function buildGroup(title, type, items) {
+    var group = document.createElement("div");
+    group.className = "blocker-group";
+    var heading = document.createElement("p");
+    heading.className = "blocker-group-title";
+    heading.textContent = title;
+    group.appendChild(heading);
+
+    var list = document.createElement("div");
+    list.className = "blocker-list";
+    items.forEach(function (item) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "blocker-chip";
+      if (state.blockerFilter && state.blockerFilter.type === type && state.blockerFilter.key === item.key) {
+        btn.classList.add("active");
+      }
+      btn.setAttribute("data-blocker-type", type);
+      btn.setAttribute("data-blocker-key", item.key);
+      btn.textContent = item.key + " (" + item.count + ")";
+      list.appendChild(btn);
+    });
+    group.appendChild(list);
+    return group;
+  }
+
+  content.appendChild(buildGroup("Cause Summaries", "cause", agg.causes));
+  content.appendChild(buildGroup("Missing Buckets", "bucket", agg.buckets));
+  if (state.blockerFilter) {
+    var clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "blocker-chip blocker-chip-clear";
+    clearBtn.setAttribute("data-blocker-clear", "1");
+    clearBtn.textContent = "Clear blocker filter";
+    content.appendChild(clearBtn);
+  }
 }
 
 /* ------------------------------------------------------------------ filters */
@@ -488,11 +800,11 @@ function applyFilters(rows) {
     if (cls && classification(row) !== cls) return false;
     if (sym && row.symbol.indexOf(sym) === -1) return false;
     if (minPrice != null) {
-      var p = cv(row, "last");
+      var p = valueFor(row, "price");
       if (p == null || p < minPrice) return false;
     }
     if (maxPrice != null) {
-      var p2 = cv(row, "last");
+      var p2 = valueFor(row, "price");
       if (p2 == null || p2 > maxPrice) return false;
     }
     if (minChange != null) {
@@ -524,6 +836,14 @@ function applyFilters(rows) {
     if (maxFloat != null) {
       var f = cv(row, "float_shares");
       if (f == null || f > maxFloat) return false;
+    }
+    if (state.triageFilter === "evaluable" && !isEvaluable(row)) return false;
+    if (state.triageFilter === "stale" && !row.stale) return false;
+    if (state.triageFilter === "insufficient" && !isInsufficient(row)) return false;
+    if (state.triageFilter === "missing_core_si" && !hasMissingCoreShortInterest(row)) return false;
+    if (state.blockerFilter) {
+      if (state.blockerFilter.type === "cause" && !hasCause(row, state.blockerFilter.key)) return false;
+      if (state.blockerFilter.type === "bucket" && bucketCountForRow(row, state.blockerFilter.key) <= 0) return false;
     }
     return true;
   });
@@ -632,7 +952,6 @@ async function buildDetail(symbol) {
     fieldLine("Float", cv(row || {}, "float_shares") != null ? Number(cv(row || {}, "float_shares")).toLocaleString() : null),
     fieldLine("Short Float", cv(row || {}, "short_float") != null ? cv(row || {}, "short_float") + "%" : null),
     fieldLine("Days to Cover", cv(row || {}, "days_to_cover")),
-    fieldLine("Short Ratio", cv(row || {}, "short_ratio")),
     fieldLine("Borrow Fee", cv(row || {}, "borrow_fee") != null ? cv(row || {}, "borrow_fee") + "%" : null),
   ]));
 
@@ -642,6 +961,46 @@ async function buildDetail(symbol) {
     fieldLine("Relative Volume", cv(row || {}, "relative_volume")),
     fieldLine("Market Mode", id.market_data_mode || id.data_mode),
   ]));
+
+  var headlines = Array.isArray(detail.news) ? detail.news : [];
+  if (!headlines.length) {
+    var newsPayload = await getCachedNews(symbol);
+    if (newsPayload && Array.isArray(newsPayload.headlines)) {
+      headlines = newsPayload.headlines;
+    }
+  }
+  body.appendChild(detailSection("NEWS"));
+  var newsWrap = document.createElement("div");
+  newsWrap.className = "detail-news-list";
+  if (!headlines.length) {
+    newsWrap.appendChild(text(document.createElement("p"), "No headlines available."));
+    newsWrap.classList.add("muted");
+  } else {
+    headlines.slice(0, 12).forEach(function (item) {
+      var line = document.createElement("div");
+      line.className = "news-headline-line";
+      var title = item.headline || item.title || "";
+      if (item.url) {
+        var link = document.createElement("a");
+        link.href = item.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = title;
+        line.appendChild(link);
+      } else {
+        line.textContent = title;
+      }
+      if (item.timestamp) {
+        var meta = document.createElement("span");
+        meta.className = "muted";
+        meta.style.marginLeft = "8px";
+        meta.textContent = ago(item.timestamp) || item.timestamp;
+        line.appendChild(meta);
+      }
+      newsWrap.appendChild(line);
+    });
+  }
+  body.appendChild(newsWrap);
 
   var advLink = document.createElement("p");
   var advA = document.createElement("a");
@@ -704,8 +1063,6 @@ async function loadScanner() {
       var discData = await discResp.json().catch(function(){ return {}; });
       if (discData.discovered && discData.discovered > 0) {
         await fetch("/api/live/refresh", { method: "POST" });
-        await fetch("/api/live/refresh", { method: "POST" });
-        await fetch("/api/live/refresh", { method: "POST" });
       }
       var controller = new AbortController();
       var timeout = setTimeout(function () { controller.abort(); }, 15000);
@@ -762,6 +1119,7 @@ async function loadScanner() {
 
   // 5. Load provider status bar
   loadProviderStatus();
+  loadCadenceStatus();
 }
 
 async function refreshNow() {
@@ -886,7 +1244,27 @@ function renderRefreshClock() {
   if (lastAt) bits.push("Last: " + ago(lastAt));
   if (summary.auto_refresh) bits.push("auto on");
   else bits.push("auto off");
+  var cadence = state.cadence;
+  if (cadence && cadence.discovery) {
+    var disc = cadence.discovery;
+    var cap = disc.target_screen_cap || disc.current_screen_cap;
+    if (cap) {
+      bits.push((disc.candidate_count || 0) + "/" + cap + " screen");
+    }
+    if (disc.estimated_full_sweep_minutes) {
+      bits.push("~ " + disc.estimated_full_sweep_minutes + "m IBKR sweep");
+    }
+  }
   node.textContent = bits.join(" \u00b7 ");
+}
+
+async function loadCadenceStatus() {
+  try {
+    state.cadence = await getJSON("/api/discovery/cadence");
+    renderRefreshClock();
+  } catch (e) {
+    // optional status hint
+  }
 }
 
 /* ------------------------------------------------------------------ provider status bar */
@@ -894,7 +1272,10 @@ function renderRefreshClock() {
 async function loadProviderStatus() {
   try {
     var caps = await getJSON("/api/capabilities");
+    state.providerCaps = caps;
     renderProviderBar(caps);
+    renderReadiness(state.rows || []);
+    renderNewsFeedHealth();
   } catch (e) {
     // Silently skip
   }
@@ -992,10 +1373,20 @@ function refreshNewsFeed() {
   getJSON(url).then(function (data) {
     if (!data || !data.headlines) { renderNewsFeed([]); return; }
     newsFeedSymbols = data.symbols || [];
+    state.newsMeta = {
+      scanned: data.symbols_scanned || 0,
+      fetched: data.symbols_fetched || 0,
+      lastSuccessAt: new Date().toISOString(),
+      lastError: "",
+    };
     renderNewsFeed(data.headlines);
     updatePillCounts(data.counts || {});
+    renderNewsFeedHealth();
   }).catch(function () {
+    state.newsMeta = state.newsMeta || {};
+    state.newsMeta.lastError = "News request failed.";
     renderNewsFeed([]);
+    renderNewsFeedHealth();
   });
 }
 
@@ -1010,9 +1401,14 @@ function renderNewsFeed(headlines) {
   if (!headlines.length) {
     var empty = document.createElement("div");
     empty.className = "news-feed-empty";
-    empty.textContent = newsFeedSymbols.length
-      ? "No recent headlines for tracked symbols."
-      : "Awaiting candidate data…";
+    var meta = state.newsMeta || {};
+    if (!newsFeedSymbols.length) {
+      empty.textContent = "Awaiting candidate data before requesting headlines.";
+    } else if (meta.scanned && meta.fetched === 0) {
+      empty.textContent = "Providers returned no headlines for scanned candidates.";
+    } else {
+      empty.textContent = "No recent headlines for tracked symbols.";
+    }
     list.appendChild(empty);
     return;
   }
@@ -1058,10 +1454,62 @@ function renderNewsFeed(headlines) {
   });
 }
 
+function renderNewsFeedHealth() {
+  var node = el("news-feed-health");
+  if (!node) return;
+  var providers = (state.providerCaps && state.providerCaps.providers) || {};
+  var newsApi = providers.NewsAPI || {};
+  var finnhubNews = providers["Finnhub News"] || {};
+  var bits = [];
+  if (newsApi.connected || finnhubNews.connected) bits.push("provider live");
+  else if (newsApi.configured || finnhubNews.configured) bits.push("provider standby");
+  else bits.push("provider off");
+  if (state.newsMeta && state.newsMeta.scanned != null) {
+    bits.push("scanned " + state.newsMeta.scanned);
+  }
+  if (state.newsMeta && state.newsMeta.fetched != null) {
+    bits.push("with headlines " + state.newsMeta.fetched);
+  }
+  if (state.newsMeta && state.newsMeta.lastSuccessAt) {
+    bits.push("last fetch " + ago(state.newsMeta.lastSuccessAt));
+  }
+  if (state.newsMeta && state.newsMeta.lastError) {
+    bits.push(state.newsMeta.lastError);
+  }
+  node.textContent = bits.join(" \u00b7 ");
+}
+
+function refreshCollectorsHealth() {
+  var node = el("collectors-health");
+  if (!node) return;
+  getJSON("/api/collectors/status").then(function (payload) {
+    var data = (payload && payload.data) || payload || {};
+    var bits = [];
+    var configured = (data.collectors || []).filter(function (c) { return c.configured; });
+    bits.push(configured.length + " collectors active");
+    bits.push(data.running ? "scheduler on" : "scheduler idle");
+    if (data.last_tick_at) bits.push("last tick " + ago(data.last_tick_at));
+    if (data.symbols_last_tick && data.symbols_last_tick.length) {
+      bits.push("touched " + data.symbols_last_tick.length);
+    }
+    if (data.top_gap_bucket) bits.push("gap " + data.top_gap_bucket);
+    node.textContent = bits.join(" \u00b7 ");
+  }).catch(function () {
+    node.textContent = "collectors status unavailable";
+  });
+}
+
+function startCollectorsHealth() {
+  refreshCollectorsHealth();
+  if (state.collectorTimer) { clearInterval(state.collectorTimer); }
+  state.collectorTimer = setInterval(refreshCollectorsHealth, 45000);
+}
+
 function startNewsFeed() {
   if (newsFeedTimer) { clearInterval(newsFeedTimer); newsFeedTimer = null; }
   refreshNewsFeed();
   newsFeedTimer = setInterval(refreshNewsFeed, NEWS_FEED_INTERVAL);
+  startCollectorsHealth();
 }
 
 /* ------------------------------------------------------------------ news feed toggle pills */
@@ -1098,6 +1546,35 @@ function setupNewsFeedToggles() {
   });
 }
 
+function applyNewsPanelMode(mode) {
+  state.newsPanelMode = mode || "default";
+  var main = document.querySelector(".scanner-main");
+  if (main) {
+    main.classList.remove("news-panel-compact", "news-panel-wide", "news-panel-collapsed");
+    if (state.newsPanelMode === "compact") main.classList.add("news-panel-compact");
+    if (state.newsPanelMode === "wide") main.classList.add("news-panel-wide");
+    if (state.newsPanelMode === "collapsed") main.classList.add("news-panel-collapsed");
+  }
+  var controls = el("news-panel-controls");
+  if (controls) {
+    controls.querySelectorAll(".news-panel-btn").forEach(function (btn) {
+      btn.classList.toggle("active", (btn.getAttribute("data-news-panel") || "default") === state.newsPanelMode);
+    });
+  }
+}
+
+function setupNewsPanelControls() {
+  var controls = el("news-panel-controls");
+  if (!controls) return;
+  controls.addEventListener("click", function (e) {
+    var btn = e.target.closest(".news-panel-btn");
+    if (!btn) return;
+    e.preventDefault();
+    applyNewsPanelMode(btn.getAttribute("data-news-panel") || "default");
+  });
+  applyNewsPanelMode(state.newsPanelMode);
+}
+
 /* ------------------------------------------------------------------ init */
 
 function init() {
@@ -1118,6 +1595,51 @@ function init() {
   if (frozenBtn) frozenBtn.addEventListener("click", function () { switchMode("FROZEN"); });
   if (liveBtn) liveBtn.addEventListener("click", function () { switchMode("CURRENT"); });
 
+  var triage = el("triage-filters");
+  if (triage) {
+    triage.addEventListener("click", function (e) {
+      var btn = e.target.closest(".triage-btn");
+      if (!btn) return;
+      state.triageFilter = btn.getAttribute("data-triage") || "";
+      state.filteredRows = applyFilters(state.rows);
+      renderSummary(state.rows);
+      renderHead();
+      renderRows(state.filteredRows);
+    });
+  }
+
+  var blockerToggle = el("blocker-toggle");
+  if (blockerToggle) {
+    blockerToggle.addEventListener("click", function () {
+      state.blockerOpen = !state.blockerOpen;
+      renderBlockerPanel(state.rows);
+    });
+  }
+  var blockerContent = el("blocker-content");
+  if (blockerContent) {
+    blockerContent.addEventListener("click", function (e) {
+      var clear = e.target.closest("[data-blocker-clear]");
+      if (clear) {
+        state.blockerFilter = null;
+      } else {
+        var chip = e.target.closest(".blocker-chip");
+        if (!chip) return;
+        var type = chip.getAttribute("data-blocker-type");
+        var key = chip.getAttribute("data-blocker-key");
+        if (!type || !key) return;
+        if (state.blockerFilter && state.blockerFilter.type === type && state.blockerFilter.key === key) {
+          state.blockerFilter = null;
+        } else {
+          state.blockerFilter = { type: type, key: key };
+        }
+      }
+      state.filteredRows = applyFilters(state.rows);
+      renderSummary(state.rows);
+      renderHead();
+      renderRows(state.filteredRows);
+    });
+  }
+
   var filterIds = [
     "filter-classification", "filter-symbol", "filter-min-price", "filter-max-price",
     "filter-min-change", "filter-min-relvol", "filter-min-pressure", "filter-min-ignition",
@@ -1128,6 +1650,7 @@ function init() {
     if (!node) return;
     node.addEventListener(id === "filter-symbol" ? "input" : "change", function () {
       state.filteredRows = applyFilters(state.rows);
+      renderSummary(state.rows);
       renderHead();
       renderRows(state.filteredRows);
     });
@@ -1136,7 +1659,9 @@ function init() {
   // Start with frozen (instant), then auto-discover live
   loadScanner();
   setupNewsFeedToggles();
+  setupNewsPanelControls();
   loadProviderStatus();
+  loadCadenceStatus();
 }
 
 document.addEventListener("DOMContentLoaded", init);

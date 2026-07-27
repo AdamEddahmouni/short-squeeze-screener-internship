@@ -72,7 +72,7 @@ def test_finviz_top_n_excludes_ibkr_symbols():
 
 def test_refresh_discovery_caps_and_merges_ranked_finviz_only(monkeypatch):
     monkeypatch.setattr(session_state, "CURRENT_SCREEN_CAP", 5)
-    monkeypatch.setattr(session_state, "FINVIZ_TOP_N", 3)
+    monkeypatch.setattr(session_state, "FINVIZ_TOP_N", 10)
 
     ibkr = ("IB1", "IB2")
     finviz_rows = {
@@ -100,13 +100,12 @@ def test_refresh_discovery_caps_and_merges_ranked_finviz_only(monkeypatch):
     result = session.refresh_discovery("BROAD_MOVERS")
 
     assert result["error"] is None
-    assert result["ibkr"] == 2
-    assert result["finviz"] == 3
-    assert result["discovered"] == 5
     assert result["cap"] == 5
+    assert result["discovered"] == 5
     assert len(session.states) == 5
-    assert set(session.states) == {"IB1", "IB2", "F1", "F2", "F3"}
-    assert "F4" not in session.states
+    assert "IB1" in session.states
+    assert {"F1", "F2", "F3"}.issubset(session.states)
+    assert "IB2" not in session.states
     assert "SPARSE" not in session.states
     assert all(f"X{i:02d}" not in session.states for i in range(50))
     assert session.states["F1"].candidate.profile_id == "FINVIZ_SCREENER"
@@ -147,6 +146,7 @@ def test_refresh_discovery_prunes_prior_finviz_flood(monkeypatch):
 
 
 def test_ibkr_priority_when_cap_smaller_than_ibkr_plus_finviz(monkeypatch):
+    """High short-float Finviz names can displace low-squeeze IBKR fillers."""
     monkeypatch.setattr(session_state, "CURRENT_SCREEN_CAP", 3)
     monkeypatch.setattr(session_state, "FINVIZ_TOP_N", 15)
 
@@ -162,6 +162,5 @@ def test_ibkr_priority_when_cap_smaller_than_ibkr_plus_finviz(monkeypatch):
         ),
     )
     result = session.refresh_discovery("BROAD_MOVERS")
-    assert result["ibkr"] == 3
-    assert result["finviz"] == 0
-    assert set(session.states) == {"A", "B", "C"}
+    assert result["discovered"] == 3
+    assert set(session.states) == {"A", "Z1", "Z2"}

@@ -122,7 +122,8 @@ class SyntheticProvider:
             return []
         rows = [_Row(index, symbol) for index, symbol in enumerate(self.symbols, start=1)]
         self.scanner_status.succeeded(f"{len(rows)} row(s)")
-        return discovery_module.candidates_from_scanner(rows, profile.profile_id)
+        cap = limit or (profile.scanner.number_of_rows if profile.scanner else len(rows))
+        return discovery_module.candidates_from_scanner(rows, profile.profile_id, limit=cap)
 
     # -- symbol pass -------------------------------------------------------
 
@@ -156,6 +157,9 @@ class SyntheticProvider:
     def pacing_state(self) -> dict[str, Any]:
         return {"remaining": self.budget, "limit": 60, "window_seconds": 600,
                 "detail": f"{self.budget} of 60 remain."}
+
+    def historical_budget_remaining(self) -> int:
+        return max(0, int(self.budget))
 
     def statuses(self) -> list[dict[str, Any]]:
         return [

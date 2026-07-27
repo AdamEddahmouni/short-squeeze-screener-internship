@@ -70,7 +70,8 @@ async function getCachedNews(symbol) {
   if (cached && (Date.now() - cached.at < 60000)) return cached.data;
   try {
     const newsUrl = "/api/news/symbol?symbol=" + encodeURIComponent(symbol);
-    const data = await getJSON(newsUrl);
+    const payload = await getJSON(newsUrl);
+    const data = payload && payload.data != null ? payload.data : payload;
     newsCache[symbol] = { data: data, at: Date.now() };
     return data;
   } catch (e) {

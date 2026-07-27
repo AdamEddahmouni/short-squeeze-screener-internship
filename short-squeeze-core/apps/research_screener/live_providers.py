@@ -429,6 +429,8 @@ class ProviderBundle:
         finnhub_news = FinnhubNewsProvider(values.get("FINNHUB_KEY"))
         orchestrator = NewsOrchestrator(
             providers=[FinvizNewsProvider(finviz_client), finnhub_news, newsapi],
+            cache_ttl_s=int(values.get("NEWS_CACHE_TTL_SECONDS") or 900),
+            max_headlines=int(values.get("NEWS_MAX_HEADLINES_PER_SYMBOL") or 30),
         )
         configure_news_orchestrator(orchestrator)
         return cls(
@@ -502,7 +504,10 @@ class ProviderBundle:
         )
 
         orchestrator = NewsOrchestrator(
-            providers=providers_list, provider_order=provider_order,
+            providers=providers_list,
+            provider_order=provider_order,
+            cache_ttl_s=config.providers.news.cache_ttl_seconds,
+            max_headlines=config.providers.news.max_headlines_per_symbol,
         )
         configure_news_orchestrator(orchestrator)
 

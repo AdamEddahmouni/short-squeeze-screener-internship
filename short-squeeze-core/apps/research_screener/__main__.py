@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import threading
 import webbrowser
@@ -18,7 +19,7 @@ from .providers import provider_health
 from .server import DEFAULT_PORT, HOST, build_server, default_export_dir, find_free_port
 
 
-def _bootstrap_live_data(session) -> None:
+def _bootstrap_live_data(session, *, sec_user_agent: str | None = None) -> None:
     """Bootstrap live data flow immediately on boot, then start auto-refresh.
 
     Runs in a daemon thread so the HTTP server is already serving before the
@@ -51,17 +52,20 @@ def _bootstrap_live_data(session) -> None:
     if discovery_ok and hasattr(session, "note_discovery_scan"):
         session.note_discovery_scan()
 
-    # Bounded first cycle only (same budget as the live loop). Must complete
-    # before start_auto_refresh so refresh_all / _cursor never overlap the loop.
+    # Bounded warm cycles (pacing-aware batch sizes). Must complete before
+    # start_auto_refresh so refresh_all never overlaps the loop.
     try:
         total = len(session.states)
         if total > 0:
-            limit = getattr(session, "symbols_per_cycle", 3) or 3
-            session.refresh_all(limit=limit)
+            warm_cycles = int(os.environ.get("BOOTSTRAP_WARM_CYCLES", "4"))
+            refreshed = 0
+            for _ in range(max(1, warm_cycles)):
+                result = session.refresh_all()
+                refreshed += int(result.get("refreshed", 0))
             print(
-                f"  Bootstrap: initial refresh of {limit}/{total} symbol(s) "
-                "(IBKR, Finviz, NewsAPI, Finnhub, SEC EDGAR); "
-                "auto-refresh continues the rest"
+                f"  Bootstrap: warmed {refreshed} symbol refresh(es) across "
+                f"{warm_cycles} cycle(s) ({total} on screen); "
+                "auto-refresh continues with squeeze priority"
             )
         else:
             print("  Bootstrap: no candidates yet - auto-refresh will discover them")
@@ -77,6 +81,16 @@ def _bootstrap_live_data(session) -> None:
     except Exception as exc:  # noqa: BLE001
         print(
             f"  Bootstrap: auto-refresh start failed ({type(exc).__name__}: {exc})"
+        )
+
+    try:
+        from .collector_session import start_collectors_for_session
+
+        start_collectors_for_session(session, sec_user_agent=sec_user_agent)
+        print("  Bootstrap: evidence collectors started (gap-driven scheduler)")
+    except Exception as exc:  # noqa: BLE001
+        print(
+            f"  Bootstrap: collectors start failed ({type(exc).__name__}: {exc})"
         )
 
 
@@ -242,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         _boot = threading.Thread(
             target=_bootstrap_live_data,
             args=(_session,),
+            kwargs={"sec_user_agent": application_config.providers.sec.user_agent},
             name="screener-bootstrap",
             daemon=True,
         )

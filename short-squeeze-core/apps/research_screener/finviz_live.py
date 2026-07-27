@@ -368,7 +368,7 @@ class FinvizClient:
                     tickers = [t.strip().upper() for t in tickers_raw.split(",") if t.strip()]
                     headlines.append({
                         "headline": row.get("Title", ""),
-                        "timestamp": row.get("Date", ""),
+                        "timestamp": _normalize_finviz_news_timestamp(row.get("Date", "")),
                         "url": row.get("Url", ""),
                         "tickers": tickers,
                         "provider": "Finviz Elite",
@@ -387,6 +387,38 @@ class FinvizClient:
             return []
         needle = symbol.strip().upper()
         return [h for h in self._news_cache if needle in h.get("tickers", [])]
+
+
+def _normalize_finviz_news_timestamp(raw: str | None) -> str:
+    if not raw:
+        return ""
+    text = str(raw).strip()
+    if not text:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.isoformat().replace("+00:00", "Z")
+    except (ValueError, TypeError):
+        pass
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+        "%m/%d/%Y",
+        "%b-%d-%y %I:%M%p",
+        "%b-%d-%y",
+        "%b-%d-%Y %I:%M%p",
+        "%b-%d-%Y",
+    ):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            return parsed.isoformat().replace("+00:00", "Z")
+        except ValueError:
+            continue
+    return text
 
 
 def _parse_epoch(iso: str) -> float:
