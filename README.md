@@ -45,7 +45,5 @@ Open `http://127.0.0.1:8787/`.
 |---|---|
 | `short-squeeze-core/` | Current product and documentation |
 | `archived-project-code/` | Historical application snapshots (not the live entrypoint) |
-| `short_squeeze_project_reconstruction/` | Reconstruction notes (not the live entrypoint) |
 
-Prefer `short-squeeze-core` for all new work. Do not treat archived trees as the
-source of truth for configuration, ports, or version.
+Prefer `short-squeeze-core` for all new work.
