@@ -1,10 +1,10 @@
-# Outcome-Acquisition Batch 02 — Completion Report
+﻿# Outcome-Acquisition Batch 02 — Completion Report
 
 ## Repository state
 
 | Field | Value |
 | --- | --- |
-| Path | `C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core` |
+| Path | `<repo-root>\short-squeeze-core` |
 | Branch | `batch/phase-3d-outcome-acquisition-02` |
 | Branched from (batch-01 HEAD) | `37ac03ab196057398f1f6c3463118633316f58f2` |
 | Working tree | clean except pre-existing untracked `docs/phase-3c-complete-handoff.md` |

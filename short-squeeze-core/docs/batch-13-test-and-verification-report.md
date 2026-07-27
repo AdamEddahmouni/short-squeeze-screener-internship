@@ -3,7 +3,7 @@
 Focused application, provider, compatibility, acquisition, isolation, and truthfulness
 guard runs passed before the authoritative run.
 
-- JUnit: `C:\Users\adame\.codex\visualizations\2026\07\25\019f9ad6-239f-7231-bc67-dbb2cd903342\batch13-final-v3\batch13-final.xml`
+- JUnit: `<local-test-artifacts>/batch13-final-v3/batch13-final.xml`
 - Tests: 2,537
 - Passed: 2,536
 - Skipped: 1

@@ -1,10 +1,10 @@
-# Historical Source Collection Batch 01 — Completion Report
+﻿# Historical Source Collection Batch 01 — Completion Report
 
 ## Repository state
 
 | Field | Value |
 | --- | --- |
-| Path | `C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core` |
+| Path | `<repo-root>\short-squeeze-core` |
 | Branch | `batch/phase-3d-historical-source-collection-01` |
 | Starting HEAD (Phase 3D) | `a92906d395e17ee8dff15c69395f0b37427bc66a` |
 | Merge base with Phase 3C | `14d35abfc9aacc6f2f4adaa3ad264950ec556d17` (unchanged) |

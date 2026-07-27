@@ -24,6 +24,16 @@ data/
 # Agent-generated reconstruction documents (reference only)
 docs/reconstruction/
 
+# Personal / local-only correspondence and session handoffs (keep off remote)
+advisor-meetings.txt
+email-log.txt
+demo-transcripts.txt
+phase-3d-complete-handoff.md
+private-batch15-archive-*/
+short_squeeze_project_reconstruction/
+**/ADVISOR_SUMMARY.md
+**/2026-07-18_SESSION_HANDOFF.md
+
 # Log files
 *.log
 

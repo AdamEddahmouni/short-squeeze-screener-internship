@@ -1,4 +1,4 @@
-# Batch 12 — Fresh Session Handoff
+﻿# Batch 12 — Fresh Session Handoff
 
 Branch: `batch/full-operational-live-screener-11` (or new `batch/...-12`)
 Parent: `0895731` (Batch 11 completion)
@@ -65,7 +65,7 @@ Options:
 
 ## Quick-start
 ```powershell
-cd C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core
+cd <repo-root>\short-squeeze-core
 .\run_screener.ps1
 # => http://127.0.0.1:8787/
 

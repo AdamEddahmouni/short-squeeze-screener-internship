@@ -1,4 +1,4 @@
-# Claude Fresh-Session Handoff — Batch 05 Real-Bundle Preflight Validation
+﻿# Claude Fresh-Session Handoff — Batch 05 Real-Bundle Preflight Validation
 
 ## Purpose
 
@@ -33,19 +33,19 @@ only if a true stop condition below is reached.
 Workspace root:
 
 ```
-C:\Users\adame\Desktop\short-squeeze-project
+<repo-root>
 ```
 
 Implementation repository:
 
 ```
-C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core
+<repo-root>\short-squeeze-core
 ```
 
 Archived parent evidence repository (do not modify):
 
 ```
-C:\Users\adame\Desktop\short-squeeze-project\archived-project-code\adams-short-squeeze-code-archived
+<repo-root>\archived-project-code\adams-short-squeeze-code-archived
 ```
 
 Archived nested submodule (do not modify):

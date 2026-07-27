@@ -1,4 +1,4 @@
-# Claude Fresh-Session Handoff — Batch 07 Authoritative Resolution of Remaining IBKR Historical-Bar Semantics
+﻿# Claude Fresh-Session Handoff — Batch 07 Authoritative Resolution of Remaining IBKR Historical-Bar Semantics
 
 ## Purpose
 
@@ -31,7 +31,7 @@ artifacts, and official IBKR documentation first. Ask only if a true stop condit
 
 ## 1. Repository checkpoint
 
-Implementation repository: `C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core`
+Implementation repository: `<repo-root>\short-squeeze-core`
 
 Expected current branch: `batch/phase-3d-ibkr-semantics-resolution-06`
 

@@ -1,4 +1,4 @@
-# Claude Fresh-Session Handoff — Batch 09
+﻿# Claude Fresh-Session Handoff — Batch 09
 
 ## Purpose
 
@@ -21,7 +21,7 @@ started.
 
 Implementation repository:
 
-`C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core`
+`<repo-root>\short-squeeze-core`
 
 Expected current branch:
 

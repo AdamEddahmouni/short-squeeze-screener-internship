@@ -1,4 +1,4 @@
-# Claude Fresh-Session Handoff — After Phase 3D Local Bar Intake (Batch 03)
+﻿# Claude Fresh-Session Handoff — After Phase 3D Local Bar Intake (Batch 03)
 
 ## Current state
 
@@ -11,8 +11,8 @@ record was created, and **Phase 3E was not started**.
 
 ### Repository
 
-- Workspace root: `C:\Users\adame\Desktop\short-squeeze-project`
-- Implementation repo: `C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core`
+- Workspace root: `<repo-root>`
+- Implementation repo: `<repo-root>\short-squeeze-core`
 - Branch: `batch/phase-3d-local-historical-bar-intake-03`
 - Final HEAD: resolve with `git rev-parse HEAD`. It is the Batch 03 finalize
   documentation commit on the branch above (the commit that added this handoff and

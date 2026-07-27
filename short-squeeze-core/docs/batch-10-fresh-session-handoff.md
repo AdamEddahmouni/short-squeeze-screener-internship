@@ -1,4 +1,4 @@
-# Claude Fresh-Session Handoff — Batch 10
+﻿# Claude Fresh-Session Handoff — Batch 10
 
 **Do not start Batch 10 until the professor's decision is recorded.** This handoff branches on
 that decision and must not guess it.
@@ -10,7 +10,7 @@ that decision and must not guess it.
 Implementation repository:
 
 ```
-C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core
+<repo-root>\short-squeeze-core
 ```
 
 Expected current branch:

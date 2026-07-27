@@ -1,4 +1,4 @@
-# Claude Fresh-Session Handoff — Batch 08 Operation-Specific Phase 3A Request/Result Freeze
+﻿# Claude Fresh-Session Handoff — Batch 08 Operation-Specific Phase 3A Request/Result Freeze
 
 ## Purpose
 
@@ -40,7 +40,7 @@ Hard constraints (unchanged from Batch 07 and still binding):
 ## 1. Exact starting checkpoint
 
 Implementation repository:
-`C:\Users\adame\Desktop\short-squeeze-project\short-squeeze-core`
+`<repo-root>\short-squeeze-core`
 
 Expected current branch: `batch/phase-3d-operation-specific-readiness-07`
 
