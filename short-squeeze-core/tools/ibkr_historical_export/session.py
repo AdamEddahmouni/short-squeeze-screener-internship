@@ -118,7 +118,7 @@ class IbkrSession(EWrapper, EClient):
 
     # -- diagnostics -----------------------------------------------------------
     def error(  # noqa: N802
-        self, reqId, errorCode, errorString, advancedOrderRejectJson="",
+        self, reqId, errorTime=0, errorCode=0, errorString="", advancedOrderRejectJson="",
     ) -> None:
         try:
             code = int(errorCode)
