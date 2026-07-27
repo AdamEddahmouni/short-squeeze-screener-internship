@@ -133,6 +133,7 @@ deploy-sync: ## Sync latest source into .railway-deploy/ (dry-run before deploy)
 	rsync -a --delete apps/      .railway-deploy/apps/
 	rsync -a --delete src/       .railway-deploy/src/
 	rsync -a --delete scripts/   .railway-deploy/scripts/
+	rsync -a --delete tools/     .railway-deploy/tools/
 	cp  pyproject.toml            .railway-deploy/pyproject.toml
 	@printf "\n  \033[32mOK\033[0m Source synced. Run \033[33mmake deploy\033[0m to deploy.\n"
 

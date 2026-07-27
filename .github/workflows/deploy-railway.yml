@@ -31,6 +31,7 @@ on:
       - "short-squeeze-core/apps/**"
       - "short-squeeze-core/src/**"
       - "short-squeeze-core/scripts/**"
+      - "short-squeeze-core/tools/**"
       - "short-squeeze-core/pyproject.toml"
       # The deploy directory itself (e.g. Dockerfile, railway.toml)
       - "short-squeeze-core/.railway-deploy/**"
@@ -52,6 +53,7 @@ jobs:
           rsync -a --delete short-squeeze-core/apps/      short-squeeze-core/.railway-deploy/apps/
           rsync -a --delete short-squeeze-core/src/       short-squeeze-core/.railway-deploy/src/
           rsync -a --delete short-squeeze-core/scripts/   short-squeeze-core/.railway-deploy/scripts/
+          rsync -a --delete short-squeeze-core/tools/     short-squeeze-core/.railway-deploy/tools/
           cp  short-squeeze-core/pyproject.toml            short-squeeze-core/.railway-deploy/pyproject.toml
 
       - name: Install Railway CLI

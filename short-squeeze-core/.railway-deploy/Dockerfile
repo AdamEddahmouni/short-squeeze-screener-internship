@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir .
 
 COPY --chown=app:app apps ./apps
 COPY --chown=app:app scripts ./scripts
+COPY --chown=app:app tools ./tools
 RUN mkdir -p /app/exports/research-screener \
     && chown -R app:app /app/exports
 
