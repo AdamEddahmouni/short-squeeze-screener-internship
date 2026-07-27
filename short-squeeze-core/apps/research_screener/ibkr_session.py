@@ -229,8 +229,36 @@ def build_session_class():
 
         # ------------------------------------------------------------- errors
 
-        def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=""):  # noqa: N802,N803
-            super().error(reqId, errorCode, errorString, advancedOrderRejectJson)
+        def error(  # noqa: N802,N803
+            self,
+            reqId,
+            errorTime=0,
+            errorCode=0,
+            errorString="",
+            advancedOrderRejectJson="",
+            *args,
+        ):
+            # New API: (reqId, errorTime, errorCode, errorString, ...)
+            # Old API: (reqId, errorCode, errorString, advancedOrderRejectJson)
+            # Defaults alone do not fix old positional arity — normalize first.
+            if isinstance(errorTime, int) and isinstance(errorCode, str):
+                errorTime, errorCode, errorString, advancedOrderRejectJson = (
+                    0,
+                    errorTime,
+                    errorCode,
+                    errorString,
+                )
+            try:
+                super().error(
+                    reqId, errorTime, errorCode, errorString, advancedOrderRejectJson
+                )
+            except TypeError:
+                try:
+                    super().error(
+                        reqId, errorCode, errorString, advancedOrderRejectJson
+                    )
+                except TypeError:
+                    super().error(reqId, errorCode, errorString)
             try:
                 code = int(errorCode)
             except (TypeError, ValueError):

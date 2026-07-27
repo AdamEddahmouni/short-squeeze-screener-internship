@@ -284,6 +284,9 @@ class _NullFinvizProvider:
     def get_row(self, symbol: str) -> None:
         return None
 
+    def get_cached_rows(self) -> list:
+        return []
+
     def get_news_for(self, symbol: str) -> list[dict[str, Any]]:
         return []
 
@@ -371,7 +374,10 @@ class ProviderBundle:
         self.credentials = credentials or ProviderCredentials({})
         self._configured_states = configured_states or {}
         self._news_orchestrator = news_orchestrator or _NullNewsOrchestrator()
-        self._sentiment_analyzer = sentiment_analyzer or get_sentiment_analyzer()
+        # Use an explicitly injected analyzer for this runtime, otherwise start
+        # from a disabled local analyzer. Falling back to the global singleton
+        # leaks state across isolated test/runtime bundles.
+        self._sentiment_analyzer = sentiment_analyzer or SentimentAnalyzer()
         self._lock = threading.Lock()
         self._finviz_fetched = False
         self._finviz_error: str | None = None

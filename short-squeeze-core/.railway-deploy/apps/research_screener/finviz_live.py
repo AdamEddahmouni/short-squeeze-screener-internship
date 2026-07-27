@@ -34,6 +34,13 @@ NEWS_CACHE_TTL_S = 180
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+#: Core squeeze fields — rows missing any of these are skipped for top-N selection.
+_FINVIZ_CORE_FIELDS = ("short_float_pct", "float_shares", "rel_volume")
+#: Preferred fill fields used for completeness preference among eligible rows.
+_FINVIZ_FILL_FIELDS = (
+    "short_float_pct", "float_shares", "rel_volume", "price", "change_pct",
+)
+
 
 def _redact(message: object, secret: str | None) -> str:
     text = str(message)
@@ -42,6 +49,54 @@ def _redact(message: object, secret: str | None) -> str:
 
 def _now() -> str:
     return datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
+
+
+def finviz_row_is_usable(row: FinvizRow) -> bool:
+    """True when a row has the core short-squeeze fields needed for ranking."""
+    return bool(row.ticker) and all(
+        getattr(row, name) is not None for name in _FINVIZ_CORE_FIELDS
+    )
+
+
+def finviz_row_completeness(row: FinvizRow) -> int:
+    """Count of preferred fill fields that are non-null."""
+    return sum(1 for name in _FINVIZ_FILL_FIELDS if getattr(row, name) is not None)
+
+
+def finviz_rank_key(row: FinvizRow) -> tuple[float, ...]:
+    """Sort key for Finviz top-N: completeness, short float, rel volume, |change|.
+
+    More negative values sort first (descending preference).
+    """
+    change = abs(row.change_pct) if row.change_pct is not None else 0.0
+    return (
+        -float(finviz_row_completeness(row)),
+        -float(row.short_float_pct or 0.0),
+        -float(row.rel_volume or 0.0),
+        -change,
+    )
+
+
+def select_ranked_finviz_top_n(
+    rows: list[FinvizRow] | tuple[FinvizRow, ...] | None,
+    *,
+    exclude: set[str] | frozenset[str] | None = None,
+    limit: int = 15,
+) -> list[FinvizRow]:
+    """Pick up to ``limit`` usable Finviz rows not already in ``exclude``.
+
+    Sparse rows (missing core squeeze fields) are skipped. Remaining rows are
+    ranked by completeness, then short_float_pct, rel_volume, and |change_pct|.
+    """
+    if not rows or limit <= 0:
+        return []
+    skip = {symbol.upper() for symbol in (exclude or set()) if symbol}
+    eligible = [
+        row for row in rows
+        if finviz_row_is_usable(row) and row.ticker.upper() not in skip
+    ]
+    eligible.sort(key=finviz_rank_key)
+    return eligible[:limit]
 
 
 @dataclass(slots=True)

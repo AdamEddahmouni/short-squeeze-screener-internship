@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from . import current_eval, discovery as discovery_module
+from .finviz_live import select_ranked_finviz_top_n
 from .live_providers import ProviderBundle, enrich_candidate as _enrich_candidate
 from .provider_session import CurrentBar, LiveProvider, SymbolCollection
 from .truth import DataMode, FieldValue, Freshness, ValueStatus, known, missing
@@ -39,6 +40,11 @@ MIN_SCANNER_REFRESH_S = 30
 #: a 25-name screen sweeps fully about every four minutes and every row carries its own
 #: age and freshness. This is a real provider constraint, not a UI choice.
 DEFAULT_SYMBOLS_PER_CYCLE = 3
+
+#: Hard max candidates on the CURRENT screen after IBKR + Finviz top-N merge.
+CURRENT_SCREEN_CAP = int(os.environ.get("CURRENT_SCREEN_CAP", "30"))
+#: Max Finviz-only additions (IBKR first, then Finviz top-up to the cap).
+FINVIZ_TOP_N = int(os.environ.get("FINVIZ_TOP_N", "15"))
 
 #: Multiplier applied to refresh cadences when markets are closed.
 #: Off-hours, the screener chills out to preserve API quotas (IBKR, NewsAPI, Finnhub).
@@ -844,10 +850,14 @@ class ScreenerSession:
             self.profile_id = profile_id
 
     def refresh_discovery(self, profile_id: str | None = None) -> dict[str, Any]:
-        """Re-run the scanner. Existing candidates keep their history either way.
+        """Re-run the scanner and rebuild the curated CURRENT screen.
 
-        Also pulls candidates from the Finviz Elite screener cache when available,
-        merging them with IBKR-discovered candidates to maximise the screen."""
+        Finviz Elite export is fetched to warm the enrichment cache, but only a
+        ranked top-N of Finviz rows (not already in the IBKR found set) become
+        candidates. The active set is rebuilt each discovery from IBKR found +
+        Finviz top-N under ``CURRENT_SCREEN_CAP``; history is retained for
+        symbols that remain, and manual symbols are always kept.
+        """
         profile_id = profile_id or self.profile_id
         profile = self.profiles.get(profile_id)
         if profile is None:
@@ -856,12 +866,11 @@ class ScreenerSession:
             self.last_discovery_at = _iso(_now())
             return {"discovered": len(self.states), "manual": True}
 
-        found = self.provider.run_discovery(profile)
+        found = self.provider.run_discovery(profile) or []
         now = _iso(_now())
         self.last_discovery_at = now
 
-        # --- Finviz Elite screener as parallel ticker source ---
-        # Fetch screener first (populates cache), then process inside lock.
+        # Warm Finviz enrichment cache; select only ranked top-N for candidates.
         finviz_rows: list[Any] = []
         try:
             if self.external_providers.finviz.configured:
@@ -869,7 +878,6 @@ class ScreenerSession:
                 finviz_rows = self.external_providers.finviz.get_cached_rows() or []
         except Exception:
             pass  # Finviz is supplementary; failure must not break IBKR discovery
-        # -----------------------------------------------------------
 
         with self._lock:
             if not found and not finviz_rows:
@@ -881,39 +889,82 @@ class ScreenerSession:
                     "error": self.provider.scanner_status.detail,
                     "retained": len(self.states),
                 }
-            current_symbols = {candidate.symbol for candidate in found} if found else set()
-            for candidate in (found or []):
-                existing = self.states.get(candidate.symbol)
+
+            screen_cap = max(1, CURRENT_SCREEN_CAP)
+            finviz_top_n = max(0, FINVIZ_TOP_N)
+
+            # IBKR first; truncate if discovery alone exceeds the cap.
+            ibkr_candidates = list(found[:screen_cap])
+            ibkr_symbols = {candidate.symbol for candidate in ibkr_candidates}
+
+            finviz_slots = max(0, min(finviz_top_n, screen_cap - len(ibkr_candidates)))
+            ranked_finviz = select_ranked_finviz_top_n(
+                finviz_rows, exclude=ibkr_symbols, limit=finviz_slots,
+            )
+            finviz_symbols = {row.ticker for row in ranked_finviz if row.ticker}
+
+            selected = ibkr_symbols | finviz_symbols
+            manual_symbols = {
+                symbol
+                for symbol, state in self.states.items()
+                if state.candidate.profile_id == "MANUAL_SYMBOL"
+            }
+            keep = selected | manual_symbols
+
+            previous = self.states
+            rebuilt: dict[str, CandidateState] = {}
+
+            for candidate in ibkr_candidates:
+                existing = previous.get(candidate.symbol)
                 if existing is None:
-                    self.states[candidate.symbol] = CandidateState(candidate=candidate)
+                    rebuilt[candidate.symbol] = CandidateState(candidate=candidate)
                 else:
                     existing.candidate.provider_rank = candidate.provider_rank
                     existing.candidate.discovered_at = candidate.discovered_at
                     existing.candidate.in_current_scan = True
+                    existing.candidate.profile_id = candidate.profile_id
                     if existing.candidate.con_id is None:
                         existing.candidate.con_id = candidate.con_id
-            # --- Add Finviz-sourced candidates (single pass inside lock) ---
+                    rebuilt[candidate.symbol] = existing
+
             finviz_added = 0
-            for fv_row in finviz_rows:
+            for fv_row in ranked_finviz:
                 fv_sym = fv_row.ticker
-                if fv_sym and fv_sym not in current_symbols and fv_sym not in self.states:
-                    self.states[fv_sym] = CandidateState(
+                if not fv_sym or fv_sym in rebuilt:
+                    continue
+                existing = previous.get(fv_sym)
+                if existing is None:
+                    rebuilt[fv_sym] = CandidateState(
                         candidate=discovery_module.CurrentDiscoveryCandidate(
                             symbol=fv_sym, profile_id="FINVIZ_SCREENER",
                             long_name=fv_row.company or "",
                         )
                     )
-                    finviz_added += 1
-            # ----------------------------------------------------------------
-            for symbol, state in self.states.items():
-                if symbol not in current_symbols:
-                    state.candidate.in_current_scan = False
-        return {
-            "discovered": (len(found) if found else 0) + finviz_added,
-            "ibkr": len(found) if found else 0,
-            "finviz": finviz_added,
-            "error": None,
-        }
+                else:
+                    existing.candidate.in_current_scan = True
+                    existing.candidate.profile_id = "FINVIZ_SCREENER"
+                    if fv_row.company and not existing.candidate.long_name:
+                        existing.candidate.long_name = fv_row.company
+                    rebuilt[fv_sym] = existing
+                finviz_added += 1
+
+            for symbol in manual_symbols:
+                if symbol in rebuilt:
+                    continue
+                state = previous[symbol]
+                state.candidate.in_current_scan = symbol in ibkr_symbols
+                rebuilt[symbol] = state
+
+            # Drop states no longer selected (old Finviz flood / left the scan).
+            self.states = {symbol: rebuilt[symbol] for symbol in rebuilt if symbol in keep}
+
+            return {
+                "discovered": len(ibkr_candidates) + finviz_added,
+                "ibkr": len(ibkr_candidates),
+                "finviz": finviz_added,
+                "cap": screen_cap,
+                "error": None,
+            }
 
     def add_manual_symbols(self, symbols: list[str]) -> list[str]:
         """Add user-entered tickers. Invalid input is reported, never silently dropped."""
@@ -1596,8 +1647,10 @@ def discovery_cadence() -> dict[str, Any]:
 
 __all__ = [
     "CURRENT_MODE_LABEL",
+    "CURRENT_SCREEN_CAP",
     "DEFAULT_QUOTE_REFRESH_S",
     "DEFAULT_SCANNER_REFRESH_S",
+    "FINVIZ_TOP_N",
     "MAX_HISTORY_PER_SYMBOL",
     "NOT_IN_SCAN_LABEL",
     "CandidateState",

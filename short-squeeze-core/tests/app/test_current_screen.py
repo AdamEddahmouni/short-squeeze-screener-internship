@@ -77,18 +77,40 @@ def test_scanner_failure_degrades_without_destroying_the_screen():
     assert all(not state.candidate.in_current_scan for state in session.states.values())
 
 
-def test_symbol_leaving_the_scan_keeps_its_history():
+def test_symbol_leaving_the_scan_is_dropped_from_active_set():
     provider = SyntheticProvider(symbols=("AAA", "BBB"))
     session = session_state.ScreenerSession(provider=provider, symbols_per_cycle=10)
     _refreshed(session)
     assert session.states["BBB"].history
+    assert "AAA" in session.states
 
     provider.symbols = ("AAA",)
     session.refresh_discovery("BROAD_MOVERS")
-    assert "BBB" in session.states
-    assert session.states["BBB"].history
-    row = session.row_for(session.states["BBB"])
-    assert row["scan_membership_label"] == session_state.NOT_IN_SCAN_LABEL
+    assert "BBB" not in session.states
+    assert "AAA" in session.states
+    assert session.states["AAA"].history
+
+
+def test_remaining_symbol_keeps_history_across_discovery():
+    provider = SyntheticProvider(symbols=("AAA", "BBB"))
+    session = session_state.ScreenerSession(provider=provider, symbols_per_cycle=10)
+    _refreshed(session)
+    aaa_history = list(session.states["AAA"].history)
+    assert aaa_history
+
+    provider.symbols = ("AAA",)
+    session.refresh_discovery("BROAD_MOVERS")
+    assert session.states["AAA"].history == aaa_history
+
+
+def test_manual_symbols_survive_discovery_rebuild():
+    provider = SyntheticProvider(symbols=("AAA",))
+    session = session_state.ScreenerSession(provider=provider, symbols_per_cycle=10)
+    session.refresh_discovery("BROAD_MOVERS")
+    session.add_manual_symbols(["ZZZ"])
+    session.refresh_discovery("BROAD_MOVERS")
+    assert "ZZZ" in session.states
+    assert session.states["ZZZ"].candidate.profile_id == "MANUAL_SYMBOL"
 
 
 def test_candidate_identity_is_stable_across_refreshes(session):

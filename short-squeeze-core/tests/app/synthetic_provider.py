@@ -172,8 +172,8 @@ class FakeFinvizProvider:
     configured = True
     cached_at = "2026-07-25T14:00:00Z"
 
-    def __init__(self) -> None:
-        self.rows = {
+    def __init__(self, rows: dict[str, FinvizRow] | None = None) -> None:
+        self.rows = rows or {
             "AAA": FinvizRow(
                 ticker="AAA", company="AAA Inc", sector="Technology",
                 industry="Software", country="USA", price=7.0, change_pct=12.5,
@@ -186,6 +186,9 @@ class FakeFinvizProvider:
 
     def get_row(self, symbol: str):
         return self.rows.get(symbol)
+
+    def get_cached_rows(self):
+        return list(self.rows.values())
 
     def get_news_for(self, symbol: str):
         return []
@@ -218,8 +221,12 @@ class FakeNewsProvider:
         return {"provider": "FakeNews", "configured": True, "cached_symbols": 1}
 
 
-def fake_external_providers() -> ProviderBundle:
-    return ProviderBundle(finviz=FakeFinvizProvider(), news=FakeNewsProvider())
+def fake_external_providers(
+    finviz_rows: dict[str, FinvizRow] | None = None,
+) -> ProviderBundle:
+    return ProviderBundle(
+        finviz=FakeFinvizProvider(finviz_rows), news=FakeNewsProvider()
+    )
 
 
 __all__ = [

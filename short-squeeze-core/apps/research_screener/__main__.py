@@ -18,6 +18,68 @@ from .providers import provider_health
 from .server import DEFAULT_PORT, HOST, build_server, default_export_dir, find_free_port
 
 
+def _bootstrap_live_data(session) -> None:
+    """Bootstrap live data flow immediately on boot, then start auto-refresh.
+
+    Runs in a daemon thread so the HTTP server is already serving before the
+    first provider probe.  A bootstrap failure **never** prevents the server
+    from starting; auto-refresh is still started so the background loop retries
+    continuously and data flows as soon as a provider becomes available.
+
+    Order matters: one-shot discovery → bounded refresh → start_auto_refresh.
+    Never call refresh_all after the loop has started (avoids concurrent
+    _cursor / pacing burn). Seed last_scan after bootstrap discovery so the
+    loop does not immediately rediscover.
+    """
+    discovery_ok = False
+    try:
+        result = session.refresh_discovery()
+        discovered = result.get("discovered", 0)
+        ibkr = result.get("ibkr", 0)
+        finviz = result.get("finviz", 0)
+        discovery_ok = True
+        print(
+            f"  Bootstrap: discovered {discovered} candidate(s) "
+            f"(IBKR scanner: {ibkr}, Finviz screener: {finviz})"
+        )
+    except Exception as exc:  # noqa: BLE001 - bootstrap must never block the server
+        print(
+            f"  Bootstrap: discovery failed ({type(exc).__name__}: {exc}) "
+            "- auto-refresh will retry"
+        )
+
+    if discovery_ok and hasattr(session, "note_discovery_scan"):
+        session.note_discovery_scan()
+
+    # Bounded first cycle only (same budget as the live loop). Must complete
+    # before start_auto_refresh so refresh_all / _cursor never overlap the loop.
+    try:
+        total = len(session.states)
+        if total > 0:
+            limit = getattr(session, "symbols_per_cycle", 3) or 3
+            session.refresh_all(limit=limit)
+            print(
+                f"  Bootstrap: initial refresh of {limit}/{total} symbol(s) "
+                "(IBKR, Finviz, NewsAPI, Finnhub, SEC EDGAR); "
+                "auto-refresh continues the rest"
+            )
+        else:
+            print("  Bootstrap: no candidates yet - auto-refresh will discover them")
+    except Exception as exc:  # noqa: BLE001
+        print(
+            f"  Bootstrap: initial refresh failed ({type(exc).__name__}: {exc}) "
+            "- auto-refresh will retry"
+        )
+
+    try:
+        session.start_auto_refresh()
+        print("  Bootstrap: auto-refresh started - data flowing continuously")
+    except Exception as exc:  # noqa: BLE001
+        print(
+            f"  Bootstrap: auto-refresh start failed ({type(exc).__name__}: {exc})"
+        )
+
+
 def _preflight(runtime_config: RuntimeConfig) -> tuple[bool, list[str]]:
     """Report what is available before the browser opens. Never blocks startup."""
     lines: list[str] = []
@@ -167,6 +229,23 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.no_browser and runtime_config.mode is DeploymentMode.LOCAL_FULL:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+
+    # ── Auto-bootstrap live data flow ─────────────────────────────────
+    # Runs in a daemon thread so the server is already serving requests
+    # before the first provider probe. This makes the dashboard show live
+    # data on the very first page load instead of an empty screen, and
+    # starts the auto-refresh loop so providers keep feeding data through
+    # without any manual interaction — essential for demonstrations.
+    if not args.check:
+        from . import session_state as _ss
+        _session = _ss.get_session()
+        _boot = threading.Thread(
+            target=_bootstrap_live_data,
+            args=(_session,),
+            name="screener-bootstrap",
+            daemon=True,
+        )
+        _boot.start()
 
     try:
         server.serve_forever()
