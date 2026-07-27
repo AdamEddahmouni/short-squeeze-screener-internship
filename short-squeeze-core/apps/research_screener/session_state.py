@@ -423,12 +423,20 @@ def short_pressure_fields(
         )
 
     borrow_fee_value = external_providers.borrow_fee_for(state.symbol)
+    collection = state.collection
+    if collection is not None and collection.borrow_fee_pct is not None:
+        borrow_fee_value = collection.borrow_fee_pct
     if borrow_fee_value is not None:
+        received = (
+            collection.quote.received_at
+            if collection and collection.quote and collection.quote.received_at
+            else _iso(_now())
+        )
         fields["borrow_fee"] = known(
             float(borrow_fee_value), unit="PERCENT_ANNUALIZED", provider="IBKR",
-            event_time=_iso(_now()), received_time=_iso(_now()),
+            event_time=received, received_time=received,
             freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
-            evidence_id=f"borrow_fee:{state.symbol}:{_iso(_now())}",
+            evidence_id=f"borrow_fee:{state.symbol}:{received}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
             provider_field="Borrow Fee (Tick 258)",
             selection_reason="SECONDARY_IBKR_REQUEST",
@@ -472,6 +480,31 @@ def short_pressure_fields(
             "Finviz Short Ratio (days to cover) is not present in the current "
             "Elite export snapshot for this symbol.",
             "DAYS_TO_COVER_NOT_AVAILABLE",
+        )
+
+    if (
+        fv_row is not None
+        and fields["days_to_cover"].status != ValueStatus.KNOWN
+        and fv_row.short_float_pct is not None
+        and fv_row.float_shares is not None
+        and fv_row.avg_volume
+        and float(fv_row.avg_volume) > 0
+    ):
+        si_shares = (float(fv_row.short_float_pct) / 100.0) * float(fv_row.float_shares)
+        estimated_dtc = si_shares / float(fv_row.avg_volume)
+        fields["days_to_cover"] = known(
+            round(estimated_dtc, 4),
+            unit="DAYS",
+            provider="Finviz Elite",
+            event_time=finviz_at,
+            received_time=finviz_at,
+            freshness=Freshness.CURRENT,
+            data_mode=DataMode.HISTORICAL,
+            evidence_id=f"finviz:{state.symbol}:dtc_est:{finviz_at}",
+            readiness="RESEARCH_ADMISSIBLE_COMPUTED_METRIC",
+            provider_field="Short Float / Avg Volume",
+            selection_reason="ESTIMATED_WHEN_SHORT_RATIO_MISSING",
+            research_admissibility="RESEARCH_ADMISSIBLE",
         )
 
     # Halt status from generic tick 49
@@ -642,10 +675,22 @@ def catalyst_fields(
         except Exception:
             pass
 
-        if sentiment_result is not None and sentiment_result.get("analyzed_count", 0) > 0:
+        analyzed_headlines = int(
+            sentiment_result.get("analyzed", sentiment_result.get("analyzed_count", 0) or 0)
+        ) if sentiment_result is not None else 0
+        dominant = (
+            str(sentiment_result.get("dominant_label", "")).strip().lower()
+            if sentiment_result is not None else ""
+        )
+        if (
+            sentiment_result is not None
+            and analyzed_headlines > 0
+            and dominant not in ("", "unknown")
+        ):
+            model_label = sentiment_result.get("model_id") or "Sentiment"
             fields["sentiment"] = known(
                 sentiment_result["dominant_label"], unit="LABEL",
-                provider=f"FinBERT ({sentiment_result['model_id']})",
+                provider=model_label,
                 event_time=sentiment_result["evaluated_at"],
                 received_time=_iso(_now()),
                 freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
@@ -653,38 +698,45 @@ def catalyst_fields(
                 readiness="DISPLAY_ONLY_EXPERIMENTAL_SENTIMENT",
             )
             fields["sentiment_positive_count"] = known(
-                sentiment_result["positive_count"], unit="COUNT", provider="FinBERT",
+                sentiment_result["positive_count"], unit="COUNT", provider=model_label,
                 event_time=sentiment_result["evaluated_at"], received_time=_iso(_now()),
                 freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
                 evidence_id=f"sentiment:{state.symbol}:positive:{_iso(_now())}",
                 readiness="DISPLAY_ONLY",
             )
             fields["sentiment_neutral_count"] = known(
-                sentiment_result["neutral_count"], unit="COUNT", provider="FinBERT",
+                sentiment_result["neutral_count"], unit="COUNT", provider=model_label,
                 event_time=sentiment_result["evaluated_at"], received_time=_iso(_now()),
                 freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
                 evidence_id=f"sentiment:{state.symbol}:neutral:{_iso(_now())}",
                 readiness="DISPLAY_ONLY",
             )
             fields["sentiment_negative_count"] = known(
-                sentiment_result["negative_count"], unit="COUNT", provider="FinBERT",
+                sentiment_result["negative_count"], unit="COUNT", provider=model_label,
                 event_time=sentiment_result["evaluated_at"], received_time=_iso(_now()),
                 freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
                 evidence_id=f"sentiment:{state.symbol}:negative:{_iso(_now())}",
                 readiness="DISPLAY_ONLY",
             )
             fields["sentiment_model_id"] = known(
-                sentiment_result["model_id"], unit="MODEL_ID", provider="FinBERT",
+                sentiment_result["model_id"], unit="MODEL_ID", provider=model_label,
                 event_time=sentiment_result["evaluated_at"], received_time=_iso(_now()),
                 freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
                 evidence_id=f"sentiment:{state.symbol}:model:{_iso(_now())}",
                 readiness="DISPLAY_ONLY",
             )
         else:
+            load_hint = ""
+            try:
+                analyzer = getattr(external_providers, "_sentiment_analyzer", None)
+                if analyzer is not None and getattr(analyzer, "load_error", None):
+                    load_hint = f" {analyzer.load_error}"
+            except Exception:
+                pass
             fields["sentiment"] = _not_configured(
-                "Sentiment analysis is not configured or pending. "
-                "FinBERT sentiment requires a local model and is not deployed in cloud.",
-                "SENTIMENT_NOT_CONFIGURED",
+                "FinBERT sentiment is enabled but no headline labels were produced."
+                + load_hint,
+                "SENTIMENT_NOT_AVAILABLE",
             )
     else:
         fields["catalyst"] = _not_configured(
@@ -729,6 +781,8 @@ def catalyst_fields(
             freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
             evidence_id=f"catalyst_age:{state.symbol}:{_iso(_now())}",
             readiness="RESEARCH_ADMISSIBLE_COMPUTED_METRIC",
+            provider_field="catalyst_age_hours",
+            selection_reason="NEWS_OR_SEC_FILING_AGE",
             research_admissibility="RESEARCH_ADMISSIBLE",
         )
 
@@ -769,12 +823,18 @@ def metric_fields(
     fields: dict[str, FieldValue] = {}
     if evaluation is not None and evaluation.metric is not None and evaluation.metric.value is not None:
         metric = evaluation.metric
+        unit = str(metric.unit)
+        if unit == "PERCENTAGE_POINTS":
+            unit = "PERCENT"
         fields["percentage_change"] = known(
-            round(float(metric.value), 4), unit=str(metric.unit), provider="IBKR",
+            round(float(metric.value), 4), unit=unit, provider="IBKR",
             event_time=_iso(evaluation.as_of), received_time=state.snapshot_at,
             freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
             evidence_id=str(metric.deterministic_id),
             readiness=str(metric.quality.state),
+            provider_field="PERCENTAGE_RETURN",
+            selection_reason="CANONICAL_IBKR_COMPLETED_BARS",
+            research_admissibility="RESEARCH_ADMISSIBLE",
         )
     else:
         reason = "No canonical PERCENTAGE_RETURN could be constructed from current evidence."
@@ -791,7 +851,21 @@ def metric_fields(
                 "The canonical PERCENTAGE_RETURN record was constructed but carries no "
                 "value. Provider diagnostics: " + (", ".join(codes) or "none recorded") + "."
             )
-        fields["percentage_change"] = _unknown(reason, "PERCENTAGE_RETURN_UNAVAILABLE")
+        fv_row = external_providers.finviz_row(state.symbol)
+        finviz_at = getattr(external_providers.finviz, "cached_at", None) or _iso(_now())
+        if fv_row is not None and fv_row.change_pct is not None:
+            fields["percentage_change"] = known(
+                float(fv_row.change_pct), unit="PERCENT", provider="Finviz Elite",
+                event_time=finviz_at, received_time=finviz_at,
+                freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
+                evidence_id=f"finviz:{state.symbol}:change_pct:{finviz_at}",
+                readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
+                provider_field="Change",
+                selection_reason="FINVIZ_FALLBACK_WHEN_IBKR_RETURN_UNAVAILABLE",
+                research_admissibility="RESEARCH_ADMISSIBLE",
+            )
+        else:
+            fields["percentage_change"] = _unknown(reason, "PERCENTAGE_RETURN_UNAVAILABLE")
 
     fv_row = external_providers.finviz_row(state.symbol)
     finviz_at = getattr(external_providers.finviz, "cached_at", None) or _iso(_now())
@@ -826,6 +900,8 @@ def metric_fields(
                     freshness=Freshness.CURRENT, data_mode=DataMode.HISTORICAL,
                     evidence_id=f"bar_accel:{state.symbol}:{_iso(_now())}",
                     readiness="RESEARCH_ADMISSIBLE_COMPUTED_METRIC",
+                    provider_field="completed_bar_acceleration",
+                    selection_reason="COMPUTED_FROM_COMPLETED_BARS",
                     research_admissibility="RESEARCH_ADMISSIBLE",
                 )
         except Exception:

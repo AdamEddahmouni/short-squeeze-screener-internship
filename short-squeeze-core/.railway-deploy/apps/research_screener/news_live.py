@@ -11,7 +11,7 @@ import hashlib
 import threading
 import time
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 
@@ -55,6 +55,17 @@ def _parse_timestamp(raw: str | None) -> datetime | None:
         )
     except (ValueError, TypeError):
         return None
+
+
+def _sort_timestamp(raw: str | None) -> datetime:
+    return _parse_timestamp(raw) or datetime.min.replace(tzinfo=UTC)
+
+
+_PROVIDER_ORDER_ALIASES: dict[str, str] = {
+    "Finviz News": "Finviz Elite",
+    "finviz news": "Finviz Elite",
+    "finviz elite": "Finviz Elite",
+}
 
 
 class NewsProvider(ABC):
@@ -289,9 +300,16 @@ class FinnhubNewsProvider(NewsProvider):
                 return []
 
             try:
+                today = datetime.now(tz=UTC).date()
+                week_ago = today - timedelta(days=7)
                 resp = requests.get(
                     FINNHUB_NEWS_URL,
-                    params={"symbol": symbol.strip().upper(), "token": self.api_key},
+                    params={
+                        "symbol": symbol.strip().upper(),
+                        "from": week_ago.isoformat(),
+                        "to": today.isoformat(),
+                        "token": self.api_key,
+                    },
                     timeout=10,
                 )
                 if resp.status_code == 429:
@@ -376,8 +394,9 @@ class NewsOrchestrator:
         name_map = {p.provider_name: p for p in self._providers}
         ordered = []
         for name in self._provider_order:
-            if name in name_map:
-                ordered.append(name_map[name])
+            resolved = _PROVIDER_ORDER_ALIASES.get(name, name)
+            if resolved in name_map:
+                ordered.append(name_map[resolved])
         return ordered or list(self._providers)
 
     def status(self) -> dict[str, Any]:
@@ -430,10 +449,13 @@ class NewsOrchestrator:
                 deduped.append(item)
 
         deduped.sort(
-            key=lambda x: _parse_timestamp(x.get("timestamp")),
+            key=lambda x: _sort_timestamp(x.get("timestamp")),
             reverse=True,
         )
         deduped = deduped[: self._max_headlines]
+
+        if not deduped:
+            deduped = list(self._last_good.get(symbol, []))
 
         with self._lock:
             now = time.time()
@@ -454,6 +476,39 @@ class NewsOrchestrator:
             else:
                 s = symbol.strip().upper()
                 self._cache.pop(s, None)
+
+    def register_external_headlines(
+        self, symbol: str, items: list[dict[str, Any]]
+    ) -> None:
+        """Merge collector/RSS headlines into the deduped per-symbol cache."""
+        symbol = symbol.strip().upper()
+        if not items:
+            return
+        with self._lock:
+            now = time.time()
+            existing = list(self._cache.get(symbol, (0, []))[1])
+            seen = {_headline_hash(str(item.get("headline", ""))) for item in existing}
+            for item in items:
+                headline = str(item.get("headline", "")).strip()
+                if not headline:
+                    continue
+                h = _headline_hash(headline)
+                if h in seen:
+                    continue
+                seen.add(h)
+                normalized = _normalize_item(item)
+                normalized["provider"] = item.get("provider", "Collector")
+                normalized["retrieved_at"] = _now()
+                normalized["dedup_key"] = h
+                existing.append(normalized)
+            existing.sort(
+                key=lambda x: _sort_timestamp(x.get("timestamp")),
+                reverse=True,
+            )
+            existing = existing[: self._max_headlines]
+            self._cache[symbol] = (now, existing)
+            if existing:
+                self._last_good[symbol] = list(existing)
 
 
 _ORCHESTRATOR: NewsOrchestrator | None = None

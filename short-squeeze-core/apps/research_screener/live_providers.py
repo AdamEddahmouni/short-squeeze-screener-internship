@@ -514,6 +514,8 @@ class ProviderBundle:
         sentiment = config.build_sentiment_analyzer()
         if sentiment is not None:
             configure_sentiment(sentiment)
+            from .sentiment_live import warm_sentiment_analyzer
+            warm_sentiment_analyzer(sentiment)
 
         return cls(
             finviz=finviz_client,
@@ -588,9 +590,14 @@ class ProviderBundle:
                     )
                 except Exception:
                     pass
-                matched_rows = {
-                    symbol: finviz.get_row(symbol) for symbol in symbols
-                } if fv_resp["success"] else {}
+                if fv_resp["success"]:
+                    ensure = finviz.ensure_symbols(symbols)
+                    matched_rows = {
+                        symbol: finviz.get_row(symbol) for symbol in symbols
+                    }
+                else:
+                    ensure = {"fetched": 0, "missing_before": 0}
+                    matched_rows = {}
                 matched = {
                     symbol: row for symbol, row in matched_rows.items()
                     if row is not None
@@ -599,6 +606,8 @@ class ProviderBundle:
                 self._finviz_enrichment = {
                     "scanner_candidates": len(symbols),
                     "matched_candidates": len(matched),
+                    "symbol_exports_fetched": ensure.get("fetched", 0),
+                    "symbol_exports_missing_before": ensure.get("missing_before", 0),
                     "with_float": sum(row.float_shares is not None for row in matched.values()),
                     "with_short_float": sum(
                         row.short_float_pct is not None for row in matched.values()

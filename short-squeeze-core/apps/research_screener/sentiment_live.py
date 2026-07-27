@@ -16,6 +16,70 @@ from pathlib import Path
 from typing import Any
 
 
+FINBERT_HUB_DEFAULT = "ProsusAI/finbert"
+
+
+def _config_placeholder(value: str | None) -> bool:
+    if value is None:
+        return True
+    stripped = str(value).strip()
+    if not stripped:
+        return True
+    return stripped.lower().startswith("replace_with")
+
+
+def _core_package_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def resolve_sentiment_model_path(explicit: str | None = None) -> str | None:
+    """Resolve a local FinBERT checkpoint directory or Hugging Face model id."""
+
+    def _usable(raw: str | None) -> str | None:
+        if raw is None or _config_placeholder(raw):
+            return None
+        text = str(raw).strip()
+        expanded = Path(text).expanduser()
+        if expanded.is_dir():
+            return str(expanded.resolve())
+        if "/" in text and not expanded.exists():
+            return text
+        return None
+
+    for candidate in (
+        explicit,
+        os.environ.get("SENTIMENT_MODEL_PATH"),
+        os.environ.get("FINBERT_MODEL_PATH"),
+    ):
+        resolved = _usable(candidate)
+        if resolved:
+            return resolved
+
+    root = _core_package_root()
+    for relative in (
+        "models/finbert_finetuned",
+        "model/finbert_finetuned",
+        "data/finbert_finetuned",
+    ):
+        path = root / relative
+        if path.is_dir() and (path / "config.json").is_file():
+            return str(path.resolve())
+
+    archived = (
+        root.parent
+        / "archived-project-code"
+        / "adams-short-squeeze-code-archived"
+        / "app"
+        / "ScreenerProject"
+        / "model"
+        / "finbert_finetuned"
+    )
+    if archived.is_dir() and (archived / "config.json").is_file():
+        return str(archived.resolve())
+
+    return FINBERT_HUB_DEFAULT
+
+
 def _now() -> str:
     return datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
 
@@ -47,6 +111,9 @@ class SentimentProviderBase(ABC):
             "provider": self.model_id,
             "configured": self.configured,
         }
+
+    def ensure_loaded(self) -> bool:
+        return getattr(self, "model_loaded", self.configured)
 
 
 class NullSentimentProvider(SentimentProviderBase):
@@ -156,7 +223,7 @@ class LocalFinbertProvider(SentimentProviderBase):
 
     @property
     def configured(self) -> bool:
-        return self._model_path is not None and Path(self._model_path).is_dir()
+        return bool(self._model_path and str(self._model_path).strip())
 
     @property
     def model_id(self) -> str:
@@ -164,11 +231,7 @@ class LocalFinbertProvider(SentimentProviderBase):
 
     @property
     def model_loaded(self) -> bool:
-        return getattr(self._provider, "model_loaded", False)
-
-    @property
-    def model_id(self) -> str:
-        return self._provider.model_id
+        return self._model_loaded
 
     @property
     def load_error(self) -> str | None:
@@ -191,6 +254,9 @@ class LocalFinbertProvider(SentimentProviderBase):
             "labels": dict(self._labels),
         }
 
+    def ensure_loaded(self) -> bool:
+        return self._load_model()
+
     def _resolve_label(self, raw_label: str) -> str:
         raw = str(raw_label).lower().strip()
         if raw in ("positive", "negative", "neutral"):
@@ -203,28 +269,34 @@ class LocalFinbertProvider(SentimentProviderBase):
     def _load_model(self) -> bool:
         if self._model_loaded:
             return True
-        if not self._model_path or not Path(self._model_path).is_dir():
-            self._load_error = f"Model path not found: {self._model_path}"
+        if not self.configured:
+            self._load_error = "No FinBERT model path configured"
             return False
+        raw_path = str(self._model_path).strip()
+        local = Path(raw_path).expanduser()
+        model_ref = str(local.resolve()) if local.is_dir() else raw_path
         t0 = datetime.now(tz=UTC)
         try:
             from transformers import pipeline
 
-            path = self._model_path
-            config_path = Path(path) / "config.json"
-            if config_path.is_file():
+            config_path = local / "config.json" if local.is_dir() else None
+            if config_path is not None and config_path.is_file():
                 with open(config_path, encoding="utf-8") as f:
                     cfg = json.load(f)
                 self._labels = {
                     int(k): str(v) for k, v in cfg.get("id2label", {}).items()
                 }
                 self._model_id_text = (
-                    cfg.get("_name_or_path") or Path(path).name
-                    or "FinBERT-finetuned-local"
+                    cfg.get("_name_or_path") or local.name or "FinBERT-finetuned-local"
                 )
+            elif "/" in raw_path:
+                self._model_id_text = raw_path
 
             self._pipeline = pipeline(
-                "sentiment-analysis", model=path, tokenizer=path, device=-1
+                "sentiment-analysis",
+                model=model_ref,
+                tokenizer=model_ref,
+                device=-1,
             )
             t1 = datetime.now(tz=UTC)
             self._load_time_s = (t1 - t0).total_seconds()
@@ -232,7 +304,10 @@ class LocalFinbertProvider(SentimentProviderBase):
             self._load_error = None
             return True
         except ImportError as exc:
-            self._load_error = f"transformers/torch not available: {exc}"
+            self._load_error = (
+                "transformers/torch not available — install with "
+                f"pip install 'short-squeeze-core[sentiment]': {exc}"
+            )
             return False
         except Exception as exc:
             self._load_error = f"Model load: {type(exc).__name__}: {exc}"
@@ -340,7 +415,17 @@ class SentimentAnalyzer:
         }
         if hasattr(self._provider, "status"):
             base["provider"] = self._provider.status()
+        if self.load_error:
+            base["load_error"] = self.load_error
         return base
+
+    def _ensure_ready(self) -> bool:
+        if not self._provider.configured:
+            return False
+        ensure = getattr(self._provider, "ensure_loaded", None)
+        if callable(ensure):
+            return bool(ensure())
+        return bool(getattr(self._provider, "model_loaded", False))
 
     def analyze_headlines(
         self, headlines: list[dict[str, Any]]
@@ -354,8 +439,20 @@ class SentimentAnalyzer:
             for item in headlines
         ]
 
-        if not self._provider.model_loaded:
-            return self._empty_results(headlines)
+        if not self._ensure_ready():
+            reason = self.load_error or "Sentiment not configured or model not loaded"
+            return [
+                {
+                    "headline": item.get("headline", "") if isinstance(item, dict) else str(item),
+                    "sentiment_label": "unknown",
+                    "score": None,
+                    "model_id": self._provider.model_id if self._provider.configured else "",
+                    "evaluated_at": _now(),
+                    "headline_hash": _headline_hash(texts[i]),
+                    "reason": reason,
+                }
+                for i, item in enumerate(headlines)
+            ]
 
         results: list[dict[str, Any]] = []
         uncached_idx: list[int] = []
@@ -402,6 +499,8 @@ class SentimentAnalyzer:
                         r["url"] = item.get("url")
                         r["source"] = item.get("source")
                     r["evaluated_at"] = evaluated_at
+                    if "sentiment_label" not in r and r.get("label") is not None:
+                        r["sentiment_label"] = str(r["label"]).lower()
                     if "sentiment_label" not in r:
                         r["sentiment_label"] = "unknown"
                     results[orig_idx] = r
@@ -472,7 +571,8 @@ class SentimentAnalyzer:
             "negative_count": negative,
             "dominant_label": dominant,
             "headline_count": len(headlines),
-            "analyzed_count": len(results),
+            "analyzed_count": analyzed,
+            "analyzed": analyzed,
             "model_id": self._provider.model_id if self._provider.configured else "",
             "model_status": "READY" if self.model_loaded else "NOT_LOADED",
             "evaluated_at": _now(),
@@ -500,11 +600,27 @@ def configure_sentiment(analyzer: SentimentAnalyzer) -> SentimentAnalyzer:
         return _ANALYZER
 
 
+def warm_sentiment_analyzer(analyzer: SentimentAnalyzer | None = None) -> dict[str, Any]:
+    """Eager-load the configured sentiment model (FinBERT) when possible."""
+    target = analyzer or get_sentiment_analyzer()
+    ready = target._ensure_ready() if target.enabled else False
+    return {
+        "enabled": target.enabled,
+        "model_loaded": target.model_loaded,
+        "model_id": target.model_id,
+        "load_error": target.load_error,
+        "ready": ready,
+    }
+
+
 __all__ = [
+    "FINBERT_HUB_DEFAULT",
     "LocalFinbertProvider",
     "NullSentimentProvider",
     "SentimentAnalyzer",
     "SentimentProviderBase",
     "configure_sentiment",
     "get_sentiment_analyzer",
+    "resolve_sentiment_model_path",
+    "warm_sentiment_analyzer",
 ]

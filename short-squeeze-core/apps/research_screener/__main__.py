@@ -189,6 +189,17 @@ def main(argv: list[str] | None = None) -> int:
         use_frozen_demo=application_config.deployment.mode is not DeploymentMode.LOCAL_FULL,
     )
     runtime = configure_application(application_config)
+    from .sentiment_live import get_sentiment_analyzer
+
+    sa = get_sentiment_analyzer()
+    if application_config.providers.sentiment.enabled:
+        if sa.model_loaded:
+            print(f"  FinBERT sentiment          : LOADED ({sa.model_id})")
+        elif sa.enabled:
+            err = sa.load_error or "model not loaded"
+            print(f"  FinBERT sentiment          : NOT READY ({err})")
+        else:
+            print("  FinBERT sentiment          : DISABLED")
     if runtime_config.enable_local_ibkr:
         from .session_state import ScreenerSession, reset_session
         reset_session(ScreenerSession(external_providers=runtime))

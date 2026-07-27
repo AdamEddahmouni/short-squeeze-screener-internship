@@ -15,98 +15,111 @@
     <h1>Short Squeeze Scanner</h1>
     <p class="scanner-disclaimer">EXPERIMENTAL RESEARCH CLASSIFICATION — NOT PREDICTIVE VALIDATION</p>
   </div>
-  <div id="scanner-summary" class="scanner-summary"></div>
   <div class="scanner-actions">
-    <div class="live-timer" id="live-timer" title="Seconds since last data refresh">
-      <span class="timer-dot" id="timer-dot"></span>
-      <span class="timer-text" id="timer-text">--</span>
-    </div>
     <div class="mode-toggle-group">
       <button id="btn-mode-frozen" class="mode-toggle active" type="button" title="Pre-computed research cases">FROZEN</button>
       <button id="btn-mode-live" class="mode-toggle" type="button" title="Real-time IBKR discovery + live providers">LIVE</button>
-      <span id="mode-indicator" class="mode-indicator" style="margin-left:8px;font-size:12px;font-weight:700"></span>
     </div>
+    <span id="scan-status-pill" class="scan-status-pill none" title="Scan readiness">—</span>
     <a id="advanced-link" class="advanced-link" href="/advanced" title="Research & Diagnostics">Advanced</a>
   </div>
 </header>
 
 <div id="banners" class="banners"></div>
-<div id="provider-bar"></div>
+<div id="provider-bar" class="provider-bar-compact"></div>
 
 <nav class="scanner-controls">
-  <div class="control-group">
-    <label class="control-label" for="filter-classification">Classification</label>
-    <select id="filter-classification">
-      <option value="">All</option>
-      <option value="PRIME">PRIME</option>
-      <option value="SUBPRIME">SUBPRIME</option>
-      <option value="WATCH">WATCH</option>
-      <option value="NOT_QUALIFIED">NOT_QUALIFIED</option>
-      <option value="UNEVALUABLE">UNEVALUABLE</option>
-      <option value="CONFLICTED">CONFLICTED</option>
-    </select>
-  </div>
   <div class="control-group">
     <label class="control-label" for="filter-symbol">Symbol</label>
     <input id="filter-symbol" type="text" placeholder="e.g. GME" autocomplete="off">
   </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-min-price">Min Price</label>
-    <input id="filter-min-price" type="number" step="0.01" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-max-price">Max Price</label>
-    <input id="filter-max-price" type="number" step="0.01" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-min-change">Min % Change</label>
-    <input id="filter-min-change" type="number" step="0.1" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-min-relvol">Min Rel Vol</label>
-    <input id="filter-min-relvol" type="number" step="0.1" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-min-pressure">Min Pressure</label>
-    <input id="filter-min-pressure" type="number" step="1" min="0" max="100" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-min-ignition">Min Ignition</label>
-    <input id="filter-min-ignition" type="number" step="1" min="0" max="100" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-min-coverage">Min Evidence</label>
-    <input id="filter-min-coverage" type="number" step="1" min="0" max="100" placeholder="—">
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-news">News</label>
-    <select id="filter-news">
-      <option value="">Any</option>
-      <option value="has">Has News</option>
-    </select>
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-sentiment">Sentiment</label>
-    <select id="filter-sentiment">
-      <option value="">Any</option>
-      <option value="POSITIVE">Positive</option>
-      <option value="NEUTRAL">Neutral</option>
-      <option value="NEGATIVE">Negative</option>
-      <option value="MIXED">Mixed</option>
-    </select>
-  </div>
-  <div class="control-group">
-    <label class="control-label" for="filter-max-float">Max Float</label>
-    <input id="filter-max-float" type="number" step="1" placeholder="—">
-  </div>
-  <div class="control-group right">
+  <label class="control-label diagnostics-toggle" for="toggle-diagnostics">
+    <input id="toggle-diagnostics" type="checkbox"> Diagnostics
+  </label>
+  <details id="more-filters" class="more-filters">
+    <summary class="more-filters-summary">More filters</summary>
+    <div class="more-filters-inner">
+      <div class="control-group">
+        <label class="control-label" for="filter-classification">Classification</label>
+        <select id="filter-classification">
+          <option value="">All</option>
+          <option value="PRIME">PRIME</option>
+          <option value="SUBPRIME">SUBPRIME</option>
+          <option value="WATCH">WATCH</option>
+          <option value="NOT_QUALIFIED">NOT_QUALIFIED</option>
+          <option value="UNEVALUABLE">UNEVALUABLE</option>
+          <option value="CONFLICTED">CONFLICTED</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-min-price">Min Price</label>
+        <input id="filter-min-price" type="number" step="0.01" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-max-price">Max Price</label>
+        <input id="filter-max-price" type="number" step="0.01" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-min-change">Min % Change</label>
+        <input id="filter-min-change" type="number" step="0.1" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-min-relvol">Min Rel Vol</label>
+        <input id="filter-min-relvol" type="number" step="0.1" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-min-pressure">Min Pressure</label>
+        <input id="filter-min-pressure" type="number" step="1" min="0" max="100" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-min-ignition">Min Ignition</label>
+        <input id="filter-min-ignition" type="number" step="1" min="0" max="100" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-min-coverage">Min Evidence</label>
+        <input id="filter-min-coverage" type="number" step="1" min="0" max="100" placeholder="—">
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-news">News</label>
+        <select id="filter-news">
+          <option value="">Any</option>
+          <option value="has">Has News</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-sentiment">Sentiment</label>
+        <select id="filter-sentiment">
+          <option value="">Any</option>
+          <option value="POSITIVE">Positive</option>
+          <option value="NEUTRAL">Neutral</option>
+          <option value="NEGATIVE">Negative</option>
+          <option value="MIXED">Mixed</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label class="control-label" for="filter-max-float">Max Float</label>
+        <input id="filter-max-float" type="number" step="1" placeholder="—">
+      </div>
+    </div>
+  </details>
+  <div class="control-group right refresh-group">
+    <span id="refresh-clock" class="refresh-clock muted" title="Data freshness">
+      <span class="timer-dot" id="timer-dot"></span>
+      <span id="timer-text">--</span>
+    </span>
     <label class="checkbox"><input id="auto-refresh" type="checkbox"> Auto</label>
     <button id="btn-refresh-now" class="btn" type="button">Refresh</button>
-    <span id="refresh-clock" class="muted"></span>
   </div>
 </nav>
+<div id="triage-filters" class="triage-filters"></div>
+<section id="blocker-panel" class="blocker-panel" hidden>
+  <button id="blocker-toggle" class="blocker-toggle" type="button" aria-expanded="false">
+    Blocker Drilldown
+  </button>
+  <div id="blocker-content" class="blocker-content" hidden></div>
+</section>
 
-<p id="status-line" class="status-line"></p>
+<p id="status-line" class="status-line" hidden></p>
 
 <div id="classification-legend" class="classification-legend"></div>
 
@@ -121,14 +134,21 @@
   </div>
   <aside id="news-feed-panel" class="news-feed-panel">
     <div class="news-feed-header">
-      <h2 class="news-feed-title">LIVE NEWS FEED</h2>
-      <div id="news-feed-toggles" class="news-feed-toggles">
-        <button class="nf-pill active" data-nf-filter="">All Candidates</button>
-        <button class="nf-pill" data-nf-filter="PRIME">PRIME Candidates</button>
-        <button class="nf-pill" data-nf-filter="SUBPRIME">SUBPRIME Candidates</button>
-        <button class="nf-pill" data-nf-filter="WATCH">WATCH Candidates</button>
+      <h2 id="news-feed-title" class="news-feed-title">News</h2>
+      <div id="news-panel-controls" class="news-panel-controls">
+        <button id="news-panel-menu-btn" class="news-panel-btn news-panel-menu-btn" type="button" title="Panel layout" aria-haspopup="true">⋯</button>
+        <div id="news-panel-menu" class="news-panel-menu" hidden>
+          <button class="news-panel-btn" data-news-panel="default" type="button">Default</button>
+          <button class="news-panel-btn" data-news-panel="compact" type="button">Compact</button>
+          <button class="news-panel-btn" data-news-panel="wide" type="button">Wide</button>
+        </div>
+        <button id="news-panel-hide-btn" class="news-panel-btn" data-news-panel="collapsed" type="button" title="Hide news panel">Hide</button>
       </div>
-      <span id="news-feed-updated" class="news-feed-updated"></span>
+      <div id="news-feed-toggles" class="news-feed-toggles">
+        <button class="nf-pill active" data-nf-filter="">All</button>
+        <button class="nf-pill" data-nf-filter="PRIME">PRIME</button>
+      </div>
+      <span id="news-feed-updated" class="news-feed-updated" hidden></span>
     </div>
     <div id="news-feed-list" class="news-feed-list">
       <div class="news-feed-empty">Loading headlines…</div>

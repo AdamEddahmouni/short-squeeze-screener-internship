@@ -30,6 +30,7 @@ FINVIZ_COLUMNS = "1,25,26,30,31,84,42,43,49,50,52,53,55,59,56,60,61,64,65,66,57,
 DEFAULT_FILTER = "sh_float_u50,sh_price_u50"
 
 CACHE_TTL_S = 120
+SYMBOL_CACHE_TTL_S = 300
 NEWS_CACHE_TTL_S = 180
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -218,6 +219,7 @@ class FinvizClient:
         self._news_cache_at: str | None = None
         self._lock = threading.Lock()
         self._api_key = api_key
+        self._symbol_fetched_at: dict[str, float] = {}
 
     @property
     def configured(self) -> bool:
@@ -246,6 +248,117 @@ class FinvizClient:
             "last_fetch_duration_s": self._last_fetch_duration_s,
             "last_parse_duration_s": self._last_parse_duration_s,
             "mapping_conflict_symbols": list(self._mapping_conflicts),
+            "symbol_cache_size": len(self._cache_by_symbol),
+        }
+
+    def _export_csv(self, *, filter_expr: str) -> tuple[list[FinvizRow], str | None]:
+        api_key = self.api_key
+        if not api_key:
+            return [], "FINVIZ_API_KEY not configured"
+        resp = requests.get(
+            FINVIZ_EXPORT_URL,
+            params={
+                "v": FINVIZ_EXPORT_VERSION,
+                "f": filter_expr,
+                "c": FINVIZ_COLUMNS,
+                "auth": api_key,
+            },
+            headers=HEADERS,
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return [], _redact(f"HTTP {resp.status_code}: {resp.text[:200]}", api_key)
+        text = resp.text or ""
+        lowered = text[:10_000].lower()
+        if "<html" in lowered or ("<form" in lowered and "login" in lowered):
+            return [], "FINVIZ_EXPORT_LOGIN_PAGE"
+        reader = csv.DictReader(io.StringIO(text))
+        rows = [_parse_row(castdict(r)) for r in reader if r.get("Ticker")]
+        if "Ticker" not in tuple(reader.fieldnames or ()):
+            return [], "FINVIZ_EXPORT_NOT_CSV"
+        return rows, None
+
+    def _store_symbol_row(self, row: FinvizRow) -> None:
+        if not row.ticker:
+            return
+        symbol = row.ticker.upper()
+        self._cache_by_symbol[symbol] = row
+        self._symbol_fetched_at[symbol] = time.time()
+        if self._cache is None:
+            self._cache = [row]
+        elif not any(existing.ticker == symbol for existing in self._cache):
+            self._cache.append(row)
+
+    def fetch_symbol(self, symbol: str, *, force: bool = False) -> dict[str, Any]:
+        """On-demand Elite export for one ticker (``f=t=SYMBOL``)."""
+        needle = symbol.strip().upper()
+        if not needle:
+            return {"success": False, "symbol": needle, "error": "empty symbol"}
+        with self._lock:
+            now = time.time()
+            cached = self._cache_by_symbol.get(needle)
+            fetched_at = self._symbol_fetched_at.get(needle, 0.0)
+            if (
+                not force
+                and cached is not None
+                and (now - fetched_at) < SYMBOL_CACHE_TTL_S
+            ):
+                return {
+                    "success": True,
+                    "symbol": needle,
+                    "fresh": False,
+                    "row": cached.as_dict(),
+                    "error": None,
+                }
+            rows, error = self._export_csv(filter_expr=f"t={needle}")
+            if error:
+                return {"success": False, "symbol": needle, "error": error}
+            match = next((row for row in rows if row.ticker == needle), None)
+            if match is None and rows:
+                match = rows[0]
+            if match is None:
+                return {
+                    "success": False,
+                    "symbol": needle,
+                    "error": "FINVIZ_SYMBOL_NOT_IN_EXPORT",
+                }
+            self._store_symbol_row(match)
+            self._last_success_at = _now()
+            return {
+                "success": True,
+                "symbol": needle,
+                "fresh": True,
+                "row": match.as_dict(),
+                "error": None,
+            }
+
+    def ensure_symbols(
+        self, symbols: list[str], *, force: bool = False
+    ) -> dict[str, Any]:
+        """Fill cache gaps for screen symbols not present in the bulk screener."""
+        missing = []
+        for symbol in symbols:
+            needle = symbol.strip().upper()
+            if not needle:
+                continue
+            if needle in self._cache_by_symbol and not force:
+                fetched_at = self._symbol_fetched_at.get(needle, 0.0)
+                if (time.time() - fetched_at) < SYMBOL_CACHE_TTL_S:
+                    continue
+            missing.append(needle)
+        fetched = 0
+        errors: list[str] = []
+        for symbol in missing:
+            result = self.fetch_symbol(symbol, force=force)
+            if result.get("success"):
+                fetched += 1
+            elif result.get("error"):
+                errors.append(f"{symbol}:{result['error']}")
+        return {
+            "requested": len(symbols),
+            "missing_before": len(missing),
+            "fetched": fetched,
+            "errors": errors[:10],
         }
 
     def _failure(self, error: str) -> dict[str, Any]:
@@ -334,7 +447,14 @@ class FinvizClient:
 
     def get_row(self, symbol: str) -> FinvizRow | None:
         needle = symbol.strip().upper()
-        return self._cache_by_symbol.get(needle)
+        row = self._cache_by_symbol.get(needle)
+        if row is not None:
+            return row
+        if self.configured:
+            result = self.fetch_symbol(needle)
+            if result.get("success"):
+                return self._cache_by_symbol.get(needle)
+        return None
 
     def get_cached_rows(self) -> list[FinvizRow]:
         return list(self._cache) if self._cache else []
@@ -368,7 +488,7 @@ class FinvizClient:
                     tickers = [t.strip().upper() for t in tickers_raw.split(",") if t.strip()]
                     headlines.append({
                         "headline": row.get("Title", ""),
-                        "timestamp": row.get("Date", ""),
+                        "timestamp": _normalize_finviz_news_timestamp(row.get("Date", "")),
                         "url": row.get("Url", ""),
                         "tickers": tickers,
                         "provider": "Finviz Elite",
@@ -387,6 +507,38 @@ class FinvizClient:
             return []
         needle = symbol.strip().upper()
         return [h for h in self._news_cache if needle in h.get("tickers", [])]
+
+
+def _normalize_finviz_news_timestamp(raw: str | None) -> str:
+    if not raw:
+        return ""
+    text = str(raw).strip()
+    if not text:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.isoformat().replace("+00:00", "Z")
+    except (ValueError, TypeError):
+        pass
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+        "%m/%d/%Y",
+        "%b-%d-%y %I:%M%p",
+        "%b-%d-%y",
+        "%b-%d-%Y %I:%M%p",
+        "%b-%d-%Y",
+    ):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            return parsed.isoformat().replace("+00:00", "Z")
+        except ValueError:
+            continue
+    return text
 
 
 def _parse_epoch(iso: str) -> float:

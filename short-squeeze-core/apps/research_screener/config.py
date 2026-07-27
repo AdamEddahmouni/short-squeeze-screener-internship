@@ -28,7 +28,7 @@ SAFE_DEFAULTS = {
     "SEC_ENABLED": "true",
     "IBKR_ENABLED": "true",
     "SENTIMENT_ENABLED": "true",
-    "SENTIMENT_PROVIDER": "keyword",
+    "SENTIMENT_PROVIDER": "local_finbert",
     "SENTIMENT_BATCH_SIZE": "8",
     "NEWS_PROVIDER_ORDER": "Finviz Elite,Finnhub News,NewsAPI",
     "NEWS_CACHE_TTL_SECONDS": "900",
@@ -166,6 +166,8 @@ class SentimentProviderConfig:
     def status(self) -> str:
         if not self.enabled:
             return "DISABLED"
+        if (self.provider or "").strip().lower() in {"keyword", "keywords"}:
+            return "CONFIGURED"
         if not self.model_path:
             return "NOT_CONFIGURED"
         return "CONFIGURED"
@@ -217,14 +219,32 @@ class ApplicationConfig:
         return self.providers.news.max_headlines_per_symbol
 
     def build_sentiment_analyzer(self) -> Any:
-        from .sentiment_live import KeywordSentimentProvider, LocalFinbertProvider, SentimentAnalyzer
+        from .sentiment_live import (
+            KeywordSentimentProvider,
+            LocalFinbertProvider,
+            SentimentAnalyzer,
+            resolve_sentiment_model_path,
+        )
 
         sc = self.providers.sentiment
         if not sc.enabled:
             return SentimentAnalyzer()
-        if sc.model_path:
+        provider_name = (sc.provider or "local_finbert").strip().lower()
+        if provider_name in {"keyword", "keywords"}:
+            return SentimentAnalyzer(provider=KeywordSentimentProvider())
+        model_path = sc.model_path or resolve_sentiment_model_path(None)
+        if provider_name in {"local_finbert", "finbert", "finnbert", "local"}:
+            if model_path:
+                return SentimentAnalyzer(
+                    provider=LocalFinbertProvider(
+                        model_path=model_path,
+                        batch_size=sc.batch_size,
+                    )
+                )
+            return SentimentAnalyzer()
+        if model_path:
             provider = LocalFinbertProvider(
-                model_path=sc.model_path,
+                model_path=model_path,
                 batch_size=sc.batch_size,
             )
             return SentimentAnalyzer(provider=provider)
@@ -324,6 +344,18 @@ def resolve_application_config(
         else "127.0.0.1"
     )
 
+    from .sentiment_live import resolve_sentiment_model_path
+
+    raw_sentiment_path = merged.get("SENTIMENT_MODEL_PATH")
+    if raw_sentiment_path and str(raw_sentiment_path).strip().lower().startswith(
+        "replace_with"
+    ):
+        raw_sentiment_path = None
+    resolved_sentiment_path = resolve_sentiment_model_path(raw_sentiment_path)
+    sentiment_enabled = _boolean("SENTIMENT_ENABLED", merged["SENTIMENT_ENABLED"])
+    if mode is not DeploymentMode.LOCAL_FULL:
+        sentiment_enabled = False
+
     providers = ProviderConfigs(
         finviz=ProviderConfig(
             "FINVIZ_ELITE",
@@ -353,9 +385,9 @@ def resolve_application_config(
             ibkr_client_id,
         ),
         sentiment=SentimentProviderConfig(
-            _boolean("SENTIMENT_ENABLED", merged["SENTIMENT_ENABLED"]),
+            sentiment_enabled,
             merged.get("SENTIMENT_PROVIDER", "local_finbert"),
-            merged.get("SENTIMENT_MODEL_PATH"),
+            resolved_sentiment_path,
             _integer("SENTIMENT_BATCH_SIZE", merged["SENTIMENT_BATCH_SIZE"], minimum=1, maximum=64),
         ),
         news=NewsConfig(
@@ -411,6 +443,7 @@ def doctor_report(
         "SENTIMENT": {
             "status": config.providers.sentiment.status,
             "provider": config.providers.sentiment.provider,
+            "model_path": config.providers.sentiment.model_path,
         },
     }
     if probe_ibkr and config.providers.ibkr.enabled:

@@ -13,8 +13,15 @@ const state = {
   triageFilter: "",
   blockerFilter: null,
   blockerOpen: false,
-  newsPanelMode: "default",
+  newsPanelMode: (function () {
+    try {
+      return localStorage.getItem("scannerNewsPanelMode") || "compact";
+    } catch (e) {
+      return "compact";
+    }
+  })(),
   newsMeta: null,
+  diagnosticsOpen: false,
 };
 
 /* ------------------------------------------------------------------ fetching */
@@ -36,12 +43,92 @@ function isEvaluable(row) {
   return c !== "UNEVALUABLE" && c !== "CONFLICTED";
 }
 
-function hasMissingCoreShortInterest(row) {
-  var core = ["short_float", "days_to_cover", "borrow_fee"];
-  return core.some(function (name) {
-    var field = cf(row, name);
-    return !field || field.status !== "KNOWN";
+/** Matches backend summary.readiness.actionable_candidate_count (current-rule evaluable). */
+function hasEvaluableRules(row) {
+  return Number(dataQuality(row).evaluable_rule_count || 0) > 0;
+}
+
+function isActionableCandidate(row) {
+  return hasEvaluableRules(row) || isEvaluable(row);
+}
+
+function actionableCountFromRows(rows) {
+  var readiness = state.summary && state.summary.readiness;
+  if (readiness && readiness.actionable_candidate_count != null) {
+    return Number(readiness.actionable_candidate_count);
+  }
+  return rows.filter(hasEvaluableRules).length;
+}
+
+function transportReadiness() {
+  if (state.mode !== "CURRENT") {
+    return {
+      live: false,
+      detail: "Frozen research mode — live market transport is not used.",
+    };
+  }
+  var conn = state.summary && state.summary.connection;
+  var connStatus = conn ? String(conn.status || "").toUpperCase() : "";
+  if (connStatus === "CONNECTED") {
+    var port = conn.port != null ? conn.port : "?";
+    return { live: true, detail: "IB Gateway connected (port " + port + ")." };
+  }
+  var caps = (state.providerCaps && state.providerCaps.providers) || {};
+  var capLive = Object.keys(caps).filter(function (id) {
+    return !!(caps[id] && caps[id].connected);
   });
+  if (capLive.length) {
+    return {
+      live: true,
+      detail: capLive.length + " configured provider(s) live: " + capLive.join(", ") + ".",
+    };
+  }
+  var summaryProviders = (state.summary && state.summary.providers) || null;
+  if (Array.isArray(summaryProviders)) {
+    var ok = summaryProviders.filter(function (entry) {
+      if (String(entry.state || "").toUpperCase() !== "OK") return false;
+      var label = String(entry.surface || entry.name || "").toLowerCase();
+      return (
+        label.indexOf("gateway") !== -1 ||
+        label.indexOf("scanner") !== -1 ||
+        label.indexOf("quote") !== -1 ||
+        label.indexOf("historical") !== -1
+      );
+    });
+    if (ok.length) {
+      return {
+        live: true,
+        detail: ok.map(function (e) { return e.surface || e.name; }).join(", ") + " OK.",
+      };
+    }
+  } else if (summaryProviders && typeof summaryProviders === "object") {
+    var connected = Object.keys(summaryProviders).filter(function (id) {
+      var p = summaryProviders[id] || {};
+      return !!(p.connected || p.connection_ready);
+    });
+    if (connected.length) {
+      return {
+        live: true,
+        detail: connected.length + " provider surface(s) connected.",
+      };
+    }
+  }
+  return {
+    live: false,
+    detail: "Live data path not confirmed — check IB Gateway and provider configuration.",
+  };
+}
+
+function fieldIsKnown(row, name) {
+  var field = cf(row, name);
+  return !!(field && field.status === "KNOWN");
+}
+
+function hasMissingCoreShortInterest(row) {
+  // Borrow fee is optional in live mode; do not treat NOT_CONFIGURED as missing core SI.
+  var hasPublishedSi = fieldIsKnown(row, "published_short_interest") || fieldIsKnown(row, "short_float");
+  var hasDaysToCover = fieldIsKnown(row, "days_to_cover");
+  return !hasPublishedSi || !hasDaysToCover;
 }
 
 function isInsufficient(row) {
@@ -103,7 +190,7 @@ function appendMissingLabel(td, field, fallbackLabel) {
   var m = missingLabel(field, fallbackLabel);
   if (!m) return false;
   var span = document.createElement("span");
-  span.className = "muted";
+  span.className = "muted missing-field-label";
   span.textContent = m.label;
   if (m.tip) span.title = m.tip;
   td.appendChild(span);
@@ -171,18 +258,10 @@ var SCANNER_COLUMNS = [
   { label: "PRICE", key: "price", sortable: true },
   { label: "CHANGE %", key: "percentage_change", sortable: true, emphasis: true },
   { label: "REL VOL", key: "relative_volume", sortable: true },
-  { label: "FLOAT", key: "float_shares", sortable: true, secondary: true },
-  { label: "SHORT FLOAT %", key: "short_float", sortable: true, secondary: true },
-  { label: "DAYS TO COVER", key: "days_to_cover", sortable: true, secondary: true },
-  { label: "BORROW", key: "borrow", sortable: true, secondary: true },
   { label: "PRESSURE", key: "pressure", sortable: true, emphasis: true },
   { label: "IGNITION", key: "ignition", sortable: true, emphasis: true },
   { label: "EVIDENCE", key: "evidence_coverage", sortable: true, emphasis: true },
-  { label: "NEWS", key: "news", sortable: true },
-  { label: "SENTIMENT", key: "sentiment", sortable: true },
   { label: "CLASSIFICATION", key: "classification", sortable: true, emphasis: true },
-  { label: "WHY LISTED", key: "why_listed", sortable: false },
-  { label: "UPDATED", key: "updated", sortable: true, secondary: true },
 ];
 
 /* ------------------------------------------------------------------ render table */
@@ -214,7 +293,6 @@ function valueFor(row, key) {
     case "float_shares": return cv(row, "float_shares");
     case "short_float": return cv(row, "short_float");
     case "days_to_cover": return cv(row, "days_to_cover");
-    case "borrow": return cv(row, "borrow_fee") || cv(row, "shortable");
     case "pressure": return row.pressure;
     case "ignition": return row.ignition;
     case "evidence_coverage": return coveragePct(row);
@@ -238,17 +316,25 @@ function cellContent(row, col) {
   var value = valueFor(row, col.key);
 
   if (col.key === "symbol") {
+    var rowCls = classification(row);
+    var symWrap = document.createElement("span");
+    symWrap.className = "symbol-cell";
+    var dot = document.createElement("span");
+    dot.className = "cls-dot";
+    dot.style.backgroundColor = classificationColor(rowCls);
+    dot.title = rowCls.replace(/_/g, " ");
+    symWrap.appendChild(dot);
     var strong = document.createElement("strong");
     strong.textContent = row.symbol;
-    td.appendChild(strong);
+    symWrap.appendChild(strong);
     if (row.stale) {
       var tag = document.createElement("span");
-      tag.className = "pill pill-blocked";
-      tag.style.marginLeft = "4px";
+      tag.className = "pill pill-blocked stale-tag";
       tag.textContent = "STALE";
       tag.title = row.stale_reason || "";
-      td.appendChild(tag);
+      symWrap.appendChild(tag);
     }
+    td.appendChild(symWrap);
     return td;
   }
 
@@ -256,7 +342,7 @@ function cellContent(row, col) {
     var cls = value || "UNEVALUABLE";
     var clsSpan = document.createElement("span");
     clsSpan.className = "class-badge";
-    clsSpan.style.backgroundColor = CLASS_COLORS[cls] || CLASS_COLORS.UNEVALUABLE;
+    clsSpan.style.backgroundColor = classificationColor(cls);
     clsSpan.textContent = cls.replace(/_/g, " ");
     td.appendChild(clsSpan);
     td.style.whiteSpace = "nowrap";
@@ -269,19 +355,26 @@ function cellContent(row, col) {
       return td;
     }
     var v = Number(value);
+    var display = Math.round(v);
     var color = pressureColor(v);
+    var wrap = document.createElement("div");
+    wrap.className = "score-cell";
+    var track = document.createElement("div");
+    track.className = "score-track";
+    track.setAttribute("aria-hidden", "true");
     var bar = document.createElement("div");
     bar.className = "score-bar";
-    bar.style.width = v + "%";
+    bar.style.width = Math.min(100, Math.max(0, display)) + "%";
     bar.style.backgroundColor = color;
+    track.appendChild(bar);
     var label = document.createElement("span");
     label.className = "score-label";
-    label.textContent = v;
+    label.textContent = String(display);
     label.style.color = color;
-    td.appendChild(bar);
-    td.appendChild(label);
+    wrap.appendChild(track);
+    wrap.appendChild(label);
+    td.appendChild(wrap);
     td.title = col.key === "pressure" ? "Short pressure dimension" : "Ignition / momentum dimension";
-    td.style.whiteSpace = "nowrap";
     return td;
   }
 
@@ -335,25 +428,6 @@ function cellContent(row, col) {
     td.textContent = (value >= 0 ? "+" : "") + value.toFixed(2) + "%";
     td.style.color = changeColor;
     td.style.fontWeight = "700";
-    return td;
-  }
-
-  if (col.key === "borrow") {
-    if (value == null) {
-      appendMissingLabel(td, cf(row, "borrow_fee") || cf(row, "shortable"), "No borrow data");
-      td.className = td.className + " muted";
-      return td;
-    }
-    var borrowRate = cv(row, "borrow_fee");
-    var shortableVal = cv(row, "shortable");
-    var parts = [];
-    if (borrowRate != null) parts.push(borrowRate + "%");
-    if (shortableVal != null) {
-      if (shortableVal >= 1) parts.push("S");
-      else parts.push("NS");
-    }
-    td.textContent = parts.length ? parts.join(" ") : MISSING;
-    td.title = borrowRate != null ? "Borrow fee: " + borrowRate + "%" : "Borrow fee unavailable";
     return td;
   }
 
@@ -474,6 +548,18 @@ function defaultSort(rows) {
   });
 }
 
+function classificationColor(cls) {
+  return CLASS_COLORS[cls] || CLASS_COLORS.UNEVALUABLE;
+}
+
+function setClassificationFilter(cls) {
+  var select = el("filter-classification");
+  if (!select) return;
+  select.value = cls || "";
+  state.filteredRows = applyFilters(state.rows);
+  renderRows(state.filteredRows);
+}
+
 function renderRows(rows) {
   var body = el("scanner-body");
   body.textContent = "";
@@ -491,26 +577,12 @@ function renderRows(rows) {
     return;
   }
 
-  var prevCls = null;
-  var showClassDividers = !state.sortKey || state.sortKey === "classification";
-
-  rows.forEach(function (row, idx) {
+  rows.forEach(function (row) {
     var cls = classification(row);
-
-    if (showClassDividers && cls !== prevCls) {
-      // Section divider header
-      var div = document.createElement("tr");
-      div.className = "cls-divider cls-" + cls;
-      var divTd = document.createElement("td");
-      divTd.colSpan = SCANNER_COLUMNS.length;
-      divTd.textContent = cls.replace(/_/g, " ");
-      div.appendChild(divTd);
-      body.appendChild(div);
-      prevCls = cls;
-    }
 
     var tr = document.createElement("tr");
     tr.className = "clickable cls-" + cls;
+    if (hasEvaluableRules(row)) tr.classList.add("rule-evaluable");
     if (state.selected === row.symbol) tr.classList.add("selected");
     tr.addEventListener("click", function () { selectSymbol(row.symbol); });
     SCANNER_COLUMNS.forEach(function (col) {
@@ -535,6 +607,7 @@ function renderClassificationLegend() {
 
   var order = ["PRIME", "SUBPRIME", "WATCH", "NOT_QUALIFIED", "UNEVALUABLE", "CONFLICTED", "REFERENCE_DEFINITION_INCOMPLETE"];
   var total = rows.length;
+  var activeFilter = el("filter-classification") ? el("filter-classification").value : "";
 
   var totalSpan = document.createElement("span");
   totalSpan.className = "legend-total";
@@ -544,115 +617,61 @@ function renderClassificationLegend() {
   order.forEach(function (cls) {
     var n = counts[cls] || 0;
     var badge = document.createElement("span");
-    badge.className = "legend-badge";
-    badge.style.backgroundColor = CLASS_COLORS[cls] || CLASS_COLORS.UNEVALUABLE;
+    badge.className = "legend-badge" + (activeFilter === cls ? " active" : "");
+    badge.style.backgroundColor = classificationColor(cls);
     badge.textContent = cls.replace(/_/g, " ") + " " + n;
-    badge.title = n + " candidates classified as " + cls.replace(/_/g, " ");
+    badge.title = "Click to filter table to " + cls.replace(/_/g, " ") + " (" + n + ")";
+    badge.setAttribute("role", "button");
+    badge.tabIndex = 0;
+    badge.addEventListener("click", function () {
+      var select = el("filter-classification");
+      var current = select ? select.value : "";
+      setClassificationFilter(current === cls ? "" : cls);
+    });
+    badge.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        var select = el("filter-classification");
+        var current = select ? select.value : "";
+        setClassificationFilter(current === cls ? "" : cls);
+      }
+    });
     legend.appendChild(badge);
   });
 }
 
 function renderSummary(rows) {
-  var div = el("scanner-summary");
-  var counts = {};
-
-  rows.forEach(function (row) {
-    var c = classification(row);
-    counts[c] = (counts[c] || 0) + 1;
-  });
-  var parts = [rows.length + " Candidates"];
-  if (counts.PRIME) parts.push(counts.PRIME + " Prime");
-  if (counts.SUBPRIME) parts.push(counts.SUBPRIME + " Subprime");
-  if (counts.WATCH) parts.push(counts.WATCH + " Watch");
-  if (counts.UNEVALUABLE) parts.push(counts.UNEVALUABLE + " Unevaluable");
-  if (counts.CONFLICTED) parts.push(counts.CONFLICTED + " Conflicted");
-
-  var evaluable = rows.filter(function (row) {
-    var c = classification(row);
-    return c !== "UNEVALUABLE" && c !== "CONFLICTED";
-  }).length;
-  if (evaluable > 0) parts.push("Evaluable: " + evaluable);
-
-  var newsRows = rows.filter(function (row) { return newsCount(row) != null; }).length;
-  if (newsRows > 0) parts.push("News: " + newsRows);
-
-  div.textContent = parts.join("  \u00b7  ");
-  div.title = "Summary of current candidates";
   renderReadiness(rows);
-  renderDataQuality(rows);
   renderTriageFilters(rows);
-  renderBlockerPanel(rows);
+  syncBlockerPanelVisibility();
+  if (state.diagnosticsOpen) renderBlockerPanel(rows);
 }
 
 function renderReadiness(rows) {
-  var transportNode = el("transport-ready");
-  var classNode = el("classification-ready");
-  if (!transportNode || !classNode) return;
-  var summaryProviders = (state.summary && state.summary.providers) || {};
-  var providers = Object.keys(summaryProviders).length
-    ? summaryProviders
-    : ((state.providerCaps && state.providerCaps.providers) || {});
-  var providerIds = Object.keys(providers);
-  var connectedCount = providerIds.filter(function (id) {
-    var provider = providers[id] || {};
-    return !!(provider.connected || provider.connection_ready);
-  }).length;
-  var transportReady = state.mode === "CURRENT" && connectedCount > 0;
-  transportNode.textContent = transportReady ? "TRANSPORT LIVE" : "TRANSPORT LIMITED";
-  transportNode.className = "ready-badge " + (transportReady ? "ok" : "none");
-  transportNode.title = transportReady
-    ? connectedCount + " providers connected."
-    : "Live data path is not confirmed. Connected providers: " + connectedCount + ".";
-
+  var pill = el("scan-status-pill");
+  if (!pill) return;
+  var transport = transportReadiness();
   var readiness = (state.summary && state.summary.readiness) || null;
-  var evaluable = readiness
-    ? Number(readiness.actionable_candidate_count || 0)
-    : rows.filter(isEvaluable).length;
+  var ruleEvaluable = actionableCountFromRows(rows);
   var candidateCount = readiness
     ? Number(readiness.candidate_count || rows.length)
     : rows.length;
-  var ratio = candidateCount ? Math.round((evaluable / candidateCount) * 100) : 0;
-  var classReady = evaluable > 0;
-  classNode.textContent = classReady ? "CLASSIFICATION READY" : "CLASSIFICATION BLOCKED";
-  classNode.className = "ready-badge " + (classReady ? "ok" : "bad");
-  classNode.title = evaluable + "/" + candidateCount + " evaluable candidates (" + ratio + "%).";
+  var modeLabel = state.mode === "CURRENT" ? "Live" : "Frozen";
+  var headline = modeLabel + " \u00b7 " + ruleEvaluable + "/" + candidateCount + " evaluable";
+  pill.textContent = headline;
+  var tone = ruleEvaluable > 0 ? (transport.live || state.mode !== "CURRENT" ? "ok" : "warn") : "bad";
+  pill.className = "scan-status-pill " + tone;
+  pill.title = transport.detail
+    + "\n" + ruleEvaluable + "/" + candidateCount + " candidates with evaluable current rules."
+    + "\n" + rows.filter(isEvaluable).length + " fully classified by methodology.";
+  if (readiness && readiness.unevaluable_candidate_count != null) {
+    pill.title += "\nUNEVALUABLE (backend): " + readiness.unevaluable_candidate_count;
+  }
 }
 
-function renderDataQuality(rows) {
-  var strip = el("data-quality-strip");
-  if (!strip) return;
-  strip.textContent = "";
-  if (!rows.length) return;
-
-  var readiness = (state.summary && state.summary.readiness) || null;
-  var candidateCount = readiness ? Number(readiness.candidate_count || rows.length) : rows.length;
-  var actionableCount = readiness ? Number(readiness.actionable_candidate_count || 0) : rows.filter(isEvaluable).length;
-  var unevaluableCount = readiness ? Number(readiness.unevaluable_candidate_count || 0) : rows.filter(function (row) { return classification(row) === "UNEVALUABLE"; }).length;
-  var staleRows = rows.filter(function (row) { return !!row.stale; });
-  var insufficientRows = rows.filter(isInsufficient);
-  var missingCoreRows = rows.filter(hasMissingCoreShortInterest);
-
-  var chips = [
-    { text: "Evaluable " + actionableCount + "/" + candidateCount },
-    { text: "Stale " + staleRows.length, tone: staleRows.length ? "warn" : "" },
-    { text: "Insufficient " + insufficientRows.length, tone: insufficientRows.length ? "warn" : "" },
-    { text: "Missing core SI " + missingCoreRows.length, tone: missingCoreRows.length ? "bad" : "" },
-  ];
-  if (unevaluableCount) {
-    chips.push({
-      text: "UNEVALUABLE " + unevaluableCount,
-      tone: "bad",
-      title: buildUnevaluableDiagnostics(rows),
-    });
-  }
-
-  chips.forEach(function (chip) {
-    var span = document.createElement("span");
-    span.className = "quality-chip" + (chip.tone ? " " + chip.tone : "");
-    span.textContent = chip.text;
-    if (chip.title) span.title = chip.title;
-    strip.appendChild(span);
-  });
+function syncBlockerPanelVisibility() {
+  var panel = el("blocker-panel");
+  if (panel) panel.hidden = !state.diagnosticsOpen;
 }
 
 function buildUnevaluableDiagnostics(rows) {
@@ -674,7 +693,7 @@ function renderBanner(mode) {
     var b = document.createElement("div");
     b.className = "alert alert-info";
     b.style.cssText = "background:#1a2740;color:#6fa8ff;padding:8px 16px;border-left:3px solid #6fa8ff;margin:8px 0;font-size:13px";
-    b.innerHTML = "<strong>FROZEN RESEARCH MODE</strong> &mdash; Showing pre-computed research cases. Live market discovery unavailable on this deployment.";
+    b.textContent = "FROZEN \u2014 pre-computed research; live discovery unavailable on this deployment.";
     banners.appendChild(b);
   }
   // In live mode (or empty string), no banner — clean interface for Railway
@@ -686,14 +705,18 @@ function renderTriageFilters(rows) {
   wrap.textContent = "";
   var defs = [
     { id: "", label: "All", count: rows.length },
-    { id: "evaluable", label: "Evaluable", count: rows.filter(isEvaluable).length },
+    { id: "evaluable", label: "Rule-evaluable", count: rows.filter(hasEvaluableRules).length },
     { id: "stale", label: "Stale", count: rows.filter(function (row) { return !!row.stale; }).length },
     { id: "insufficient", label: "Insufficient", count: rows.filter(isInsufficient).length },
     { id: "missing_core_si", label: "Missing Core SI", count: rows.filter(hasMissingCoreShortInterest).length },
   ];
   defs.forEach(function (def) {
     var btn = document.createElement("button");
-    btn.className = "triage-btn" + (state.triageFilter === def.id ? " active" : "");
+    var tone = "";
+    if (def.id === "stale" && def.count > 0) tone = " warn";
+    else if (def.id === "insufficient" && def.count > 0) tone = " warn";
+    else if (def.id === "missing_core_si" && def.count > 0) tone = " bad";
+    btn.className = "triage-btn" + tone + (state.triageFilter === def.id ? " active" : "");
     btn.type = "button";
     btn.setAttribute("data-triage", def.id);
     btn.textContent = def.label + " (" + def.count + ")";
@@ -837,7 +860,7 @@ function applyFilters(rows) {
       var f = cv(row, "float_shares");
       if (f == null || f > maxFloat) return false;
     }
-    if (state.triageFilter === "evaluable" && !isEvaluable(row)) return false;
+    if (state.triageFilter === "evaluable" && !hasEvaluableRules(row)) return false;
     if (state.triageFilter === "stale" && !row.stale) return false;
     if (state.triageFilter === "insufficient" && !isInsufficient(row)) return false;
     if (state.triageFilter === "missing_core_si" && !hasMissingCoreShortInterest(row)) return false;
@@ -1199,18 +1222,8 @@ async function loadFrozenScanner() {
 function updateModeUI(mode) {
   var frozenBtn = el("btn-mode-frozen");
   var liveBtn = el("btn-mode-live");
-  var indicator = el("mode-indicator");
   if (frozenBtn) frozenBtn.classList.toggle("active", mode === "FROZEN");
   if (liveBtn) liveBtn.classList.toggle("active", mode === "CURRENT");
-  if (indicator) {
-    if (mode === "CURRENT") {
-      indicator.textContent = "\u26a1 LIVE";
-      indicator.style.color = "#56d68b";
-    } else {
-      indicator.textContent = "\u2744 FROZEN";
-      indicator.style.color = "#6fa8ff";
-    }
-  }
 }
 
 function switchMode(mode) {
@@ -1230,32 +1243,55 @@ async function setAutoRefresh(enabled) {
   }
   if (state.autoTimer) { clearInterval(state.autoTimer); state.autoTimer = null; }
   if (enabled) {
-    state.autoTimer = setInterval(function () { loadScanner(); }, 30000);
+    state.autoTimer = setInterval(function () {
+      if (state.mode === "CURRENT") {
+        loadLiveScanner().catch(function () {});
+      } else {
+        loadFrozenScanner().catch(function () {});
+      }
+    }, 30000);
   }
   renderRefreshClock();
 }
 
+function freshnessElapsedLabel() {
+  var elapsed = Math.floor((Date.now() - lastRefreshTime) / 1000);
+  if (elapsed < 60) return elapsed + "s ago";
+  if (elapsed < 3600) return Math.floor(elapsed / 60) + "m " + (elapsed % 60) + "s ago";
+  return Math.floor(elapsed / 3600) + "h ago";
+}
+
 function renderRefreshClock() {
   var node = el("refresh-clock");
+  if (!node) return;
+  var text = el("timer-text");
+  var dot = el("timer-dot");
   var summary = state.summary;
-  if (!summary) { node.textContent = ""; return; }
   var bits = [];
-  var lastAt = summary.last_refresh_at;
-  if (lastAt) bits.push("Last: " + ago(lastAt));
-  if (summary.auto_refresh) bits.push("auto on");
-  else bits.push("auto off");
-  var cadence = state.cadence;
-  if (cadence && cadence.discovery) {
-    var disc = cadence.discovery;
-    var cap = disc.target_screen_cap || disc.current_screen_cap;
-    if (cap) {
-      bits.push((disc.candidate_count || 0) + "/" + cap + " screen");
-    }
-    if (disc.estimated_full_sweep_minutes) {
-      bits.push("~ " + disc.estimated_full_sweep_minutes + "m IBKR sweep");
+  bits.push(freshnessElapsedLabel());
+  if (summary) {
+    var lastAt = summary.last_refresh_at;
+    if (lastAt) bits.push("ref " + ago(lastAt));
+    bits.push(summary.auto_refresh ? "auto on" : "auto off");
+    var cadence = state.cadence;
+    if (cadence && cadence.discovery) {
+      var disc = cadence.discovery;
+      var cap = disc.target_screen_cap || disc.current_screen_cap;
+      if (cap) bits.push((disc.candidate_count || 0) + "/" + cap + " screen");
+      if (disc.estimated_full_sweep_minutes) {
+        bits.push("~ " + disc.estimated_full_sweep_minutes + "m IBKR sweep");
+      }
     }
   }
-  node.textContent = bits.join(" \u00b7 ");
+  var line = bits.join(" \u00b7 ");
+  if (text) text.textContent = line;
+  else node.textContent = line;
+  var elapsed = Math.floor((Date.now() - lastRefreshTime) / 1000);
+  if (dot) {
+    if (elapsed < 15) dot.style.background = "#56d68b";
+    else if (elapsed < 60) dot.style.background = "#ffca57";
+    else dot.style.background = "#ff7d7d";
+  }
 }
 
 async function loadCadenceStatus() {
@@ -1275,7 +1311,7 @@ async function loadProviderStatus() {
     state.providerCaps = caps;
     renderProviderBar(caps);
     renderReadiness(state.rows || []);
-    renderNewsFeedHealth();
+    updateNewsFeedTitle();
   } catch (e) {
     // Silently skip
   }
@@ -1288,38 +1324,65 @@ function renderProviderBar(caps) {
 
   var providers = caps.providers || {};
   var entries = ["IBKR", "Finviz Elite", "NewsAPI", "Finnhub", "SEC_EDGAR", "Finnhub News"];
+  var degraded = [];
 
   entries.forEach(function (id) {
     var info = providers[id] || {};
-    var configured = info.configured;
-    var connected = info.connected;
-    var span = document.createElement("span");
-    span.className = "provider-dot";
-
-    var color, label;
-    if (connected) {
-      color = "#56d68b";
-      label = id + " LIVE";
-      span.title = (info.detail || "").substring(0, 200);
-    } else if (configured) {
-      color = "#ffca57";
-      label = id + " standby";
-      span.title = (info.detail || "Configured, not yet connected").substring(0, 200);
-    } else {
-      color = "#8b98a9";
-      label = id + " off";
-      span.title = (info.detail || "Not configured").substring(0, 200);
+    if (info.configured && !info.connected) {
+      degraded.push({ id: id, detail: info.detail || "Configured, not connected" });
     }
-
-    span.style.cssText = "display:inline-block;margin:0 8px;font-size:11px;color:" + color + ";font-family:monospace";
-    var dot = document.createElement("span");
-    dot.style.cssText = "display:inline-block;width:6px;height:6px;border-radius:50%;background:" + color + ";margin-right:3px;vertical-align:middle";
-    span.appendChild(dot);
-    span.appendChild(document.createTextNode(" " + label));
-    bar.appendChild(span);
   });
 
-  bar.style.cssText = "padding:4px 16px;border-bottom:1px solid #1e2d4a;background:#0d1525;font-size:11px";
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "providers-toggle";
+  btn.className = "providers-btn";
+  if (!degraded.length) {
+    btn.textContent = "Providers OK";
+    btn.title = "All configured providers connected";
+  } else {
+    btn.textContent = "Providers (" + degraded.length + " degraded)";
+    btn.title = "Click for details";
+    btn.classList.add("warn");
+  }
+  bar.appendChild(btn);
+
+  var pop = document.createElement("div");
+  pop.id = "providers-popover";
+  pop.className = "providers-popover";
+  pop.hidden = true;
+  if (degraded.length) {
+    degraded.forEach(function (item) {
+      var line = document.createElement("div");
+      line.className = "providers-popover-line";
+      line.textContent = item.id + ": " + item.detail;
+      pop.appendChild(line);
+    });
+  } else {
+    var ok = document.createElement("div");
+    ok.className = "providers-popover-line muted";
+    ok.textContent = "No degraded providers.";
+    pop.appendChild(ok);
+  }
+  bar.appendChild(pop);
+
+  var adv = document.createElement("a");
+  adv.className = "providers-advanced-link";
+  adv.href = "/advanced";
+  adv.textContent = "Full health";
+  bar.appendChild(adv);
+
+  btn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    pop.hidden = !pop.hidden;
+  });
+  if (!state.providerPopoverBound) {
+    state.providerPopoverBound = true;
+    document.addEventListener("click", function () {
+      var p = el("providers-popover");
+      if (p) p.hidden = true;
+    });
+  }
 }
 
 /* ------------------------------------------------------------------ news feed */
@@ -1344,23 +1407,7 @@ function resetRefreshTimer() {
 }
 
 function updateTimerDisplay() {
-  var elapsed = Math.floor((Date.now() - lastRefreshTime) / 1000);
-  var text = el("timer-text");
-  var dot = el("timer-dot");
-  if (!text) return;
-  if (elapsed < 60) {
-    text.textContent = elapsed + "s ago";
-  } else if (elapsed < 3600) {
-    text.textContent = Math.floor(elapsed / 60) + "m " + (elapsed % 60) + "s ago";
-  } else {
-    text.textContent = Math.floor(elapsed / 3600) + "h ago";
-  }
-  // Dot pulses faster as data gets older
-  if (dot) {
-    if (elapsed < 15) dot.style.background = "#56d68b";
-    else if (elapsed < 60) dot.style.background = "#ffca57";
-    else dot.style.background = "#ff7d7d";
-  }
+  renderRefreshClock();
 }
 
 function refreshNewsFeed() {
@@ -1381,12 +1428,12 @@ function refreshNewsFeed() {
     };
     renderNewsFeed(data.headlines);
     updatePillCounts(data.counts || {});
-    renderNewsFeedHealth();
+    updateNewsFeedTitle();
   }).catch(function () {
     state.newsMeta = state.newsMeta || {};
     state.newsMeta.lastError = "News request failed.";
     renderNewsFeed([]);
-    renderNewsFeedHealth();
+    updateNewsFeedTitle();
   });
 }
 
@@ -1396,7 +1443,8 @@ function renderNewsFeed(headlines) {
   if (!list) return;
 
   list.textContent = "";
-  updated.textContent = new Date().toLocaleTimeString();
+  if (updated) updated.textContent = new Date().toLocaleTimeString();
+  updateNewsFeedTitle();
 
   if (!headlines.length) {
     var empty = document.createElement("div");
@@ -1454,62 +1502,27 @@ function renderNewsFeed(headlines) {
   });
 }
 
-function renderNewsFeedHealth() {
-  var node = el("news-feed-health");
-  if (!node) return;
+function updateNewsFeedTitle() {
+  var title = el("news-feed-title");
+  if (!title) return;
   var providers = (state.providerCaps && state.providerCaps.providers) || {};
   var newsApi = providers.NewsAPI || {};
   var finnhubNews = providers["Finnhub News"] || {};
-  var bits = [];
-  if (newsApi.connected || finnhubNews.connected) bits.push("provider live");
-  else if (newsApi.configured || finnhubNews.configured) bits.push("provider standby");
-  else bits.push("provider off");
-  if (state.newsMeta && state.newsMeta.scanned != null) {
-    bits.push("scanned " + state.newsMeta.scanned);
-  }
-  if (state.newsMeta && state.newsMeta.fetched != null) {
-    bits.push("with headlines " + state.newsMeta.fetched);
-  }
+  var bits = ["News"];
+  if (newsApi.connected || finnhubNews.connected) bits.push("live");
+  else if (newsApi.configured || finnhubNews.configured) bits.push("standby");
+  else bits.push("off");
   if (state.newsMeta && state.newsMeta.lastSuccessAt) {
-    bits.push("last fetch " + ago(state.newsMeta.lastSuccessAt));
+    bits.push("updated " + ago(state.newsMeta.lastSuccessAt));
   }
-  if (state.newsMeta && state.newsMeta.lastError) {
-    bits.push(state.newsMeta.lastError);
-  }
-  node.textContent = bits.join(" \u00b7 ");
-}
-
-function refreshCollectorsHealth() {
-  var node = el("collectors-health");
-  if (!node) return;
-  getJSON("/api/collectors/status").then(function (payload) {
-    var data = (payload && payload.data) || payload || {};
-    var bits = [];
-    var configured = (data.collectors || []).filter(function (c) { return c.configured; });
-    bits.push(configured.length + " collectors active");
-    bits.push(data.running ? "scheduler on" : "scheduler idle");
-    if (data.last_tick_at) bits.push("last tick " + ago(data.last_tick_at));
-    if (data.symbols_last_tick && data.symbols_last_tick.length) {
-      bits.push("touched " + data.symbols_last_tick.length);
-    }
-    if (data.top_gap_bucket) bits.push("gap " + data.top_gap_bucket);
-    node.textContent = bits.join(" \u00b7 ");
-  }).catch(function () {
-    node.textContent = "collectors status unavailable";
-  });
-}
-
-function startCollectorsHealth() {
-  refreshCollectorsHealth();
-  if (state.collectorTimer) { clearInterval(state.collectorTimer); }
-  state.collectorTimer = setInterval(refreshCollectorsHealth, 45000);
+  if (state.newsMeta && state.newsMeta.lastError) bits.push(state.newsMeta.lastError);
+  title.textContent = bits.join(" \u00b7 ");
 }
 
 function startNewsFeed() {
   if (newsFeedTimer) { clearInterval(newsFeedTimer); newsFeedTimer = null; }
   refreshNewsFeed();
   newsFeedTimer = setInterval(refreshNewsFeed, NEWS_FEED_INTERVAL);
-  startCollectorsHealth();
 }
 
 /* ------------------------------------------------------------------ news feed toggle pills */
@@ -1547,7 +1560,10 @@ function setupNewsFeedToggles() {
 }
 
 function applyNewsPanelMode(mode) {
-  state.newsPanelMode = mode || "default";
+  state.newsPanelMode = mode || "compact";
+  try {
+    localStorage.setItem("scannerNewsPanelMode", state.newsPanelMode);
+  } catch (e) { /* ignore */ }
   var main = document.querySelector(".scanner-main");
   if (main) {
     main.classList.remove("news-panel-compact", "news-panel-wide", "news-panel-collapsed");
@@ -1555,10 +1571,10 @@ function applyNewsPanelMode(mode) {
     if (state.newsPanelMode === "wide") main.classList.add("news-panel-wide");
     if (state.newsPanelMode === "collapsed") main.classList.add("news-panel-collapsed");
   }
-  var controls = el("news-panel-controls");
-  if (controls) {
-    controls.querySelectorAll(".news-panel-btn").forEach(function (btn) {
-      btn.classList.toggle("active", (btn.getAttribute("data-news-panel") || "default") === state.newsPanelMode);
+  var menu = el("news-panel-menu");
+  if (menu) {
+    menu.querySelectorAll("[data-news-panel]").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-news-panel") === state.newsPanelMode);
     });
   }
 }
@@ -1566,11 +1582,24 @@ function applyNewsPanelMode(mode) {
 function setupNewsPanelControls() {
   var controls = el("news-panel-controls");
   if (!controls) return;
+  var menuBtn = el("news-panel-menu-btn");
+  var menu = el("news-panel-menu");
+  if (menuBtn && menu) {
+    menuBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      menu.hidden = !menu.hidden;
+    });
+    document.addEventListener("click", function () {
+      if (menu) menu.hidden = true;
+    });
+    menu.addEventListener("click", function (e) { e.stopPropagation(); });
+  }
   controls.addEventListener("click", function (e) {
-    var btn = e.target.closest(".news-panel-btn");
+    var btn = e.target.closest("[data-news-panel]");
     if (!btn) return;
     e.preventDefault();
-    applyNewsPanelMode(btn.getAttribute("data-news-panel") || "default");
+    applyNewsPanelMode(btn.getAttribute("data-news-panel") || "compact");
+    if (menu) menu.hidden = true;
   });
   applyNewsPanelMode(state.newsPanelMode);
 }
@@ -1594,6 +1623,15 @@ function init() {
   var liveBtn = el("btn-mode-live");
   if (frozenBtn) frozenBtn.addEventListener("click", function () { switchMode("FROZEN"); });
   if (liveBtn) liveBtn.addEventListener("click", function () { switchMode("CURRENT"); });
+
+  var diag = el("toggle-diagnostics");
+  if (diag) {
+    diag.addEventListener("change", function (e) {
+      state.diagnosticsOpen = !!e.target.checked;
+      syncBlockerPanelVisibility();
+      if (state.diagnosticsOpen) renderBlockerPanel(state.rows);
+    });
+  }
 
   var triage = el("triage-filters");
   if (triage) {

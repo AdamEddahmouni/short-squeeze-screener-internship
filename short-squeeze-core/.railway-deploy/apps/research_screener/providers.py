@@ -238,10 +238,15 @@ def provider_health(
             ),
             (
                 f"READY · model {runtime._sentiment_analyzer.model_id}"
+                if runtime._sentiment_analyzer.model_loaded
+                else (
+                    f"CONFIGURED · model {runtime._sentiment_analyzer.model_id} · "
+                    f"load pending or failed: {runtime._sentiment_analyzer.load_error or 'unknown'}"
+                )
                 if runtime._sentiment_analyzer.enabled
-                else "MODEL_NOT_DEPLOYED — FinBERT sentiment is local-only. "
-                "Configure SENTIMENT_ENABLED=true, SENTIMENT_MODEL_PATH, and ensure "
-                "the transformers library is installed."
+                else "MODEL_NOT_DEPLOYED — enable SENTIMENT_ENABLED in LOCAL_FULL, set "
+                "SENTIMENT_MODEL_PATH (optional — defaults to ProsusAI/finbert), and "
+                "install pip install 'short-squeeze-core[sentiment]'."
             ),
         ),
     ]

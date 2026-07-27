@@ -707,17 +707,26 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         sa = get_sentiment_analyzer()
         sentiment_status = sa.status()
         sentiment_configured = sentiment_status.get("enabled", False)
+        sentiment_ready = sentiment_status.get("model_loaded", False)
 
         finbert = ProviderCapabilities(
             provider="FinBERT Sentiment", configured=sentiment_configured,
-            connected=sentiment_configured,
+            connected=sentiment_ready,
         )
-        if sentiment_configured:
+        if sentiment_ready:
             finbert.set_available(
                 Capability.SENTIMENT,
                 detail=(
                     f"EXPERIMENTAL · model {sentiment_status.get('model_id', 'unknown')} · "
-                    f"status: {sentiment_status.get('status', 'UNKNOWN')}"
+                    "loaded"
+                ),
+            )
+        elif sentiment_configured:
+            finbert.set_available(
+                Capability.SENTIMENT,
+                detail=(
+                    "CONFIGURED · model loading failed or pending: "
+                    f"{sentiment_status.get('load_error') or sa.load_error or 'unknown'}"
                 ),
             )
         else:

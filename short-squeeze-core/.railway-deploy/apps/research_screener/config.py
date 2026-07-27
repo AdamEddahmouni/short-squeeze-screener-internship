@@ -16,42 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .credentials import ENABLE_KEYS, KNOWN_KEYS, PROVIDER_KEYS
 from .deployment import DeploymentMode
-
-PROVIDER_KEYS = ("FINVIZ_API_KEY", "NEWSAPI_KEY", "FINNHUB_KEY")
-ENABLE_KEYS = (
-    "FINVIZ_ENABLED",
-    "NEWSAPI_ENABLED",
-    "FINNHUB_ENABLED",
-    "SEC_ENABLED",
-    "IBKR_ENABLED",
-    "SENTIMENT_ENABLED",
-)
-KNOWN_KEYS = frozenset(
-    (
-        "SQUEEZE_APP_MODE",
-        "PORT",
-        "LOG_LEVEL",
-        "SEC_USER_AGENT",
-        "SEC_CONTACT_EMAIL",
-        "IBKR_HOST",
-        "IBKR_PORT",
-        "IBKR_CLIENT_ID",
-        "SENTIMENT_PROVIDER",
-        "SENTIMENT_MODEL_PATH",
-        "SENTIMENT_BATCH_SIZE",
-        "NEWS_PROVIDER_ORDER",
-        "NEWS_CACHE_TTL_SECONDS",
-        "NEWS_MAX_HEADLINES_PER_SYMBOL",
-        "QUOTE_REFRESH_SECONDS",
-        "SCANNER_REFRESH_SECONDS",
-        "FRESHNESS_CURRENT_SECONDS",
-        "FRESHNESS_DELAYED_SECONDS",
-        "MAX_CHART_POINTS",
-        *PROVIDER_KEYS,
-        *ENABLE_KEYS,
-    )
-)
 SAFE_DEFAULTS = {
     "SQUEEZE_APP_MODE": DeploymentMode.LOCAL_FULL.value,
     "PORT": "8787",
@@ -62,17 +28,39 @@ SAFE_DEFAULTS = {
     "SEC_ENABLED": "true",
     "IBKR_ENABLED": "true",
     "SENTIMENT_ENABLED": "true",
-    "SENTIMENT_PROVIDER": "keyword",
+    "SENTIMENT_PROVIDER": "local_finbert",
     "SENTIMENT_BATCH_SIZE": "8",
-    "NEWS_PROVIDER_ORDER": "Finnhub News,NewsAPI,Finviz News",
+    "NEWS_PROVIDER_ORDER": "Finviz Elite,Finnhub News,NewsAPI",
     "NEWS_CACHE_TTL_SECONDS": "900",
     "NEWS_MAX_HEADLINES_PER_SYMBOL": "30",
     "QUOTE_REFRESH_SECONDS": "15",
     "SCANNER_REFRESH_SECONDS": "180",
+    "CURRENT_SCREEN_CAP": "50",
+    "FINVIZ_TOP_N": "50",
+    "SCANNER_ROW_LIMIT": "50",
+    "SYMBOLS_PER_CYCLE": "3",
+    "SYMBOLS_PER_CYCLE_MAX": "6",
+    "TARGET_LIVE_CANDIDATES": "50",
     "FRESHNESS_CURRENT_SECONDS": "90",
     "FRESHNESS_DELAYED_SECONDS": "600",
     "MAX_CHART_POINTS": "400",
     "SEC_USER_AGENT": "ResearchScreener/1.0 integration@example.invalid",
+    "COLLECTORS_ENABLED": "true",
+    "COLLECTOR_TICK_SECONDS": "30",
+    "COLLECTOR_MAX_SYMBOLS_PER_TICK": "10",
+    "COLLECTOR_MAX_REQUESTS_PER_MINUTE": "60",
+    "COLLECTOR_ORDER": "FinraPublishedSI,FinraDailyVolume,RssNews,SecRss,Polygon,AlphaVantage,Yfinance,Reddit,Stocktwits",
+    "COLLECTOR_OVERRIDE_POLICY": "never",
+    "FINRA_SI_COLLECTOR_ENABLED": "true",
+    "FINRA_DAILY_VOLUME_COLLECTOR_ENABLED": "true",
+    "RSS_NEWS_ENABLED": "true",
+    "SEC_RSS_COLLECTOR_ENABLED": "true",
+    "YFINANCE_COLLECTOR_ENABLED": "false",
+    "REDDIT_COLLECTOR_ENABLED": "false",
+    "STOCKTWITS_COLLECTOR_ENABLED": "false",
+    "POLYGON_COLLECTOR_ENABLED": "false",
+    "ALPHA_VANTAGE_COLLECTOR_ENABLED": "false",
+    "COLLECTOR_CACHE_ENABLED": "true",
     "IBKR_HOST": "127.0.0.1",
     "IBKR_PORT": "4001",
     "IBKR_CLIENT_ID": "123",
@@ -83,20 +71,9 @@ class ConfigurationError(ValueError):
     """A configuration value has an invalid public format."""
 
 
-def _read_env_file(path: Path | None) -> dict[str, str]:
-    if path is None or not path.is_file():
-        return {}
-    result: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip("\"'")
-        if key in KNOWN_KEYS and value:
-            result[key] = value
-    return result
+from .credentials import (  # noqa: F401 – re-exported for backward compat
+    _read_env_file, default_private_path, load_private_env,
+)
 
 
 def _boolean(name: str, value: str) -> bool:
@@ -189,6 +166,8 @@ class SentimentProviderConfig:
     def status(self) -> str:
         if not self.enabled:
             return "DISABLED"
+        if (self.provider or "").strip().lower() in {"keyword", "keywords"}:
+            return "CONFIGURED"
         if not self.model_path:
             return "NOT_CONFIGURED"
         return "CONFIGURED"
@@ -240,14 +219,32 @@ class ApplicationConfig:
         return self.providers.news.max_headlines_per_symbol
 
     def build_sentiment_analyzer(self) -> Any:
-        from .sentiment_live import KeywordSentimentProvider, LocalFinbertProvider, SentimentAnalyzer
+        from .sentiment_live import (
+            KeywordSentimentProvider,
+            LocalFinbertProvider,
+            SentimentAnalyzer,
+            resolve_sentiment_model_path,
+        )
 
         sc = self.providers.sentiment
         if not sc.enabled:
             return SentimentAnalyzer()
-        if sc.model_path:
+        provider_name = (sc.provider or "local_finbert").strip().lower()
+        if provider_name in {"keyword", "keywords"}:
+            return SentimentAnalyzer(provider=KeywordSentimentProvider())
+        model_path = sc.model_path or resolve_sentiment_model_path(None)
+        if provider_name in {"local_finbert", "finbert", "finnbert", "local"}:
+            if model_path:
+                return SentimentAnalyzer(
+                    provider=LocalFinbertProvider(
+                        model_path=model_path,
+                        batch_size=sc.batch_size,
+                    )
+                )
+            return SentimentAnalyzer()
+        if model_path:
             provider = LocalFinbertProvider(
-                model_path=sc.model_path,
+                model_path=model_path,
                 batch_size=sc.batch_size,
             )
             return SentimentAnalyzer(provider=provider)
@@ -347,6 +344,18 @@ def resolve_application_config(
         else "127.0.0.1"
     )
 
+    from .sentiment_live import resolve_sentiment_model_path
+
+    raw_sentiment_path = merged.get("SENTIMENT_MODEL_PATH")
+    if raw_sentiment_path and str(raw_sentiment_path).strip().lower().startswith(
+        "replace_with"
+    ):
+        raw_sentiment_path = None
+    resolved_sentiment_path = resolve_sentiment_model_path(raw_sentiment_path)
+    sentiment_enabled = _boolean("SENTIMENT_ENABLED", merged["SENTIMENT_ENABLED"])
+    if mode is not DeploymentMode.LOCAL_FULL:
+        sentiment_enabled = False
+
     providers = ProviderConfigs(
         finviz=ProviderConfig(
             "FINVIZ_ELITE",
@@ -376,15 +385,17 @@ def resolve_application_config(
             ibkr_client_id,
         ),
         sentiment=SentimentProviderConfig(
-            _boolean("SENTIMENT_ENABLED", merged["SENTIMENT_ENABLED"]),
+            sentiment_enabled,
             merged.get("SENTIMENT_PROVIDER", "local_finbert"),
-            merged.get("SENTIMENT_MODEL_PATH"),
+            resolved_sentiment_path,
             _integer("SENTIMENT_BATCH_SIZE", merged["SENTIMENT_BATCH_SIZE"], minimum=1, maximum=64),
         ),
         news=NewsConfig(
             provider_order=[
                 p.strip()
-                for p in merged.get("NEWS_PROVIDER_ORDER", "NewsAPI,Finnhub News,Finviz News").split(",")
+                for p in merged.get(
+                    "NEWS_PROVIDER_ORDER", "Finviz Elite,Finnhub News,NewsAPI"
+                ).split(",")
                 if p.strip()
             ],
             cache_ttl_seconds=_integer(
@@ -401,7 +412,9 @@ def resolve_application_config(
         deployment=DeploymentConfig(mode, host, port),
         providers=providers,
         log_level=merged["LOG_LEVEL"].upper(),
-        private_file_loaded=bool(private_values),
+        private_file_loaded=(
+            mode is DeploymentMode.LOCAL_FULL and bool(private_values)
+        ),
         _sources=sources,
     )
 
@@ -430,6 +443,7 @@ def doctor_report(
         "SENTIMENT": {
             "status": config.providers.sentiment.status,
             "provider": config.providers.sentiment.provider,
+            "model_path": config.providers.sentiment.model_path,
         },
     }
     if probe_ibkr and config.providers.ibkr.enabled:
@@ -489,7 +503,9 @@ def _parser() -> argparse.ArgumentParser:
     doctor = sub.add_parser("doctor", help="validate configuration without exposing values")
     doctor.add_argument("--json", action="store_true", dest="as_json")
     doctor.add_argument("--config", type=Path)
-    doctor.add_argument("--private-config", type=Path)
+    doctor.add_argument("--private-config", type=Path, dest="private_config")
+    doctor.add_argument("--private-path", type=Path, dest="private_config",
+                        help="alias for --private-config")
     doctor.add_argument("--mode", choices=[mode.value for mode in DeploymentMode])
     doctor.add_argument("--port", type=int)
     doctor.add_argument("--no-ibkr-probe", action="store_true")
@@ -502,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
         "SQUEEZE_APP_MODE": args.mode,
         "PORT": str(args.port) if args.port is not None else None,
     }
-    default_private = Path(__file__).resolve().parents[2] / ".private" / "providers.env"
+    default_private = default_private_path()
     try:
         config = resolve_application_config(
             cli=cli,
@@ -534,7 +550,9 @@ __all__ = [
     "ProviderConfig",
     "ProviderConfigs",
     "SecProviderConfig",
+    "default_private_path",
     "doctor_report",
+    "load_private_env",
     "main",
     "resolve_application_config",
 ]

@@ -32,10 +32,21 @@ def test_scanner_contains_required_classification_labels():
 def test_scanner_contains_column_labels():
     html = (APP_STATIC / "scanner.html").read_text(encoding="utf-8")
     js = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
-    for text in ("SYMBOL", "PRICE", "CHANGE %", "REL VOL", "FLOAT", "SHORT FLOAT %",
-                 "PRESSURE", "IGNITION", "EVIDENCE", "NEWS", "SENTIMENT", "CLASSIFICATION",
-                 "WHY LISTED", "UPDATED"):
+    for text in ("SYMBOL", "PRICE", "CHANGE %", "REL VOL", "PRESSURE", "IGNITION",
+                 "EVIDENCE", "CLASSIFICATION"):
         assert text in html or text in js
+
+
+def test_scanner_js_table_columns_trimmed_for_scan_view():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    start = script.index("var SCANNER_COLUMNS")
+    end = script.index("/* ------------------------------------------------------------------ render table */", start)
+    block = script[start:end]
+    for col in ("symbol", "price", "percentage_change", "relative_volume",
+                "pressure", "ignition", "evidence_coverage", "classification"):
+        assert f'key: "{col}"' in block
+    for removed in ("why_listed", "updated", "float_shares", "news", "sentiment"):
+        assert f'key: "{removed}"' not in block
 
 
 def test_scanner_has_filter_controls():
@@ -79,10 +90,11 @@ def test_scanner_has_detail_drawer_elements():
 def test_scanner_js_defines_expected_columns():
     script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
     for col in ("symbol", "price", "percentage_change", "relative_volume",
-                "float_shares", "short_float", "days_to_cover", "borrow", "pressure",
-                "ignition", "evidence_coverage", "news", "sentiment",
-                "classification", "why_listed", "updated"):
-        assert f"key: \"{col}\"" in script or f"'{col}'" in script
+                "pressure", "ignition", "evidence_coverage", "classification"):
+        assert f'key: "{col}"' in script
+    for col in ("float_shares", "short_float", "days_to_cover", "news", "sentiment",
+                "why_listed", "updated"):
+        assert f'case "{col}"' in script
 
 
 def test_scanner_js_defines_class_colors():
@@ -94,6 +106,16 @@ def test_scanner_js_defines_class_colors():
 def test_scanner_js_defines_pressure_color():
     script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
     assert "pressureColor" in script
+
+
+def test_scanner_missing_core_si_ignores_borrow_fee():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    start = script.index("function hasMissingCoreShortInterest")
+    end = script.index("function isInsufficient", start)
+    block = script[start:end]
+    assert "borrow_fee" not in block
+    assert "published_short_interest" in block
+    assert "days_to_cover" in block
 
 
 def test_scanner_js_never_shows_zero_for_missing():
@@ -146,6 +168,13 @@ def test_scanner_js_sentiment_labels():
     script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
     for label in ("POSITIVE", "NEUTRAL", "NEGATIVE", "MIXED"):
         assert label in script
+
+
+def test_scanner_js_actionable_aligns_with_evaluable_rule_count():
+    script = (APP_STATIC / "scanner.js").read_text(encoding="utf-8")
+    assert "evaluable_rule_count" in script
+    assert "hasEvaluableRules" in script
+    assert "transportReadiness" in script
 
 
 def test_scanner_js_fetches_from_api_screener():

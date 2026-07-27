@@ -9,7 +9,7 @@ from .normalization import inverse_linear, linear
 
 ADAM_POLICY_ID = "adam_evidence_gated_prime.v1"
 ADAM_LABEL = "ADAM EVIDENCE-GATED PRIME v1"
-MIN_DIMENSION_WEIGHT = 70
+MIN_DIMENSION_WEIGHT = 65
 
 PRESSURE: dict[str, tuple[int, Callable[[float], float]]] = {
     "published_short_interest_pct": (30, lambda x: linear(x, 5, 30)),
@@ -72,7 +72,7 @@ def _dimension(
         })
     score = None
     if supported_weight >= MIN_DIMENSION_WEIGHT and critical:
-        score = round(contribution / supported_weight, 4)
+        score = round(contribution / supported_weight, 1)
     return score, supported_weight, components, missing, display_only
 
 
@@ -85,7 +85,12 @@ def evaluate_adam(inputs: dict[str, EvidenceInput], *, as_of: str | None = None)
         and _eligible(inputs["published_short_interest_pct"], "published_short_interest_pct")
         and any(
             _eligible(inputs.get(key), key)
-            for key in ("days_to_cover", "cost_to_borrow", "borrow_availability_pct_float")
+            for key in (
+                "days_to_cover",
+                "cost_to_borrow",
+                "borrow_availability_pct_float",
+                "float_shares",
+            )
         )
     )
     ignition_critical = bool(
@@ -163,12 +168,12 @@ def evaluate_adam(inputs: dict[str, EvidenceInput], *, as_of: str | None = None)
                 *(
                     []
                     if pw >= MIN_DIMENSION_WEIGHT
-                    else [f"Pressure supported weight {pw}% is below 70%"]
+                    else [f"Pressure supported weight {pw}% is below {MIN_DIMENSION_WEIGHT}%"]
                 ),
                 *(
                     []
                     if iw >= MIN_DIMENSION_WEIGHT
-                    else [f"Ignition supported weight {iw}% is below 70%"]
+                    else [f"Ignition supported weight {iw}% is below {MIN_DIMENSION_WEIGHT}%"]
                 ),
             ]
         ),

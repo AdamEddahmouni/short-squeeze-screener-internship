@@ -16,6 +16,10 @@ dependencies = [
 test = [
     "pytest==8.4.1",
 ]
+sentiment = [
+    "torch>=2.2.0",
+    "transformers>=4.40.0",
+]
 provider-auth = [
     "curl-cffi==0.13.0",
 ]

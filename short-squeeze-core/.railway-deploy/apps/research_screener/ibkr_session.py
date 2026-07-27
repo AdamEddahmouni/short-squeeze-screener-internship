@@ -54,7 +54,12 @@ _SIZE_TICKS: dict[int, str] = {
     0: "bid_size", 3: "ask_size", 5: "last_size", 8: "volume", 74: "volume",
     89: "shortable_shares",
 }
-_GENERIC_TICKS: dict[int, str] = {46: "shortable_indicator", 49: "halted"}
+_GENERIC_TICKS: dict[int, str] = {
+    46: "shortable_indicator",
+    49: "halted",
+    258: "borrow_fee_rate",
+}
+BORROW_FEE_GENERIC_TICK_LIST = "258"
 _STRING_TICKS: dict[int, str] = {
     45: "last_timestamp_epoch", 88: "last_timestamp_epoch",
     47: "fundamental_ratios", 48: "fundamentals",
@@ -309,6 +314,7 @@ def build_session_class():
         def fetch_quote(
             self, req_id: int, contract, symbol: str, timeout: float,
             *, snapshot: bool = False, settle_seconds: float = 2.5,
+            generic_ticks: str | None = None,
         ) -> QuoteTicks:
             """One bounded quote read. Always cancelled; never left streaming.
 
@@ -322,7 +328,8 @@ def build_session_class():
             with self._lock:
                 self._ticks[req_id] = slot
             self._tick_done[req_id] = done
-            self.reqMktData(req_id, contract, GENERIC_TICK_LIST, snapshot, False, [])
+            tick_list = generic_ticks if generic_ticks is not None else GENERIC_TICK_LIST
+            self.reqMktData(req_id, contract, tick_list, snapshot, False, [])
             if snapshot:
                 done.wait(timeout=timeout)
             else:
@@ -354,6 +361,7 @@ def build_session_class():
 
 __all__ = [
     "APP_CLIENT_ID_SEQUENCE",
+    "BORROW_FEE_GENERIC_TICK_LIST",
     "GENERIC_TICK_LIST",
     "MARKET_DATA_TYPE_LABELS",
     "QuoteTicks",

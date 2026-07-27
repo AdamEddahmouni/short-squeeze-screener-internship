@@ -429,6 +429,8 @@ class ProviderBundle:
         finnhub_news = FinnhubNewsProvider(values.get("FINNHUB_KEY"))
         orchestrator = NewsOrchestrator(
             providers=[FinvizNewsProvider(finviz_client), finnhub_news, newsapi],
+            cache_ttl_s=int(values.get("NEWS_CACHE_TTL_SECONDS") or 900),
+            max_headlines=int(values.get("NEWS_MAX_HEADLINES_PER_SYMBOL") or 30),
         )
         configure_news_orchestrator(orchestrator)
         return cls(
@@ -502,13 +504,18 @@ class ProviderBundle:
         )
 
         orchestrator = NewsOrchestrator(
-            providers=providers_list, provider_order=provider_order,
+            providers=providers_list,
+            provider_order=provider_order,
+            cache_ttl_s=config.providers.news.cache_ttl_seconds,
+            max_headlines=config.providers.news.max_headlines_per_symbol,
         )
         configure_news_orchestrator(orchestrator)
 
         sentiment = config.build_sentiment_analyzer()
         if sentiment is not None:
             configure_sentiment(sentiment)
+            from .sentiment_live import warm_sentiment_analyzer
+            warm_sentiment_analyzer(sentiment)
 
         return cls(
             finviz=finviz_client,
@@ -583,9 +590,14 @@ class ProviderBundle:
                     )
                 except Exception:
                     pass
-                matched_rows = {
-                    symbol: finviz.get_row(symbol) for symbol in symbols
-                } if fv_resp["success"] else {}
+                if fv_resp["success"]:
+                    ensure = finviz.ensure_symbols(symbols)
+                    matched_rows = {
+                        symbol: finviz.get_row(symbol) for symbol in symbols
+                    }
+                else:
+                    ensure = {"fetched": 0, "missing_before": 0}
+                    matched_rows = {}
                 matched = {
                     symbol: row for symbol, row in matched_rows.items()
                     if row is not None
@@ -594,6 +606,8 @@ class ProviderBundle:
                 self._finviz_enrichment = {
                     "scanner_candidates": len(symbols),
                     "matched_candidates": len(matched),
+                    "symbol_exports_fetched": ensure.get("fetched", 0),
+                    "symbol_exports_missing_before": ensure.get("missing_before", 0),
                     "with_float": sum(row.float_shares is not None for row in matched.values()),
                     "with_short_float": sum(
                         row.short_float_pct is not None for row in matched.values()

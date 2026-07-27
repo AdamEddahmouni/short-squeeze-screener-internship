@@ -32,7 +32,8 @@ def deployment_mode(value: str | DeploymentMode | None = None) -> DeploymentMode
 def resolve_runtime(mode: str | DeploymentMode | None = None, *, port: int | None = None) -> RuntimeConfig:
     selected = deployment_mode(mode)
     if selected is DeploymentMode.LOCAL_FULL:
-        return RuntimeConfig(selected, "127.0.0.1", port or 8787, True, True, False)
+        host = os.environ.get("HOST", "127.0.0.1")
+        return RuntimeConfig(selected, host, port or 8787, True, True, False)
     env_port = os.environ.get("PORT")
     resolved_port = port or (int(env_port) if env_port else 8787)
     return RuntimeConfig(

@@ -19,6 +19,7 @@ const CLASS_COLORS = {
   NOT_QUALIFIED: "#ff7d7d",
   UNEVALUABLE: "#8b98a9",
   CONFLICTED: "#cbb6f0",
+  REFERENCE_DEFINITION_INCOMPLETE: "#9aa8bc",
 };
 
 const PRESSURE_COLORS = {
@@ -48,7 +49,23 @@ async function getJSON(url, options) {
 function setStatus(message, isError) {
   const node = el("status-line");
   if (!node) return;
-  node.textContent = message || "";
+  const isScanner = document.body && document.body.classList.contains("scanner");
+  const msg = String(message || "");
+  let show = true;
+  if (isScanner) {
+    show = !!(
+      msg
+      && (isError
+        || /loading|refreshing|awaiting|discovering|unavailable|error|ready but/i.test(msg))
+    );
+    if (!show) {
+      node.textContent = "";
+      node.setAttribute("hidden", "");
+      return;
+    }
+    node.removeAttribute("hidden");
+  }
+  node.textContent = msg;
   node.style.color = isError ? "#ff9d9d" : "";
 }
 
