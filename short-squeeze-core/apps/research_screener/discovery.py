@@ -21,7 +21,8 @@ DISCOVERY_LABEL = "CURRENT DISCOVERY"
 
 #: What the label explicitly is not.
 DISCOVERY_DISCLAIMER = (
-    "Current discovery candidates. No predictive validity is claimed."
+    "Current discovery candidates. No predictive validity is claimed; this is not a "
+    "validated squeeze scanner."
 )
 
 #: Scanner rows requested. Kept modest so a full evidence sweep of the screen completes

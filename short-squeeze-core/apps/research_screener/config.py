@@ -270,7 +270,11 @@ def resolve_application_config(
     }
     file_values = _read_env_file(config_file)
     mode = _selected_mode(cli_values, env_values, file_values)
-    private_values = _read_env_file(private_file)
+    private_values = (
+        _read_env_file(private_file)
+        if mode is DeploymentMode.LOCAL_FULL
+        else {}
+    )
 
     merged = dict(SAFE_DEFAULTS)
     sources: dict[str, str] = {key: "default" for key in merged}
@@ -352,7 +356,9 @@ def resolve_application_config(
         deployment=DeploymentConfig(mode, host, port),
         providers=providers,
         log_level=merged["LOG_LEVEL"].upper(),
-        private_file_loaded=bool(private_values),
+        private_file_loaded=(
+            mode is DeploymentMode.LOCAL_FULL and bool(private_values)
+        ),
         _sources=sources,
     )
 
