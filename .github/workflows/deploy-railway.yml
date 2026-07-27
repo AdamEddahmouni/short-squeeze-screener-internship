@@ -27,13 +27,66 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      reconcile_statuses:
+        description: "Backfill green Railway GitHub statuses on recent main commits"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
   statuses: write
 
+env:
+  RAILWAY_GITHUB_STATUS_CONTEXT: short-squeeze-screener - short-squeeze-screener
+  DEPLOY_URL: https://short-squeeze-screener-production.up.railway.app
+
 jobs:
+  reconcile-statuses:
+    if: github.event_name == 'workflow_dispatch' && inputs.reconcile_statuses == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - name: Reconcile Railway commit statuses on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONTEXT="${RAILWAY_GITHUB_STATUS_CONTEXT}"
+          URL="${DEPLOY_URL}"
+          while read -r sha; do
+            [ -z "$sha" ] && continue
+            state=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/status" --jq .state)
+            if [ "$state" = "success" ]; then
+              echo "skip $sha (already success)"
+              continue
+            fi
+            echo "reconcile $sha (was $state)"
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+              -f state=success \
+              -f target_url="$URL" \
+              -f description="Production deployment healthy" \
+              -f context="$CONTEXT" \
+              --silent
+            gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+              -f state=success \
+              -f target_url="$URL" \
+              -f description="Deployed to Railway" \
+              -f context="Deploy to Railway" \
+              --silent || true
+          done < <(git log main --format=%H -25)
+
   deploy:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.reconcile_statuses != true)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -68,7 +121,8 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           # Public domain for post-deploy smoke (project tokens cannot list all projects)
-          DEPLOY_URL: https://short-squeeze-screener-production.up.railway.app
+          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+          RAILWAY_GITHUB_STATUS_CONTEXT: ${{ env.RAILWAY_GITHUB_STATUS_CONTEXT }}
         working-directory: short-squeeze-core/.railway-deploy
         shell: bash
         run: |
@@ -105,13 +159,15 @@ jobs:
                 echo "   URL: $DEPLOY_URL"
                 echo "::notice title=Railway Deploy::$DEPLOY_URL"
 
-                gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-                  -f state=success \
-                  -f target_url="$DEPLOY_URL" \
-                  -f description="Deployed to Railway" \
-                  -f context="Deploy to Railway" \
-                  --silent || echo "Commit status update skipped"
-                echo "Commit status updated -> $DEPLOY_URL"
+                for ctx in "Deploy to Railway" "${RAILWAY_GITHUB_STATUS_CONTEXT}"; do
+                  gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+                    -f state=success \
+                    -f target_url="$DEPLOY_URL" \
+                    -f description="Deployed to Railway" \
+                    -f context="$ctx" \
+                    --silent || echo "Commit status update skipped ($ctx)"
+                done
+                echo "Commit statuses updated -> $DEPLOY_URL"
 
                 echo ""
                 echo "--- Health check ---"

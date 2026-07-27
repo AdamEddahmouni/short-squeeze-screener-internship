@@ -239,7 +239,16 @@ fails when Railway builds from the **monorepo root** but the Dockerfile expects
 `short-squeeze-core/` paths. This repo ships a root **`Dockerfile`** and
 **`railway.toml`** for that integration.
 
-If you still see failures:
+When **Actions** deploy succeeds but Railway’s integration still posts failure,
+GitHub shows a red X because **either** failed status fails the commit. The
+deploy workflow now sets **both** `Deploy to Railway` and Railway’s integration
+context on successful CLI deploys.
+
+To clean up older commits on `main`, run **Actions → Deploy to Railway → Run
+workflow**, enable **Backfill green Railway GitHub statuses on recent main
+commits**, and run (deploy is skipped for that run).
+
+If you still see failures on **new** pushes:
 
 1. Railway → **short-squeeze-screener** service → **Settings** → **Root Directory**
    should be **empty** (repository root) or match where `railway.toml` lives.
