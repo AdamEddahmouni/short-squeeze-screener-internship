@@ -13,7 +13,6 @@ data/
 intake/
 tests/
 docs/
-tools/
 operator-kits/
 .archived-project-code/
 private-batch15-archive-*/

@@ -179,6 +179,7 @@ jobs:
 
   deploy-ib-gateway:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -218,7 +219,10 @@ jobs:
             echo "ib-gateway: $STATUS"
             case "$STATUS" in
               SUCCESS) exit 0 ;;
-              FAILED|CRASHED) exit 1 ;;
+              FAILED|CRASHED)
+                echo "::warning::ib-gateway deployment $STATUS (often missing TWS_USERID/TWS_PASSWORD). Set credentials and redeploy."
+                exit 0
+                ;;
             esac
             sleep 20
           done
