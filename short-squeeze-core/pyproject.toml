@@ -30,6 +30,14 @@ squeeze-core = "squeeze_core.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+squeeze_core = [
+    "evaluation/policies/*.json",
+    "research/policies/*.json",
+    "analysis/policies/*.json",
+    "acquisition/policy_documents/*.json",
+]
+
 [tool.pytest.ini_options]
 addopts = "-q -p no:cacheprovider"
 testpaths = ["tests"]
