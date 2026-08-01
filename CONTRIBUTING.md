@@ -31,8 +31,7 @@ make install-hooks
 - Keep changes focused and match existing code style.
 - Run `make precommit` before submitting.
 - Do not commit `.env`, `.private/`, credentials, or personal correspondence.
-- The CI workflow runs `release_audit.py` on both `short-squeeze-core/` and
-  `archived-project-code/` — PRs must pass.
+- The CI workflow runs `release_audit.py` on `short-squeeze-core/` — PRs must pass.
 
 ## Issues
 
@@ -41,5 +40,4 @@ concerns, see [SECURITY.md](SECURITY.md).
 
 ## Scope
 
-The maintained application is `short-squeeze-core/`. Code under `archived-project-code/`
-is historical reference only and is not the active development target.
+The application is `short-squeeze-core/`. All new work belongs there.

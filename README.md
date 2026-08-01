@@ -1,10 +1,7 @@
-# Short Squeeze Project
+# Short Squeeze Research Screener
 
-Monorepo for the **Short Squeeze Research Screener** and related archives.
-
-## Current product
-
-The maintained application lives in **[`short-squeeze-core/`](short-squeeze-core/)**.
+Read-only research screener for short-squeeze candidate analysis. The application
+lives in **[`short-squeeze-core/`](short-squeeze-core/)**.
 
 | Item | Location |
 |---|---|
@@ -13,8 +10,8 @@ The maintained application lives in **[`short-squeeze-core/`](short-squeeze-core
 | Documentation map | [short-squeeze-core/docs/README.md](short-squeeze-core/docs/README.md) |
 | Package README | [short-squeeze-core/README.md](short-squeeze-core/README.md) |
 
-The screener is a **read-only research tool**. It does not place orders, access
-brokerage accounts, recommend trades, or claim predictive validation.
+The screener does not place orders, access brokerage accounts, recommend trades, or
+claim predictive validation.
 
 ### Quick start
 
@@ -38,15 +35,6 @@ python -m apps.research_screener --no-browser
 ```
 
 Open `http://127.0.0.1:8787/`.
-
-## Other directories
-
-| Path | Role |
-|---|---|
-| `short-squeeze-core/` | Current product and documentation |
-| `archived-project-code/` | Historical application snapshots (not the live entrypoint) |
-
-Prefer `short-squeeze-core` for all new work.
 
 ## License
 

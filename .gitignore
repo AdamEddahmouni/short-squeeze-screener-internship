@@ -45,3 +45,5 @@ short_squeeze_project_reconstruction/
 node_modules/
 .pytest-run/
 presentation/
+deliverables/
+docs/superpowers/

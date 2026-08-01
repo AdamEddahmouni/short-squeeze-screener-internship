@@ -47,4 +47,3 @@ intentionally expanding `.env.example` keys.
 
 - [Reproducibility](reproducibility.md)
 - [CLI.md](CLI.md)
-- Older narrative: `testing-and-validation.md` (archive; prefer this file)

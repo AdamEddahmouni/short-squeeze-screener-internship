@@ -14,7 +14,6 @@ from squeeze_core.acquisition.historical_data_submission_kit import (
 )
 from squeeze_core.acquisition.historical_data_submission_kit.checklist import CHECKLIST_ITEMS
 from squeeze_core.acquisition.historical_data_submission_kit.kit import (
-    KIT_ROOT,
     build_batch04_fixtures,
 )
 from squeeze_core.acquisition.local_bar_intake.models import (
@@ -29,7 +28,6 @@ from squeeze_core.acquisition.local_bar_intake.semantics import (
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "acquisition" / "batch04"
-KIT = ROOT / KIT_ROOT
 BATCH01_FIXTURES = ROOT / "tests" / "fixtures" / "acquisition" / "batch01"
 BATCH02_FIXTURES = ROOT / "tests" / "fixtures" / "acquisition" / "batch02"
 BATCH03_FIXTURES = ROOT / "tests" / "fixtures" / "acquisition" / "batch03"
@@ -59,12 +57,6 @@ def _dir_digest(path: Path) -> str:
 def test_submission_kit_generation_is_byte_identical():
     assert build_submission_kit() == build_submission_kit()
     assert build_batch04_fixtures() == build_batch04_fixtures()
-
-
-def test_generated_kit_matches_committed_files():
-    for name, content in build_submission_kit().items():
-        target = KIT.joinpath(*name.split("/"))
-        assert target.read_bytes() == content, name
 
 
 def test_generated_fixtures_match_committed_files():

@@ -1,10 +1,9 @@
 # Documentation index
 
-Version **0.16.0**. This index is the map of **current-truth** product documentation.
-Historical batch and phase reports remain in this tree for provenance; they are not
-the operational guide.
+Version **0.16.0**. This index maps **current-truth** product documentation for the
+Short Squeeze Research Screener.
 
-This product is a **read-only research screener**. It does not place orders, access
+The product is a **read-only research screener**. It does not place orders, access
 brokerage accounts, recommend trades, or claim predictive validation.
 
 ## Start here
@@ -64,22 +63,7 @@ brokerage accounts, recommend trades, or claim predictive validation.
 | Container / Railway listen | `0.0.0.0:$PORT` (Compose sets `PORT=8080` inside the container) |
 | Modes | `LOCAL_FULL`, `CLOUD_PROVIDER_MODE`, `FROZEN_DEMO` |
 
-## Historical archive (not current truth)
+## Architecture decisions
 
-Leave the following in place for audit history. Prefer the documents above for
-day-to-day work. Do not treat batch/phase reports as the live product contract.
-
-| Pattern | Role |
-|---|---|
-| `batch-*.md` | Historical batch completion, handoff, and verification notes |
-| `phase-*.md` | Phase design, progress, and acquisition reports (including Phase 3E stage work) |
-| `adr/` | Architecture decision records |
-| `superpowers/` | Internal plans and specs |
-| Meeting / academic note filenames | Non-product context (excluded from public handoff checks) |
-| `release/` | Privacy and handoff audit notes |
-| `testing-and-validation.md` | Older validation narrative; prefer [TESTING.md](TESTING.md) |
-
-When a historical report conflicts with a current-truth document (for example an
-older “Phase 3E has not started” note versus a later stage-2 completion report),
-**trust the current-truth set and [CHANGELOG.md](CHANGELOG.md)**, then read the
-historical file only for provenance.
+Product behavior constraints live in [adr/](adr/). Release and privacy audit notes are
+in [release/](release/).

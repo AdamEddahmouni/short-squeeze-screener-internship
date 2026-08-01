@@ -12,7 +12,6 @@ def test_phase_1i_required_documentation_exists_and_states_objective_boundaries(
         "docs/providers/trades-quotes-offline.md": ("local", "provider-neutral", "one-sided"),
         "docs/trade-quote-availability-semantics.md": ("effective", "publication", "received"),
         "docs/trade-quote-sequence-and-lifecycle-timeline.md": ("ORIGINAL", "CORRECTED", "CANCELLED"),
-        "docs/phase-1i-progress.md": ("TRADES", "QUOTES", "schema `1.0.0`"),
     }
     for relative, phrases in required.items():
         path = ROOT / relative
@@ -31,7 +30,7 @@ def test_phase_1i_public_docs_name_compatibility_fixture_and_analytics_exclusion
         ROOT / "docs/field-semantics.md",
         ROOT / "docs/cross-source-evidence.md",
         ROOT / "docs/point-in-time-evidence-policy.md",
-        ROOT / "docs/testing-and-validation.md",
+        ROOT / "docs/TESTING.md",
     ]
     combined = "\n".join(path.read_text(encoding="utf-8") for path in paths).lower()
     for phrase in (

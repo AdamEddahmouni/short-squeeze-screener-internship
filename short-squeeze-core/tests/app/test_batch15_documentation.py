@@ -138,9 +138,7 @@ def test_public_documents_do_not_contain_personal_or_academic_markers() -> None:
         assert all(marker not in text for marker in markers), relative
 
 
-def test_morning_check_and_next_handoff_use_requested_batch15_branch() -> None:
-    # morning_check.ps1 tracks the current release branch/version; Batch 15
-    # handoff history remains in docs/batch-*-fresh-session-handoff.md (archive).
+def test_morning_check_targets_main_release_branch() -> None:
     expected_branch = "main"
     expected_version = "0.16.0"
     morning_check = (ROOT / "morning_check.ps1").read_text(encoding="utf-8")
@@ -150,6 +148,3 @@ def test_morning_check_and_next_handoff_use_requested_batch15_branch() -> None:
     assert "Working tree" in morning_check
     assert "Release source commit" in morning_check
     assert "Final test report" in morning_check
-    assert "batch/professional-source-handoff-15" in (
-        ROOT / "docs/batch-16-fresh-session-handoff.md"
-    ).read_text(encoding="utf-8")

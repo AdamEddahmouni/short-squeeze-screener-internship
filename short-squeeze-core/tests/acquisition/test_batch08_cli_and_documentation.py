@@ -1,78 +1,14 @@
-"""Batch 08 offline CLI behaviour and required-documentation presence."""
+"""Batch 08 offline CLI behaviour."""
 
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 from squeeze_core.acquisition.phase3a_freeze.cli import build_parser, generate, main, verify
 
 ROOT = Path(__file__).resolve().parents[2]
-DOCS = ROOT / "docs"
 SYNTHETIC_ROOT = ROOT / "tests" / "fixtures" / "acquisition" / "batch08" / "synthetic-batch05"
-
-REQUIRED_BATCH08_DOCS = {
-    "batch-08-phase3a-request-result-freeze-plan.md",
-    "batch-08-admissible-evidence-mapping.md",
-    "batch-08-phase3a-request-construction.md",
-    "batch-08-phase3a-rule-outcome-summary.md",
-    "batch-08-leakage-and-determinism-report.md",
-    "batch-08-phase3b-publication-readiness-preview.md",
-    "batch-08-test-and-verification-report.md",
-    "batch-08-professor-brief.md",
-    "batch-08-completion-report.md",
-    "batch-09-fresh-session-handoff.md",
-}
-
-#: A paragraph mentioning a forbidden claim must also negate or disclaim it.
-NEGATION = re.compile(
-    r"\b(no|not|never|without|absent|cannot|none|neither|nor|lacks?|missing|"
-    r"unstarted|forbidden|blocked|rejected|excluded|omitted)\b"
-)
-
-FORBIDDEN_CLAIMS = (
-    "predictive accuracy",
-    "backtest",
-    "profit",
-    "p&l",
-    "buy signal",
-    "trade recommendation",
-)
-
-
-def test_all_required_batch08_documents_exist():
-    present = {item.name for item in DOCS.iterdir() if item.is_file()}
-    assert REQUIRED_BATCH08_DOCS <= present
-
-
-def test_batch09_handoff_is_a_real_document():
-    text = (DOCS / "batch-09-fresh-session-handoff.md").read_text(encoding="utf-8")
-    assert len(text) > 4000
-    assert "batch/phase-3d-phase3a-freeze-08" in text
-    for section in ("Stop conditions", "Forbidden work", "Definition of done"):
-        assert section.lower() in text.lower()
-
-
-def test_batch08_documents_make_no_predictive_or_trading_claim():
-    for name in sorted(REQUIRED_BATCH08_DOCS):
-        text = (DOCS / name).read_text(encoding="utf-8").lower()
-        # Documents may say a thing is absent; they may not claim it. Checked per
-        # paragraph, because a negation and its claim are often on different wrapped lines.
-        for paragraph in text.split("\n\n"):
-            for claim in FORBIDDEN_CLAIMS:
-                if claim in paragraph:
-                    assert NEGATION.search(paragraph), (
-                        f"{name} appears to claim {claim!r}: {paragraph.strip()[:160]}"
-                    )
-
-
-def test_negation_pattern_actually_discriminates():
-    """Guard against the disclaimer check degenerating into a tautology."""
-    assert NEGATION.search("no p&l capability exists")
-    assert NEGATION.search("backtesting is not supported")
-    assert not NEGATION.search("this batch reports a backtest of the strategy")
-    assert not NEGATION.search("predictive accuracy was measured at 80 percent")
 
 
 def test_cli_parser_exposes_the_three_offline_commands():

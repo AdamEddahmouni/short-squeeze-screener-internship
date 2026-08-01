@@ -79,7 +79,6 @@ BATCH01_REGISTRY = REPO_ROOT / DEFAULT_SOURCE_REGISTRY
 FREEZE_ROOT = REPO_ROOT / DEFAULT_FREEZE_ROOT
 PRIVATE_PREVIEW = REPO_ROOT / DEFAULT_OUT_ROOT
 
-BATCH_08_HEAD = "c93f704104429468f920b0d0d88002a821c68b63"
 FROZEN_BOUNDARY_TEXT = "2026-07-18T13:37:55.017661Z"
 
 #: Recorded at the Batch 09 baseline. A change here means a canonical artifact moved.
@@ -117,16 +116,8 @@ def freeze_summary() -> dict:
 
 
 # --------------------------------------------------------------------------------------
-# Checkpoint, cohort, and prior-artifact integrity
+# Cohort and prior-artifact integrity
 # --------------------------------------------------------------------------------------
-
-
-def test_batch_08_checkpoint_is_an_ancestor_of_this_work():
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", BATCH_08_HEAD, "HEAD"],
-        cwd=REPO_ROOT, capture_output=True, check=False,
-    )
-    assert result.returncode == 0, "Batch 09 must build on the exact Batch 08 checkpoint"
 
 
 def test_source_order_is_the_exact_frozen_thirteen():
@@ -684,56 +675,3 @@ def test_preview_module_declares_no_forbidden_field_name():
             assert not any(token in field_name.lower() for token in banned), (
                 f"{name}.{field_name}"
             )
-
-
-BATCH09_DOCUMENTS = (
-    "batch-09-phase3b-registry-preview-plan.md",
-    "batch-09-phase3b-contract-audit.md",
-    "batch-09-registry-field-diff.md",
-    "batch-09-phase3b-detection-preview.md",
-    "batch-09-phase3c-compatibility-preview.md",
-    "batch-09-test-and-verification-report.md",
-    "batch-09-professor-decision-package.md",
-    "batch-09-professor-talking-points.md",
-    "batch-09-completion-report.md",
-    "batch-10-fresh-session-handoff.md",
-)
-
-
-@pytest.mark.parametrize("name", BATCH09_DOCUMENTS)
-def test_batch09_documentation_is_present(name):
-    path = REPO_ROOT / "docs" / name
-    assert path.is_file(), name
-    assert path.read_text(encoding="utf-8").strip(), name
-
-
-def test_batch10_handoff_records_all_three_decision_branches():
-    text = (REPO_ROOT / "docs" / "batch-10-fresh-session-handoff.md").read_text(
-        encoding="utf-8"
-    )
-    for branch in ("APPROVE", "REVISE", "DO NOT PROCEED"):
-        assert branch in text, branch
-    # The handoff must not presume the answer.
-    assert "Phase 3E" in text
-
-
-def test_decision_package_states_the_single_question_without_claiming_prediction():
-    text = (REPO_ROOT / "docs" / "batch-09-professor-decision-package.md").read_text(
-        encoding="utf-8"
-    )
-    assert "UNEVALUABLE" in text
-    assert "outcome-incomplete" in text
-    for branch in ("APPROVE", "REVISE", "DO NOT PROCEED"):
-        assert branch in text
-
-
-def test_generation_script_is_importable_and_offline():
-    script = REPO_ROOT / "scripts" / "generate_batch09_phase3b_preview_outputs.py"
-    for line in _import_lines(script.read_text(encoding="utf-8")):
-        for token in ("ibapi", "socket", "urllib", "requests", "httpx"):
-            assert token not in line, line
-    result = subprocess.run(
-        [sys.executable, "-c", f"compile(open(r'{script}').read(), 'x', 'exec')"],
-        capture_output=True, check=False,
-    )
-    assert result.returncode == 0

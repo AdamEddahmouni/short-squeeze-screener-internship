@@ -65,15 +65,7 @@ def resolve_sentiment_model_path(explicit: str | None = None) -> str | None:
         if path.is_dir() and (path / "config.json").is_file():
             return str(path.resolve())
 
-    archived = (
-        root.parent
-        / "archived-project-code"
-        / "adams-short-squeeze-code-archived"
-        / "app"
-        / "ScreenerProject"
-        / "model"
-        / "finbert_finetuned"
-    )
+    archived = root / "models" / "finbert_finetuned"
     if archived.is_dir() and (archived / "config.json").is_file():
         return str(archived.resolve())
 
