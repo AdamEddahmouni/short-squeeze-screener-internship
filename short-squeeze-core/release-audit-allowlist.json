@@ -31,6 +31,12 @@
       "reason": "Generic scanner signature."
     },
     {
+      "category": "ACADEMIC_OR_PERSONAL",
+      "path": "INTEGRATION_CHECKLIST.md",
+      "line_pattern": "/api/professor",
+      "reason": "Documents the backward-compatible research-summary API alias."
+    },
+    {
       "category": "CREDENTIAL",
       "path": "src/squeeze_core/acquisition/historical_data_submission_kit/templates.py",
       "line_pattern": "^GUIDANCE_KEY = \"_field_guidance\"$",

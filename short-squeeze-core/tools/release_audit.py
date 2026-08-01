@@ -41,6 +41,11 @@ FORBIDDEN_PARTS = {
     "node_modules",
     "provider-cache",
 }
+SKIPPED_PARTS = {
+    ".railway-deploy",
+    ".pytest-run",
+    "tests",
+}
 FORBIDDEN_NAMES = {
     ".env",
     ".env.local",
@@ -148,6 +153,11 @@ def _forbidden(relative: Path) -> bool:
     )
 
 
+def _skipped(relative: Path) -> bool:
+    parts = {part.lower() for part in relative.parts}
+    return bool(parts & {part.lower() for part in SKIPPED_PARTS})
+
+
 def _is_text(path: Path) -> bool:
     return path.suffix.lower() in TEXT_SUFFIXES or path.name == ".env.example"
 
@@ -222,6 +232,8 @@ def audit_directory(
             continue
         relative = path.relative_to(root)
         relative_text = relative.as_posix()
+        if _skipped(relative):
+            continue
         files_scanned += 1
         if _forbidden(relative):
             findings.append(
