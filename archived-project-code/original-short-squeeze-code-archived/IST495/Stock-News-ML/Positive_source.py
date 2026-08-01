@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 import csv
 import os
 
-FINVIZ_API_KEY = "REDACTED_FINVIZ_KEY_A"  # Replace with your Finviz Elite API key
+FINVIZ_API_KEY = os.environ.get("FINVIZ_API_KEY", "YOUR_API_TOKEN_HERE")
 
 # ✅ Positive sentiment indicators
 POSITIVE_KEYWORDS = [
@@ -98,7 +98,7 @@ def fetch_potential_positive_headlines(ticker):
 
 # ✅ Use Finviz Elite API for positive market-wide headlines
 def fetch_all_finviz_api_positive_news():
-    url = "https://elite.finviz.com/news_export.ashx?v=3&auth=REDACTED_FINVIZ_KEY_A"  # Replace token
+    url = f"https://elite.finviz.com/news_export.ashx?v=3&auth={FINVIZ_API_KEY}"
     headers = {
         "Authorization": f"Bearer {FINVIZ_API_KEY}",
         "User-Agent": "Mozilla/5.0"

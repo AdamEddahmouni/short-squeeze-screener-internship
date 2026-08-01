@@ -27,7 +27,7 @@ _LOGIN_URL = "https://finviz.com/login_submit.ashx"
 # Finviz's own "How to automate exports" walkthrough lives at /api_explanation
 # and displays the account's export token directly - both as a "userToken"
 # field and inline in an example URL's "&auth=" parameter. The token itself is
-# a UUID (e.g. "REDACTED_FINVIZ_KEY_C"), not a plain hex string -
+# a UUID (e.g. "00000000-0000-0000-0000-000000000000"), not a plain hex string -
 # the original regex only matched contiguous hex, which is why it silently
 # missed the hyphenated UUID format on every earlier page checked.
 _CANDIDATE_PAGES = [

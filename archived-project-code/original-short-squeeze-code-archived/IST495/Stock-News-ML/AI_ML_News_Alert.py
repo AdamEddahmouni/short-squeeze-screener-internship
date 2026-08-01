@@ -16,7 +16,7 @@ import threading
 import uuid
 
 # 🔑 Your Finviz Elite API Key
-FINVIZ_API_KEY = "REDACTED_FINVIZ_KEY_B"  # Replace with your actual API key
+FINVIZ_API_KEY = os.environ.get("FINVIZ_API_KEY", "YOUR_API_TOKEN_HERE")
 
 
 

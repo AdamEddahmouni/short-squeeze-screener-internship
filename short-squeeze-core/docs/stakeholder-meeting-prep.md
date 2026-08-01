@@ -1,4 +1,4 @@
-# Professor Meeting Tomorrow
+# Stakeholder Meeting Prep
 
 Batch 14 now compares four distinct research surfaces without collapsing them:
 

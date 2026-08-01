@@ -7,7 +7,7 @@ import csv
 import os
 import pandas as pd
 
-FINVIZ_API_KEY = "REDACTED_FINVIZ_KEY_B"  # Replace with your Finviz Elite API key
+FINVIZ_API_KEY = os.environ.get("FINVIZ_API_KEY", "YOUR_API_TOKEN_HERE")
 
 def deduplicate_sample_news(csv_path="sample_news.csv"):
     try:

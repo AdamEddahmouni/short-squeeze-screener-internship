@@ -157,5 +157,5 @@ Optional locks: `CSRF_PROTECTION`, `LOCK_SENSITIVE_API` (default off). Review
 
 ## License
 
-No redistribution license has been selected. See [License Status](LICENSE_STATUS.md).
+Licensed under the [MIT License](../LICENSE). See [License Status](LICENSE_STATUS.md).
 Third-party packages: [Third-Party Notices](THIRD_PARTY_NOTICES.md).

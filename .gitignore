@@ -40,3 +40,8 @@ short_squeeze_project_reconstruction/
 # Temp files
 *.tmp
 *.temp
+
+# Node / Python tooling artifacts
+node_modules/
+.pytest-run/
+presentation/

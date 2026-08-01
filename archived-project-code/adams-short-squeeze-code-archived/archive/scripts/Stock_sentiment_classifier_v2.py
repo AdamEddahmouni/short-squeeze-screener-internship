@@ -4,8 +4,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from textblob import TextBlob
 
-# 🔑 NewsAPI key
-API_KEY = 'REDACTED_NEWSAPI_KEY'  # Replace with your actual key
+import os
+
+API_KEY = os.environ.get("NEWSAPI_KEY", "YOUR_API_TOKEN_HERE")
 
 # 📰 Fetch news by stock ticker
 def fetch_news_by_ticker(ticker, page_size=10):

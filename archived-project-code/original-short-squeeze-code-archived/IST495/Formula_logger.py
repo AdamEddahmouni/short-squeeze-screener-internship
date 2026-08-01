@@ -5,7 +5,7 @@ import os
 import io
 
 # 🔑 Your Finviz Elite auth token
-FINVIZ_API_KEY = "REDACTED_FINVIZ_KEY_B"
+FINVIZ_API_KEY = os.environ.get("FINVIZ_API_KEY", "YOUR_API_TOKEN_HERE")
 
 # ✅ Tickers you care about
 tickers_to_track = ['ACDC', 'AIFF','AIRS', 'ALBT', 'ALGS', 'AMIX', 'ANVS', 'ASTI', 'BBGI', 'BALY', 'BNGO', 'BKKT', 'BTM', 'CYN', 'CLIK', 'CISS', 'RRGB', 'BETR', 'BODI', 'BNZI', 'BOLT', 'BTCT', 'CNSP', 'CNET', 'CVRX', 'DSP', 'DSS', 'DTIL', 'DUO', 'ECOR', 'ELAB', 'EZGO', 'FC', 'FLGT', 'FVR', 'GAMB', 'GWH', 'HCAI', 'HUSA', 'HYPD', 'IBIO', 'ICON', 'INDO', 'INTZ', 'JILL', 'KIRK', 'KYTX', 'LE', 'LIDR', 'LYRA', 'MFH', 'MSGM', 'MMA', 'NAAS', 'NWTG', 'OFAL', 'MVO', 'PTIX', 'QMCO', 'RELI',  'SISI', 'SKYE', 'SLRX', 'SOAR', 'STAK', 'SST', 'TRAK', 'TPET', 'USEA', 'VCIG', 'VEEE', 'WHLR', 'WLGS', 'WOK', 'WXM', 'XELB', 'XXII', 'YAAS', 'YIBO', 'ZUMZ', 'ZYBT', 'ZYXI']

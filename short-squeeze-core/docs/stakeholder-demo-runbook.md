@@ -1,4 +1,4 @@
-# Professor Meeting Tonight
+# Stakeholder Demo Runbook
 
 ## Launch
 
@@ -27,5 +27,5 @@ data fills frozen gaps, no forward outcome is read, and no order/account request
 
 **Phase 3E was not started in Batch 14 and remains unstarted.**
 
-After the meeting, do exactly one next task: obtain the professor's written decision on
-whether to authorize a separately scoped Phase 3E design batch.
+After the meeting, do exactly one next task: obtain written authorization for a
+separately scoped Phase 3E design batch.

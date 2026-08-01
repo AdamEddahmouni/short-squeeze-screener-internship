@@ -47,3 +47,7 @@ Open `http://127.0.0.1:8787/`.
 | `archived-project-code/` | Historical application snapshots (not the live entrypoint) |
 
 Prefer `short-squeeze-core` for all new work.
+
+## License
+
+Licensed under the [MIT License](LICENSE).

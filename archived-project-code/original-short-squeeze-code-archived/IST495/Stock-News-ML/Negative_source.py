@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import csv
 import os
 
-FINVIZ_API_KEY = "REDACTED_FINVIZ_KEY_A"  # Replace with your actual API key
+FINVIZ_API_KEY = os.environ.get("FINVIZ_API_KEY", "YOUR_API_TOKEN_HERE")
 
 NEGATIVE_KEYWORDS = [
     "misses", "falls", "drops", "plunges", "declines", "loss", "downgraded", "warning",
@@ -101,7 +101,7 @@ def fetch_potential_negative_headlines(ticker, max_headlines=15):
 
 # ✅ Use Finviz Elite API to get all recent news, filtered for negatives
 def fetch_all_finviz_api_news():
-    url = "https://elite.finviz.com/news_export.ashx?v=3&auth=REDACTED_FINVIZ_KEY_A"  # Replace `*****` with your actual token
+    url = f"https://elite.finviz.com/news_export.ashx?v=3&auth={FINVIZ_API_KEY}"
     headers = {
         "Authorization": f"Bearer {FINVIZ_API_KEY}",
         "User-Agent": "Mozilla/5.0"
