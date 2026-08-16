@@ -244,7 +244,9 @@ def _build_bar(
     labeled = _event_timestamp(row, manifest, profile)
     duration = _interval_duration(manifest.bar_interval)
     assert duration is not None  # session-based intervals are blocked at bundle level
-    if manifest.timestamp_semantics is TimestampSemantics.START:
+    if manifest.timestamp_semantics is TimestampSemantics.START or (
+        manifest.timestamp_semantics is TimestampSemantics.UNKNOWN and _is_ibkr_provider(manifest)
+    ):
         start, end = labeled, labeled + duration
     else:
         start, end = labeled - duration, labeled

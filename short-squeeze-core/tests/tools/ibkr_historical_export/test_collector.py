@@ -146,8 +146,8 @@ def test_full_run_writes_summary_and_statuses(tmp_path):
     reqs = {r["request_name"]: r for r in xncr["requests"]}
     assert reqs[DETECTION_CONTEXT]["historical_status"] == "HISTORICAL_REQUEST_SUCCESS"
     assert reqs[DETECTION_CONTEXT]["bar_count"] == 2
-    assert reqs[DETECTION_CONTEXT]["preflight_status"] == "PREFLIGHT_REJECTED"
-    assert "MISSING_ADJUSTMENT_SEMANTICS" in reqs[DETECTION_CONTEXT]["preflight_reason_codes"]
+    assert reqs[DETECTION_CONTEXT]["preflight_status"] == "PREFLIGHT_READY"
+    assert "MISSING_ADJUSTMENT_SEMANTICS" not in reqs[DETECTION_CONTEXT]["preflight_reason_codes"]
     # Weekend forward window: empty and preflight not applicable.
     assert reqs[FROZEN_FORWARD]["historical_status"] == "SUCCESS_EMPTY"
     assert reqs[FROZEN_FORWARD]["preflight_status"] == "PREFLIGHT_NOT_APPLICABLE_EMPTY"

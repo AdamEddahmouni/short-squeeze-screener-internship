@@ -2,12 +2,11 @@
 existing offline preflight -- honestly.
 
 This module imports the deterministic runtime's intake/preflight primitives but never
-the live IBKR client. It declares provider semantics truthfully: IBKR historical
-TRADES adjustment and volume-unit semantics are not verifiable from the allowed
-(non-account) API surface, so they are declared ``UNKNOWN``. The Batch 03 normalizer
-treats ``UNKNOWN`` adjustment as a fatal ``MISSING_ADJUSTMENT_SEMANTICS`` code, so the
-honest, expected result is ``PREFLIGHT_REJECTED``. Batch 03 semantics are never changed
-to force acceptance, and no case association is performed.
+the live IBKR client. Semantics follow ADR 0066: official IBKR TRADES evidence resolves
+to ``SPLIT_ADJUSTED`` price and ``ADJUSTMENTS_APPLIED`` corporate-action handling, while
+volume adjustment and intraday bar start/end remain honestly ``UNKNOWN``. The intake
+contract accepts those provider-scoped ``UNKNOWN`` declarations for Interactive Brokers
+sources. No case association is performed here.
 """
 
 from __future__ import annotations
@@ -15,6 +14,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from squeeze_core.acquisition.historical_data_submission_kit.preflight import (
+    PreflightReport,
+    PreflightStatus as _RuntimePreflightStatus,
+    run_preflight_from_bytes,
+)
+from squeeze_core.acquisition.ibkr_semantics import (
+    OFFICIAL_TRADES_EVIDENCE,
+    ResolvedIbkrSemantics,
+    resolve_ibkr_semantics,
+)
 from squeeze_core.acquisition.local_bar_intake.models import (
     ColumnMappingProfile,
     IntakeManifest,
@@ -22,19 +31,9 @@ from squeeze_core.acquisition.local_bar_intake.models import (
 from squeeze_core.acquisition.local_bar_intake.semantics import (
     ArtifactFormat,
     BarInterval,
-    BarSession,
-    CorporateActionHandling,
     DataTimeBasis,
     IntendedUse,
-    PriceAdjustmentSemantics,
-    TimestampSemantics,
     ValueAuthenticity,
-    VolumeAdjustmentSemantics,
-)
-from squeeze_core.acquisition.historical_data_submission_kit.preflight import (
-    PreflightReport,
-    PreflightStatus as _RuntimePreflightStatus,
-    run_preflight_from_bytes,
 )
 
 from .statuses import PreflightStatus
@@ -43,9 +42,11 @@ PROVIDER_NAME = "Interactive Brokers"
 PROVIDER_PRODUCT = "TWS API Historical Bars via IB Gateway"
 ENTITLEMENT_ASSERTION = (
     "Operator asserts a local IB Gateway session entitled to historical TRADES bars; "
-    "adjustment and volume-unit semantics are not verifiable from the non-account API "
-    "surface and are declared UNKNOWN."
+    "price adjustment is documented as split-adjusted; volume adjustment and intraday "
+    "bar start/end remain honestly UNKNOWN per ADR 0066."
 )
+
+_RESOLVED_IBKR_SEMANTICS = resolve_ibkr_semantics(OFFICIAL_TRADES_EVIDENCE)
 
 _STATUS_MAP = {
     _RuntimePreflightStatus.READY_FOR_FUTURE_ASSOCIATION: PreflightStatus.PREFLIGHT_READY,
@@ -92,8 +93,10 @@ def build_manifest(
     expected_start_time: datetime,
     expected_end_time: datetime,
     profile_id: str,
+    resolved: ResolvedIbkrSemantics | None = None,
 ) -> IntakeManifest:
-    """Honest IBKR intake manifest. Adjustment/volume semantics are UNKNOWN."""
+    """Honest IBKR intake manifest using Batch 06 resolved semantics (ADR 0066)."""
+    semantics = resolved or _RESOLVED_IBKR_SEMANTICS
     return IntakeManifest(
         bundle_id=bundle_id,
         provider_name=PROVIDER_NAME,
@@ -111,19 +114,22 @@ def build_manifest(
         canonical_symbol=symbol,
         market_or_venue="SMART",
         bar_interval=BarInterval.ONE_MINUTE,
-        event_timezone="UTC",
-        timestamp_semantics=TimestampSemantics.START,
-        session_coverage=BarSession.EXTENDED,
-        price_adjustment_semantics=PriceAdjustmentSemantics.UNKNOWN,
-        volume_adjustment_semantics=VolumeAdjustmentSemantics.UNKNOWN,
-        corporate_action_handling=CorporateActionHandling.UNKNOWN,
+        event_timezone=semantics.event_timezone,
+        timestamp_semantics=semantics.timestamp_semantics,
+        session_coverage=semantics.session_coverage,
+        price_adjustment_semantics=semantics.price_adjustment_semantics,
+        volume_adjustment_semantics=semantics.volume_adjustment_semantics,
+        corporate_action_handling=semantics.corporate_action_handling,
         data_time_basis=DataTimeBasis.HISTORICAL,
         value_authenticity=ValueAuthenticity.VENDOR_SUPPLIED,
         intended_use=IntendedUse.HISTORICAL_EVIDENCE,
         expected_start_time=expected_start_time,
         expected_end_time=expected_end_time,
         column_mapping_profile_id=profile_id,
-        notes="IBKR TWS historical TRADES bars, useRTH=0; UNKNOWN adjustment semantics.",
+        notes=(
+            "IBKR TWS historical TRADES bars, useRTH=0; ADR 0066 accepts honest UNKNOWN "
+            "volume adjustment and timestamp semantics for Interactive Brokers sources."
+        ),
     )
 
 
@@ -168,4 +174,5 @@ __all__ = [
     "build_profile",
     "build_manifest",
     "run_bundle_preflight",
+    "run_preflight_from_bytes",
 ]
