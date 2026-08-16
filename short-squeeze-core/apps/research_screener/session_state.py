@@ -466,7 +466,7 @@ def short_pressure_fields(
             freshness=_freshness_from_timestamp(received), data_mode=DataMode.HISTORICAL,
             evidence_id=f"borrow_fee:{state.symbol}:{received}",
             readiness="RESEARCH_ADMISSIBLE_PROVIDER_SNAPSHOT",
-            provider_field="Borrow Fee (Tick 258)",
+            provider_field="Borrow Fee (IBKR)",
             selection_reason="SECONDARY_IBKR_REQUEST",
             research_admissibility="RESEARCH_ADMISSIBLE",
         )

@@ -849,7 +849,7 @@ class ScreenerHandler(BaseHTTPRequestHandler):
         else:
             finnhub_news.set_not_configured(
                 Capability.NEWS,
-                detail="Finnhub news requires FINNHUB_KEY with a plan that includes company news access.",
+                detail="Finnhub news requires FINNHUB_KEY. Company News is documented on the Free tier; a 403 is reported as account/request access denial.",
             )
         registry.register(finnhub_news)
 

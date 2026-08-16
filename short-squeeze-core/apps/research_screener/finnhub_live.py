@@ -135,8 +135,7 @@ class FinnhubClient:
 
                 if resp.status_code == 403:
                     self._last_news_error = (
-                        "Finnhub company_news requires a premium plan; "
-                        "free tier may not support this endpoint."
+                        "Finnhub account access to company news was denied for this request."
                     )
                     return []
 

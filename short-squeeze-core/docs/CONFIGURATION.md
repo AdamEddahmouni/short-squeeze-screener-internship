@@ -103,7 +103,7 @@ switch: `COLLECTORS_ENABLED`. For CI or locked-down demos, set
 | Float Shares | `FINVIZ_API_KEY` |
 | Relative Volume | `FINVIZ_API_KEY` |
 | Borrow Avail % Float | `IBKR_ENABLED` + `FINVIZ_API_KEY` (both legs) |
-| Cost to Borrow | `IBKR_ENABLED` + fundamental-ticks entitlement |
+| Cost to Borrow | Not currently implemented; requires a verified IBKR API mechanism and applicable entitlement |
 | Bar Acceleration | `IBKR_ENABLED` |
 | % Change | `IBKR_ENABLED` |
 | Catalyst Age | News provider and/or SEC (`filed_at`) |
@@ -113,10 +113,10 @@ switch: `COLLECTORS_ENABLED`. For CI or locked-down demos, set
 
 ## Borrow fee
 
-Borrow fee uses a secondary IBKR market-data request (generic tick 258) after the
-base quote completes. Without fundamental-ticks entitlement, borrow fee reports
-`NOT_CONFIGURED` and Pressure remains constrained to the Finviz-supported floor
-(65/100 weight). Changes require process restart.
+Borrow-fee retrieval is not currently implemented. It remains unavailable until
+the deployment verifies a supported IBKR API mechanism and its applicable
+market-data entitlement. Until then, Pressure remains constrained to the
+Finviz-supported floor (65/100 weight). Changes require process restart.
 
 ## Doctor
 

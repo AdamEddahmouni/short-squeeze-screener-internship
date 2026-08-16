@@ -8,11 +8,20 @@ Operational recipes: [how-to-guides.md](how-to-guides.md#operate-collectors). Va
 
 | Tier | Sources | Default |
 |------|---------|---------|
-| A | FINRA published SI, FINRA daily short volume, RSS/Atom news, SEC RSS, API keys (Polygon, Alpha Vantage) | On when `*_ENABLED` and credentials exist |
-| B | yfinance (library only, no HTML scrape) | `YFINANCE_COLLECTOR_ENABLED=false` |
+| A | FINRA published SI, FINRA daily short volume, RSS/Atom news, SEC RSS, configured Polygon or Alpha Vantage APIs | On when `*_ENABLED` and credentials exist |
+| B | yfinance (library only, no HTML scrape), Reddit, Stocktwits | Off; requires the source's current terms and credentials where applicable |
 | C | Yahoo/Finviz HTML scrape, Stooq, login automation | **Not implemented** |
 
 Social (Reddit, Stocktwits) uses **official OAuth/API tokens only**.
+
+## Provider terms and plan checks
+
+- [FINRA published short interest](https://www.finra.org/finra-data/browse-catalog/equity-short-interest) is a twice-monthly, point-in-time report; it is not daily short-sale volume. FINRA publishes it on the seventh business day after the reporting settlement date. [Daily short-sale-volume files](https://www.finra.org/finra-data/daily-short-sale-volume-transaction-data) describe reported short-sale volume, not open short interest, and may be revised.
+- [yfinance](https://ranaroussi.github.io/yfinance/) is not affiliated with Yahoo and states that Yahoo Finance data is intended for personal use only. Keep it display-only and do not enable it for a commercial or redistributed deployment without an independently licensed source.
+- [Polygon stock plans](https://polygon.io/stocks) currently offer a free Basic tier (5 calls/minute, end-of-day data) and paid tiers for delayed or real-time data. This collector calls the previous-day aggregate endpoint, so it must not be presented as a real-time quote feed.
+- [Alpha Vantage](https://www.alphavantage.co/premium/) allows most endpoints on the free key up to 25 requests/day. Real-time and 15-minute-delayed US market data require the applicable premium entitlement.
+- [Reddit Data API terms](https://redditinc.com/policies/data-api-terms) require authorized access information such as OAuth credentials; commercial use, research above rate limits, and uses not expressly permitted require a separate agreement. Do not use Reddit content to train a model without rightsholder permission.
+- Stocktwits remains disabled by default. Enable it only after verifying the account's current official API access, token scope, rate limits, and redistribution terms; this repository makes no free-plan or commercial-use claim for it.
 
 Collector-sourced cells are tagged `research_admissibility=RESEARCH_INADMISSIBLE` except FINRA published short interest normalized through `squeeze_core.adapters.finra` (`RESEARCH_ADMISSIBLE`).
 

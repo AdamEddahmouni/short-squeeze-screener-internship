@@ -57,9 +57,7 @@ _SIZE_TICKS: dict[int, str] = {
 _GENERIC_TICKS: dict[int, str] = {
     46: "shortable_indicator",
     49: "halted",
-    258: "borrow_fee_rate",
 }
-BORROW_FEE_GENERIC_TICK_LIST = "258"
 _STRING_TICKS: dict[int, str] = {
     45: "last_timestamp_epoch", 88: "last_timestamp_epoch",
     47: "fundamental_ratios", 48: "fundamentals",
@@ -361,7 +359,6 @@ def build_session_class():
 
 __all__ = [
     "APP_CLIENT_ID_SEQUENCE",
-    "BORROW_FEE_GENERIC_TICK_LIST",
     "GENERIC_TICK_LIST",
     "MARKET_DATA_TYPE_LABELS",
     "QuoteTicks",

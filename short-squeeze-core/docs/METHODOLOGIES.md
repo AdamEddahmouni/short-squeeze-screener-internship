@@ -25,7 +25,7 @@ admissible evidence and preserves unknown or conflicted results.
 |---|---|---|---|
 | Published SI % | 30 | linear(5, 30) | Finviz Elite Short Float % |
 | Days to Cover | 25 | linear(1, 7) | Finviz Elite Short Ratio |
-| Cost to Borrow | 20 | linear(2, 50) | IBKR secondary tick 258 (entitlement required) |
+| Cost to Borrow | 20 | linear(2, 50) | IBKR borrow fee (not implemented; requires verified API mechanism and entitlement) |
 | Borrow Avail % Float | 15 | inverse_linear(0.1, 10) | IBKR shortable shares / Finviz float |
 | Float Shares | 10 | inverse_linear(10M, 50M) | Finviz Elite Shares Float |
 

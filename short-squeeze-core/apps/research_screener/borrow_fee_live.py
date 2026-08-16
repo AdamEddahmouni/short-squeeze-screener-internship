@@ -1,8 +1,8 @@
 """Borrow fee live provider.
 
 Attempts to retrieve borrow fee from the IBKR session via a secondary
-market-data request (generic tick 258) that fires after the base quote
-has completed, so it cannot block primary price data.
+market-data request after the base quote has completed, so it cannot block
+primary price data. The request mechanism is not implemented yet.
 """
 
 from __future__ import annotations
@@ -13,10 +13,9 @@ from typing import Any
 class BorrowFeeProvider:
     """Live borrow-fee data source.
 
-    Uses a secondary IBKR market-data request specifically for generic
-    tick 258 (borrow fee / shortable fee rate). This is a separate
-    request from the base quote so that permission-scoped fundamentals
-    failures cannot prevent price/volume ticks from arriving.
+    A future implementation must verify the IBKR API mechanism and applicable
+    market-data entitlement before returning a fee. It remains separate from
+    the base quote so that an unavailable fee cannot block price or volume.
     """
 
     def __init__(self) -> None:
@@ -30,9 +29,8 @@ class BorrowFeeProvider:
             "configured": self.configured,
             "cached_symbols": len(self._cache),
             "detail": (
-                "Uses generic tick 258 on a separate market-data request. "
-                "Requires IBKR market-data entitlement that includes "
-                "fundamental ratios."
+                "Borrow-fee retrieval is not implemented. It requires a verified "
+                "IBKR API mechanism and the applicable market-data entitlement."
             ),
         }
 
@@ -41,11 +39,11 @@ class BorrowFeeProvider:
         return self._cache.get(symbol)
 
     def _request_borrow_fee(self, symbol: str) -> float | None:
-        """Secondary market-data request for generic tick 258.
+        """Placeholder for a verified secondary market-data request.
 
-        To be implemented when IBKR session with borrow-fee entitlement
-        is available. The separate request ensures base quote completion
-        is never blocked by a fundamentals rejection.
+        To be implemented only after the API mechanism and entitlement are
+        confirmed. The separate request ensures base quote completion is never
+        blocked by an unavailable borrow-fee field.
         """
         return None
 
@@ -66,9 +64,8 @@ class NullBorrowFeeProvider:
             "provider": "IBKR Borrow Fee (secondary)",
             "configured": False,
             "detail": (
-                "Borrow fee requires IBKR market-data entitlement that "
-                "includes fundamental ratios (generic tick 258). "
-                "Not available under the current connection."
+                "Borrow-fee retrieval is unavailable until a verified IBKR API "
+                "mechanism and applicable market-data entitlement are configured."
             ),
         }
 

@@ -10,6 +10,7 @@ from apps.research_screener.news_live import (
     NewsOrchestrator,
     NewsProvider,
 )
+from apps.research_screener.finnhub_live import FinnhubClient
 
 
 class _StubNewsProvider(NewsProvider):
@@ -85,6 +86,42 @@ def test_finnhub_company_news_includes_from_and_to(monkeypatch: pytest.MonkeyPat
     from_date = datetime.fromisoformat(str(params["from"]))
     to_date = datetime.fromisoformat(str(params["to"]))
     assert (to_date - from_date).days == 7
+
+
+def test_finnhub_403_reports_account_access_without_plan_claim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 403
+
+    monkeypatch.setattr(
+        "apps.research_screener.news_live.requests.get",
+        lambda *_args, **_kwargs: FakeResponse(),
+    )
+    provider = FinnhubNewsProvider("test-token")
+
+    assert provider.fetch_news("AAA", force=True) == []
+    error = str(provider.status()["last_error"]).lower()
+    assert "account access" in error
+    assert "premium" not in error
+
+
+def test_finnhub_client_403_reports_account_access_without_plan_claim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 403
+
+    monkeypatch.setattr(
+        "apps.research_screener.finnhub_live.requests.get",
+        lambda *_args, **_kwargs: FakeResponse(),
+    )
+    client = FinnhubClient("test-token")
+
+    assert client.fetch_company_news("AAA") == []
+    error = str(client.status()["news_last_error"]).lower()
+    assert "account access" in error
+    assert "premium" not in error
 
 
 def test_finviz_news_timestamp_normalization() -> None:

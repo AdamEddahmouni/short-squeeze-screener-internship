@@ -317,7 +317,9 @@ class FinnhubNewsProvider(NewsProvider):
                     self._last_error = "Finnhub news 429 rate-limited"
                     return []
                 if resp.status_code == 403:
-                    self._last_error = "Finnhub company_news requires premium plan"
+                    self._last_error = (
+                        "Finnhub account access to company news was denied for this request."
+                    )
                     return []
                 resp.raise_for_status()
                 data = resp.json()

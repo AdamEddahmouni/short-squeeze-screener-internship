@@ -19,7 +19,6 @@ from typing import Any
 from . import discovery as discovery_module
 from .ibkr_session import (
     APP_CLIENT_ID_SEQUENCE,
-    BORROW_FEE_GENERIC_TICK_LIST,
     QuoteTicks,
     ScannerRow,
     build_session_class,
@@ -523,19 +522,6 @@ class LiveProvider:
                             else ProviderCallState.FAILED,
                         )
                     self._record_borrow_status(quote)
-                    try:
-                        fee_quote = session.fetch_quote(
-                            self._next_req_id(),
-                            contract,
-                            symbol,
-                            QUOTE_TIMEOUT_S,
-                            generic_ticks=BORROW_FEE_GENERIC_TICK_LIST,
-                        )
-                        fee_rate = fee_quote.generics.get("borrow_fee_rate")
-                        if fee_rate is not None and fee_rate >= 0:
-                            collection.borrow_fee_pct = float(fee_rate)
-                    except Exception:  # noqa: BLE001 - borrow fee is optional
-                        pass
                 except Exception as exc:  # noqa: BLE001
                     self.quote_status.failed(f"{type(exc).__name__}: {exc}")
 
