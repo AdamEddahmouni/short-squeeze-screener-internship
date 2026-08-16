@@ -12,6 +12,7 @@ from tools.ibkr_historical_export.statuses import (
 EXPECTED_ORDER = (
     "XNCR", "PESI", "SLS", "ZNTL", "GPRE", "SSPC", "LBGJ",
     "TRVI", "LMNX", "MGNX", "BHVN", "OBE", "AVTX",
+    "KLRS", "SG",
 )
 
 
@@ -22,7 +23,7 @@ def test_frozen_source_order_exact():
 def test_case_ids_exact():
     for symbol in EXPECTED_ORDER:
         assert cohort.CASE_IDS[symbol] == f"BATCH01_{symbol}_20260718"
-    assert len(cohort.CASE_IDS) == 13
+    assert len(cohort.CASE_IDS) == 15
 
 
 def test_frozen_boundary_values():

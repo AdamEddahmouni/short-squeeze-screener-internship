@@ -55,20 +55,43 @@ class FakeSession:
         self._connected = False
         self._port: int | None = None
         self._client_id: int | None = None
+        self._host: str | None = None
+        self._connection_closed = False
         self.diagnostics: list[ApiDiagnostic] = []
         self.contract_calls: list[str] = []
         self.historical_calls: list[tuple[str, str]] = []
 
     # connection surface
     def connect(self, host, port, client_id):
-        self._port, self._client_id = port, client_id
+        self._host, self._port, self._client_id = host, port, client_id
         self._connected = port in self.connect_ports
+        self._connection_closed = False
+
+    def record_endpoint(self, host, port, client_id):
+        self._host, self._port, self._client_id = host, port, client_id
 
     def start_run_loop(self):
         pass
 
     def isConnected(self):  # noqa: N802
-        return self._connected
+        return self._connected and not self._connection_closed
+
+    def is_live(self):
+        return self.isConnected()
+
+    def ping(self, timeout):
+        return self.isConnected()
+
+    def connection_closed(self):
+        self._connection_closed = True
+        self._connected = False
+
+    def reconnect(self, timeout):
+        if self._port is None or self._client_id is None:
+            return False
+        self._connected = self._port in self.connect_ports
+        self._connection_closed = False
+        return self._connected and self._port in self.ready_ports
 
     def wait_ready(self, timeout):
         if self._client_id in self.occupied_client_ids:

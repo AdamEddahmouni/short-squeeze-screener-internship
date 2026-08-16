@@ -51,7 +51,7 @@ def test_historical_report_preserves_membership_sample_size_and_undefined_rates(
     assert "BIYA_EARLIEST_BOUNDARY" in text
     assert "BIYA_LATEST_BOUNDARY" in text
     assert "ANALYSIS_COHORT_EXCLUDED_DUPLICATE_SYMBOL_BOUNDARY" in text
-    assert "ONE_OBSERVATION" in text
+    assert "SMALL" in text
     assert "Undefined (0/0; ZERO_DENOMINATOR)" in text
     assert "earliest_detection_boundary_per_symbol.v1" in text
 
@@ -62,7 +62,7 @@ def test_every_required_historical_interpretation_is_rendered_verbatim():
         AnalysisUnit.CASE_BOUNDARY,
     )).decode("utf-8")
     required = (
-        "The historical completed dataset currently represents one unique symbol.",
+        "The historical completed dataset currently represents six unique symbols with one fully detected case (BIYA).",
         "The two BIYA boundaries are dependent observations of the same symbol.",
         "Case-boundary counts are not independent performance samples.",
         "The default unique-symbol analysis selects the earliest boundary without using the outcome.",

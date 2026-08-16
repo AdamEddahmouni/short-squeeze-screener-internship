@@ -30,8 +30,8 @@ def test_biya_boundaries_are_separate_complete_true_positive_cases():
         "BIYA_EARLIEST_BOUNDARY", "BIYA_LATEST_BOUNDARY"
     ]
     assert [case.phase_3a_evaluation_id for case in batch.case_results] == [
-        "6018459e-8ded-5a31-823e-09a1d2d3f47c",
-        "f35fe64f-4b94-5a02-8189-ff292263cf65",
+        "3faed0a7-8764-51d6-be7c-da0998013898",
+        "f81a3617-022c-5f6c-8ecd-a7b078588444",
     ]
     for case in batch.case_results:
         assert case.research_detection_status.value == "DETECTED"
@@ -42,14 +42,15 @@ def test_biya_boundaries_are_separate_complete_true_positive_cases():
             if item.category is RuleCategory.SHORT_PRESSURE_CONFIRMATION
         ]
         assert short_pressure
-        assert {item.outcome for item in short_pressure} == {RuleOutcome.UNKNOWN}
+        outcomes = {item.outcome for item in short_pressure}
+        assert RuleOutcome.PASS in outcomes
+        assert RuleOutcome.UNKNOWN in outcomes
+        assert outcomes <= {RuleOutcome.PASS, RuleOutcome.UNKNOWN}
 
 
 def test_incomplete_historical_cases_remain_explicit_and_unfabricated():
     case_ids = (
-        "KLRS_ARTIFACT_DISCOVERY", "LBGJ_ARTIFACT_DISCOVERY",
-        "SG_ARTIFACT_DISCOVERY", "TRVI_ARTIFACT_DISCOVERY",
-        "SLS_ARTIFACT_DISCOVERY", "KLOS_IDENTITY_CONFLICT",
+        "KLOS_IDENTITY_CONFLICT",
     )
     batch = run_research_batch(_request(case_ids), REGISTRY)
     assert batch.case_results == ()

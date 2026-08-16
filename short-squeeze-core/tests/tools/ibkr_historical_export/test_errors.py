@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from tools.ibkr_historical_export.errors import (
     classify_historical_error,
+    is_disconnect,
     is_no_data_empty,
     is_request_ending,
     is_transient,
@@ -48,3 +49,8 @@ def test_unknown_code_is_generic_error():
 def test_transient_codes():
     assert is_transient(1100) is True
     assert is_transient(354) is False
+
+
+def test_disconnect_codes():
+    assert is_disconnect(1100) is True
+    assert is_disconnect(1102) is False

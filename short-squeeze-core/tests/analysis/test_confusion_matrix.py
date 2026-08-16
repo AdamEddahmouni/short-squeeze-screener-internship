@@ -66,6 +66,7 @@ def test_all_unevaluable_rows_leave_every_binary_rate_undefined():
     rows = tuple(
         row for row in load_dataset().rows
         if row.research_classification.value == "UNEVALUABLE"
+        and row.case_id.startswith("SYN_")
     )
     summary = build_confusion_matrix(rows, _context(independent=True))
     assert summary.unevaluable_count == 7

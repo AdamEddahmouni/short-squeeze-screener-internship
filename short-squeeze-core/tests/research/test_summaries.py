@@ -21,9 +21,10 @@ def test_rule_frequencies_preserve_counts_denominators_and_exact_rates(tmp_path)
     assert price.evaluable_case_count == 1
     assert price.pass_rate_among_evaluable == Decimal("1")
     short_interest = by_rule["PUBLISHED_SHORT_INTEREST_AVAILABLE"]
-    assert short_interest.unknown_count == 1
-    assert short_interest.evaluable_case_count == 0
-    assert short_interest.pass_rate_among_evaluable is None
+    assert short_interest.pass_count == 1
+    assert short_interest.unknown_count == 0
+    assert short_interest.evaluable_case_count == 1
+    assert short_interest.pass_rate_among_evaluable == Decimal("1")
 
 
 def test_outcome_category_and_missingness_summaries_are_descriptive(tmp_path):
@@ -37,7 +38,7 @@ def test_outcome_category_and_missingness_summaries_are_descriptive(tmp_path):
         "CATALYST_EVIDENCE", "EVIDENCE_VALIDITY",
     }
     by_domain = dict(missingness.missing_domain_counts)
-    assert by_domain["PUBLISHED_SHORT_INTEREST"] >= 1
+    assert by_domain.get("PUBLISHED_SHORT_INTEREST", 0) == 0
     assert by_domain["BORROW_FEE"] >= 1
     assert by_domain["BORROW_AVAILABILITY"] >= 1
     assert missingness.deterministic_id == build_missingness_summary(batch).deterministic_id

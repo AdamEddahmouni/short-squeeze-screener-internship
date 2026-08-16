@@ -32,6 +32,8 @@ FROZEN_COHORT: tuple[tuple[str, str], ...] = (
     ("BHVN", "BATCH01_BHVN_20260718"),
     ("OBE", "BATCH01_OBE_20260718"),
     ("AVTX", "BATCH01_AVTX_20260718"),
+    ("KLRS", "BATCH01_KLRS_20260718"),
+    ("SG", "BATCH01_SG_20260718"),
 )
 
 FROZEN_BOUNDARY = datetime(2026, 7, 18, 13, 37, 55, 17661, tzinfo=UTC)

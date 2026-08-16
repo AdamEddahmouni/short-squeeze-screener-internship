@@ -1,4 +1,4 @@
-from squeeze_core.research.models import CandidateCaseRegistry
+from squeeze_core.research.models import CandidateCaseRegistry, CandidateCaseStatus
 
 from .identifiers import deterministic_acquisition_id
 from .models import CuratedCaseBundle, CurationStatus
@@ -31,6 +31,8 @@ def migrate_phase3b_registry(
             status = CurationStatus.PUBLISHED
         elif entry.case_id == "KLOS_IDENTITY_CONFLICT":
             status = CurationStatus.BLOCKED
+        elif entry.case_status is CandidateCaseStatus.COMPLETE:
+            status = CurationStatus.PUBLISHED
         else:
             status = CurationStatus.PARTIAL
         bundles.append(CuratedCaseBundle(

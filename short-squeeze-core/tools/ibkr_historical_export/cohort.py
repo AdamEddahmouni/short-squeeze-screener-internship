@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 FROZEN_SYMBOLS: tuple[str, ...] = (
     "XNCR", "PESI", "SLS", "ZNTL", "GPRE", "SSPC", "LBGJ",
     "TRVI", "LMNX", "MGNX", "BHVN", "OBE", "AVTX",
+    "KLRS", "SG",
 )
 
 # Case IDs are source organization only; no association is created from them.

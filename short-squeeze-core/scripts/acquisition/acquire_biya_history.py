@@ -90,6 +90,36 @@ def _inspect_payload(
         ]
         return len(matching), min(moments, default=None), max(moments, default=None)
 
+    if data_type is AcquisitionDataType.PUBLISHED_SHORT_INTEREST:
+        import csv
+        import io
+
+        lines = payload.decode("utf-8-sig").splitlines()
+        if not lines:
+            return 0, None, None
+        delimiter = "|" if "|" in lines[0] else ","
+        reader = csv.DictReader(io.StringIO("\n".join(lines)), delimiter=delimiter)
+        settlements: list[datetime] = []
+        for row in reader:
+            row_symbol = (
+                row.get("Symbol")
+                or row.get("symbol")
+                or row.get("SYMBOL")
+                or ""
+            ).strip().upper()
+            if row_symbol != symbol:
+                continue
+            settlement = (
+                row.get("Settlement Date")
+                or row.get("settlement_date")
+                or row.get("SettlementDate")
+                or ""
+            ).strip()
+            if not settlement:
+                continue
+            settlements.append(datetime.strptime(settlement, "%Y-%m-%d").replace(tzinfo=UTC))
+        return len(settlements), min(settlements, default=None), max(settlements, default=None)
+
     document = json.loads(payload)
     timestamps: list[datetime] = []
     count = 0

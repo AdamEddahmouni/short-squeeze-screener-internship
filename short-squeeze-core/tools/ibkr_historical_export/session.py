@@ -37,7 +37,7 @@ def _decimalMaxString(val):
         return str(val)
 
 from .cohort import CONTRACT_SPEC, HistoricalRequestSpec
-from .errors import is_request_ending
+from .errors import is_disconnect, is_request_ending
 from .models import ApiDiagnostic, BarRecord, ContractCandidate
 
 
@@ -105,6 +105,65 @@ class IbkrSession(EWrapper, EClient):
         self._current_time: int | None = None
         self._current_time_evt = threading.Event()
 
+        self._endpoint: tuple[str, int, int] | None = None
+        self._connection_closed = threading.Event()
+
+    def record_endpoint(self, host: str, port: int, client_id: int) -> None:
+        """Remember the socket that succeeded so reconnect can reuse it."""
+        self._endpoint = (host, port, client_id)
+        self._connection_closed.clear()
+
+    def connectionClosed(self) -> None:  # noqa: N802 (ibapi naming)
+        self._ready.clear()
+        self._connection_closed.set()
+
+    def is_live(self) -> bool:
+        """True when the API socket is connected and has not reported closure."""
+        try:
+            return bool(self.isConnected()) and not self._connection_closed.is_set()
+        except Exception:  # noqa: BLE001
+            return False
+
+    def ping(self, timeout: float) -> bool:
+        """Lightweight liveness check via ``reqCurrentTime``."""
+        if not self.is_live():
+            return False
+        return self.fetch_current_time(timeout) is not None
+
+    def _reset_request_state(self) -> None:
+        with self._lock:
+            self._contract_candidates.clear()
+            self._contract_done.clear()
+            self._bars.clear()
+            self._hist_done.clear()
+            self._req_context.clear()
+            self._errors.clear()
+            self._diagnostics.clear()
+        self._current_time = None
+        self._current_time_evt.clear()
+        self._ready.clear()
+        self._connection_closed.clear()
+
+    def reconnect(self, timeout: float) -> bool:
+        """Reconnect using the last recorded endpoint after the socket drops."""
+        if self._endpoint is None:
+            return False
+        host, port, client_id = self._endpoint
+        try:
+            if self.isConnected():
+                self.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+            self._thread = None
+        self._reset_request_state()
+        self.connect(host, port, client_id)
+        self.start_run_loop()
+        if not self.wait_ready(timeout):
+            return False
+        return self.is_live()
+
     # -- connection callbacks --------------------------------------------------
     def connectAck(self) -> None:  # noqa: N802 (ibapi naming)
         pass
@@ -120,6 +179,15 @@ class IbkrSession(EWrapper, EClient):
     def error(  # noqa: N802
         self, reqId, errorTime=0, errorCode=0, errorString="", advancedOrderRejectJson="",
     ) -> None:
+        # New API: (reqId, errorTime, errorCode, errorString, ...)
+        # Old API: (reqId, errorCode, errorString, advancedOrderRejectJson)
+        if isinstance(errorTime, int) and isinstance(errorCode, str):
+            errorTime, errorCode, errorString, advancedOrderRejectJson = (
+                0,
+                errorTime,
+                errorCode,
+                errorString,
+            )
         try:
             code = int(errorCode)
         except (TypeError, ValueError):
@@ -135,6 +203,9 @@ class IbkrSession(EWrapper, EClient):
             self._errors.setdefault(diag.request_id, []).append(
                 (code, str(errorString), diag.error_time)
             )
+        if is_disconnect(code):
+            self._ready.clear()
+            self._connection_closed.set()
         if is_request_ending(code):
             evt = self._contract_done.get(diag.request_id)
             if evt is not None:
@@ -164,7 +235,7 @@ class IbkrSession(EWrapper, EClient):
         except (TypeError, ValueError):
             epoch = 0
         volume = _decimalMaxString(bar.volume) or None
-        wap = _decimalMaxString(bar.wap) or None
+        wap = _decimalMaxString(getattr(bar, "wap", None)) or None
         record = BarRecord(
             request_id=int(reqId),
             request_name=request_name,
@@ -255,8 +326,10 @@ class IbkrSession(EWrapper, EClient):
             if self.isConnected():
                 self.disconnect()
         finally:
+            self._connection_closed.set()
             if self._thread is not None:
                 self._thread.join(timeout=5)
+                self._thread = None
 
 
 __all__ = [

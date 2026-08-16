@@ -12,6 +12,7 @@ import socket
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from . import policy
 from .cohort import (
@@ -103,6 +104,7 @@ def probe_and_connect(
                 "error": error_note,
             })
             if ready and session.isConnected():
+                session.record_endpoint(policy.HOST, port, client_id)
                 server_version = session.get_server_version()
                 current_time = session.fetch_current_time(timeout)
                 return session, ConnectionResult(
@@ -165,6 +167,7 @@ def connect_configured(
             "error": error_note,
         })
         if ready and session.isConnected():
+            session.record_endpoint(host, port, client_id)
             server_version = session.get_server_version()
             current_time = session.fetch_current_time(timeout)
             return session, ConnectionResult(
@@ -179,6 +182,171 @@ def connect_configured(
         if not connected:
             break
     return None, ConnectionResult(status=CollectionStatus.CONNECTION_FAILED, attempts=attempts)
+
+
+def _session_is_live(
+    session,
+    timeout: float = policy.CONNECTION_PING_TIMEOUT_S,
+    *,
+    verify_with_ping: bool = False,
+) -> bool:
+    """True when the session reports an open API socket.
+
+    ``verify_with_ping`` optionally issues ``reqCurrentTime``, but IBKR often answers
+    that slowly even on healthy sockets, so the default is connection-state only.
+    """
+    try:
+        if hasattr(session, "is_live"):
+            if not session.is_live():
+                return False
+        elif not session.isConnected():
+            return False
+        if verify_with_ping and hasattr(session, "ping"):
+            return bool(session.ping(timeout))
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def reconnect_using_result(
+    session_factory,
+    connection: ConnectionResult,
+    *,
+    host: str = policy.HOST,
+    timeout: float = policy.CONNECTION_TIMEOUT_S,
+    precheck=_socket_open,
+) -> tuple[Any, ConnectionResult]:
+    """Reconnect on a prior successful port/client_id, then fall back to full probe."""
+    attempts: list[dict] = list(connection.attempts)
+    port = connection.observed_port
+    client_id = connection.client_id
+    if port is not None and client_id is not None:
+        if precheck is not None and not precheck(host, port):
+            attempts.append({
+                "host": host, "port": port, "client_id": client_id,
+                "socket_connected": False, "ready": False,
+                "error": "port not accepting TCP (reconnect)",
+            })
+        else:
+            session = session_factory()
+            error_note = ""
+            try:
+                session.connect(host, port, client_id)
+                session.start_run_loop()
+                connected = session.isConnected()
+                ready = session.wait_ready(timeout) if connected else False
+            except Exception as exc:  # noqa: BLE001
+                connected = False
+                ready = False
+                error_note = f"{type(exc).__name__}: {exc}"
+                try:
+                    session.shutdown()
+                except Exception:  # noqa: BLE001
+                    pass
+            attempts.append({
+                "host": host, "port": port, "client_id": client_id,
+                "socket_connected": bool(connected), "ready": bool(ready),
+                "error": error_note or "reconnect attempt",
+            })
+            if ready and session.isConnected():
+                session.record_endpoint(host, port, client_id)
+                server_version = session.get_server_version()
+                current_time = session.fetch_current_time(timeout)
+                return session, ConnectionResult(
+                    status=CollectionStatus.CONNECTION_SUCCESS,
+                    observed_port=port,
+                    client_id=client_id,
+                    server_version=server_version,
+                    current_time_epoch=current_time,
+                    attempts=attempts,
+                )
+            session.shutdown()
+
+    session, result = probe_and_connect(session_factory, timeout, precheck=precheck)
+    if result.attempts:
+        attempts.extend(result.attempts)
+    result.attempts = attempts
+    return session, result
+
+
+@dataclass(slots=True)
+class ResilientConnection:
+    """Keeps one live IBKR session, transparently reconnecting after API drops."""
+
+    session_factory: Any
+    connection: ConnectionResult
+    host: str = policy.HOST
+    _session: Any = None
+    reconnect_events: list[dict] = field(default_factory=list)
+
+    def ensure_session(
+        self,
+        timeout: float = policy.CONNECTION_TIMEOUT_S,
+        *,
+        ping_timeout: float = policy.CONNECTION_PING_TIMEOUT_S,
+    ) -> Any:
+        if self._session is not None and _session_is_live(self._session, ping_timeout):
+            return self._session
+        return self._reconnect(timeout)
+
+    def _reconnect(self, timeout: float) -> Any:
+        if self._session is not None:
+            try:
+                if hasattr(self._session, "reconnect"):
+                    if self._session.reconnect(timeout) and _session_is_live(
+                        self._session, verify_with_ping=True,
+                    ):
+                        self.reconnect_events.append({
+                            "strategy": "in_place",
+                            "port": self.connection.observed_port,
+                            "client_id": self.connection.client_id,
+                        })
+                        return self._session
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                self._session.shutdown()
+            except Exception:  # noqa: BLE001
+                pass
+            self._session = None
+
+        last_error = ""
+        for attempt in range(policy.RECONNECT_ATTEMPTS):
+            if attempt:
+                time.sleep(policy.RECONNECT_BACKOFF_S)
+            session, result = reconnect_using_result(
+                self.session_factory,
+                self.connection,
+                host=self.host,
+                timeout=timeout,
+            )
+            if session is not None and result.status is CollectionStatus.CONNECTION_SUCCESS:
+                self._session = session
+                self.connection = result
+                self.reconnect_events.append({
+                    "strategy": "new_session",
+                    "attempt": attempt + 1,
+                    "port": result.observed_port,
+                    "client_id": result.client_id,
+                })
+                return session
+            last_error = (
+                result.attempts[-1].get("error", "reconnect failed")
+                if result.attempts
+                else "reconnect failed"
+            )
+        raise ConnectionError(
+            f"IB Gateway reconnect failed after {policy.RECONNECT_ATTEMPTS} attempt(s): "
+            f"{last_error}"
+        )
+
+    def shutdown(self) -> None:
+        if self._session is not None:
+            try:
+                self._session.shutdown()
+            except Exception:  # noqa: BLE001
+                pass
+        self._session = None
 
 
 # ------------------------------------------------------------------ qualify
@@ -277,8 +445,10 @@ def write_raw_artifacts(layout: PrivateLayout, result: HistoricalRequestResult) 
 
 __all__ = [
     "ConnectionResult",
+    "ResilientConnection",
     "connect_configured",
     "probe_and_connect",
+    "reconnect_using_result",
     "qualify_contract",
     "collect_historical",
     "write_raw_artifacts",
@@ -288,10 +458,11 @@ __all__ = [
 
 # ------------------------------------------------------------------ full run
 
-def run_collection(session, layout: PrivateLayout, connection: ConnectionResult) -> dict:
+def run_collection(resilient: ResilientConnection, layout: PrivateLayout) -> dict:
     """Qualify all symbols, collect both requests per resolved contract, persist, and
     run offline preflight. Returns the sanitized aggregate summary payload."""
     layout.ensure()
+    connection = resilient.connection
 
     # Persist connection probe (no account data).
     layout.probe_result.write_bytes(canonical_json({
@@ -312,7 +483,8 @@ def run_collection(session, layout: PrivateLayout, connection: ConnectionResult)
 
     for symbol in FROZEN_SYMBOLS:
         req_counter += 1
-        resolution = qualify_contract(session, req_counter, symbol)
+        active = resilient.ensure_session()
+        resolution = qualify_contract(active, req_counter, symbol)
         resolutions[symbol] = resolution
         # Private contract candidates (full payload) -- never committed.
         layout.contract_candidates(symbol).write_bytes(canonical_json({
@@ -341,7 +513,8 @@ def run_collection(session, layout: PrivateLayout, connection: ConnectionResult)
         con_id = resolution.resolved.con_id
         for index, spec in enumerate(REQUEST_SPECS):
             req_counter += 10
-            result = collect_historical(session, req_counter, spec, symbol, con_id)
+            active = resilient.ensure_session()
+            result = collect_historical(active, req_counter, spec, symbol, con_id)
             artifacts = write_raw_artifacts(layout, result)
             artifact_records.append(artifacts)
             request_manifest.append({
@@ -392,7 +565,7 @@ def run_collection(session, layout: PrivateLayout, connection: ConnectionResult)
             "request_id": d.request_id, "error_code": d.error_code,
             "error_message": d.error_message, "error_time": d.error_time,
         }).decode("utf-8").replace("\n", " ").strip() + "\n"
-        for d in session.all_diagnostics()
+        for d in resilient.ensure_session().all_diagnostics()
     )
     layout.api_diagnostics.write_text(diag_lines, encoding="utf-8")
 
@@ -406,10 +579,11 @@ def run_collection(session, layout: PrivateLayout, connection: ConnectionResult)
     summary = {
         "batch": "ibkr-batch-05",
         "connection": {
-            "status": connection.status.value,
-            "observed_port": connection.observed_port,
-            "client_id": connection.client_id,
-            "server_version": connection.server_version,
+            "status": resilient.connection.status.value,
+            "observed_port": resilient.connection.observed_port,
+            "client_id": resilient.connection.client_id,
+            "server_version": resilient.connection.server_version,
+            "reconnect_events": list(resilient.reconnect_events),
         },
         "generated_at": _now_iso(),
         "symbols": per_symbol_summary,

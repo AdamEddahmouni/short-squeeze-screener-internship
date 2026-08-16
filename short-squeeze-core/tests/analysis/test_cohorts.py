@@ -22,8 +22,15 @@ def test_historical_completed_cohort_excludes_every_synthetic_row():
     assert membership.included_case_ids == (
         "BIYA_EARLIEST_BOUNDARY",
         "BIYA_LATEST_BOUNDARY",
+        "KLRS_ARTIFACT_DISCOVERY",
+        "LBGJ_ARTIFACT_DISCOVERY",
+        "SG_ARTIFACT_DISCOVERY",
+        "SLS_ARTIFACT_DISCOVERY",
+        "TRVI_ARTIFACT_DISCOVERY",
     )
-    assert membership.included_symbols == ("BIYA",)
+    assert membership.included_symbols == (
+        "BIYA", "KLRS", "LBGJ", "SG", "SLS", "TRVI",
+    )
     synthetic_exclusions = tuple(
         item for item in membership.exclusions if item.case_id.startswith("SYN_")
     )
@@ -47,6 +54,11 @@ def test_synthetic_cohort_is_separate_and_never_historical():
     assert {item.case_id for item in membership.exclusions} == {
         "BIYA_EARLIEST_BOUNDARY",
         "BIYA_LATEST_BOUNDARY",
+        "KLRS_ARTIFACT_DISCOVERY",
+        "LBGJ_ARTIFACT_DISCOVERY",
+        "SG_ARTIFACT_DISCOVERY",
+        "SLS_ARTIFACT_DISCOVERY",
+        "TRVI_ARTIFACT_DISCOVERY",
     }
 
 
@@ -67,13 +79,8 @@ def test_all_registered_and_partial_blocked_cohorts_preserve_real_incomplete_cas
     assert len(all_membership.included_case_ids) == 19
     assert partial_membership.included_case_ids == (
         "KLOS_IDENTITY_CONFLICT",
-        "KLRS_ARTIFACT_DISCOVERY",
-        "LBGJ_ARTIFACT_DISCOVERY",
-        "SG_ARTIFACT_DISCOVERY",
-        "SLS_ARTIFACT_DISCOVERY",
-        "TRVI_ARTIFACT_DISCOVERY",
     )
-    assert len(partial_membership.exclusions) == 13
+    assert len(partial_membership.exclusions) == 18
 
 
 def test_registry_cohort_requires_explicit_matching_registry_source():
