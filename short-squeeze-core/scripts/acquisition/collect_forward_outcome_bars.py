@@ -295,7 +295,7 @@ def main() -> int:
     total_bars = sum(s.get("bar_count", 0) for s in per_symbol)
     print(f"  Total bars: {total_bars}")
     if all_ok:
-        print("  All 13 symbols collected successfully.")
+        print(f"  All {len(FROZEN_SYMBOLS)} symbols collected successfully.")
     else:
         failed = [s["symbol"] for s in per_symbol
                   if s.get("forward_outcome_status") != "HISTORICAL_REQUEST_SUCCESS"]

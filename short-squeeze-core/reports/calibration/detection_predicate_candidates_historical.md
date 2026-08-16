@@ -27,9 +27,9 @@ Current Phase 3B structural momentum predicate (3 rules).
 Add PERCENTAGE_CHANGE_MINIMUM; tests whether metric availability changes BIYA detection.
 
 - Cases: 7
-- Confusion matrix: TP=2 FP=0 TN=1 FN=1 unevaluable=3
+- Confusion matrix: TP=2 FP=0 TN=2 FN=0 unevaluable=3
 - Classification flips from baseline: 2
-  - `KLRS_ARTIFACT_DISCOVERY` (KLRS): UNEVALUABLE → FALSE_NEGATIVE
+  - `KLRS_ARTIFACT_DISCOVERY` (KLRS): UNEVALUABLE → TRUE_NEGATIVE
   - `SG_ARTIFACT_DISCOVERY` (SG): UNEVALUABLE → TRUE_NEGATIVE
 
 ### momentum_full
@@ -37,11 +37,11 @@ Add PERCENTAGE_CHANGE_MINIMUM; tests whether metric availability changes BIYA de
 Require all six momentum discovery rules.
 
 - Cases: 7
-- Confusion matrix: TP=0 FP=0 TN=1 FN=3 unevaluable=3
+- Confusion matrix: TP=0 FP=0 TN=2 FN=2 unevaluable=3
 - Classification flips from baseline: 4
   - `BIYA_EARLIEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_NEGATIVE
   - `BIYA_LATEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_NEGATIVE
-  - `KLRS_ARTIFACT_DISCOVERY` (KLRS): UNEVALUABLE → FALSE_NEGATIVE
+  - `KLRS_ARTIFACT_DISCOVERY` (KLRS): UNEVALUABLE → TRUE_NEGATIVE
   - `SG_ARTIFACT_DISCOVERY` (SG): UNEVALUABLE → TRUE_NEGATIVE
 
 ### short_pressure_core

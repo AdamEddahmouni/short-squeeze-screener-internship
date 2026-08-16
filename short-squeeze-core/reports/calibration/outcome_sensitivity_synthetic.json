@@ -128,17 +128,17 @@
               0
             ]
           ],
-          "deterministic_id": "21e0e4a0-95a1-5109-8450-45607078a4f0",
+          "deterministic_id": "658e33bb-f744-51be-a992-c3d16f96d0cb",
           "dimension": "RESEARCH_CLASSIFICATION",
           "proportions": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.09090909090909090909090909091",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "718e637b-b393-5677-a2ef-d5dea6206b41",
+              "deterministic_id": "91e60758-90d1-575d-bd45-f4d55b0923f2",
               "exact_fraction": "1/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -160,12 +160,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.09090909090909090909090909091",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "97dc5274-3a94-57af-8e74-90c64ad89d5a",
+              "deterministic_id": "d1a11653-485f-5f63-8d2b-9653c5a717c5",
               "exact_fraction": "1/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -187,12 +187,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.09090909090909090909090909091",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "16c63bb8-aa76-5fb2-a69e-11effc878e6b",
+              "deterministic_id": "73cedb62-813c-515f-8e34-a37fc5f4099b",
               "exact_fraction": "1/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -214,12 +214,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.09090909090909090909090909091",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "79a5539b-a8d5-57c5-929b-b217372382c0",
+              "deterministic_id": "9d7beb95-4393-5ca8-b8f5-f3d8fd22d3a4",
               "exact_fraction": "1/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -241,12 +241,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.6363636363636363636363636364",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "6490e796-4557-5154-a2d8-4d9cc0ce40ce",
+              "deterministic_id": "e79fc56b-ff31-5494-8d12-8f2ed1bdf904",
               "exact_fraction": "7/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -268,12 +268,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "4db2637a-cc5d-5a8c-9716-3a0585a1cdac",
+              "deterministic_id": "37578e6a-3031-5a7a-a8f9-a81c8275dd62",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -295,12 +295,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.3636363636363636363636363636",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "6dbdb6a2-e95d-5e1f-809b-6b11936f79e8",
+              "deterministic_id": "6c8ec884-3ef8-5863-93d8-73e6feaafe38",
               "exact_fraction": "4/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -333,7 +333,7 @@
             "required_complete_cases": true,
             "schema_version": "1.0.0"
           },
-          "deterministic_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+          "deterministic_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
           "exclusions": [],
           "fixture_classifications": [
             "SYNTHETIC_EDGE_CASE"
@@ -365,7 +365,7 @@
             "SYNUNK"
           ],
           "schema_version": "1.0.0",
-          "source_dataset_id": "ab895fe7-48f7-5ba9-96ac-c4ea5c7b9d9d",
+          "source_dataset_id": "1135c227-acf0-537d-919e-8195e2361404",
           "source_registry_id": null
         },
         "confidence_level": "0.95",
@@ -374,12 +374,12 @@
           "descriptive_rates": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "4f09a670-334f-52ff-987e-84fab3646882",
+              "deterministic_id": "4b0ccc73-d2db-51ee-b299-2a62907fabbd",
               "exact_fraction": "1/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -401,12 +401,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "dbe2f33f-783e-58d3-b8e5-de1c8addf538",
+              "deterministic_id": "30127c6e-4277-5650-97ab-e3acc9fdf604",
               "exact_fraction": "1/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -428,12 +428,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "93aacb14-8dc3-58c0-aa13-59693b20921f",
+              "deterministic_id": "b0e6d64a-e9d3-539a-9212-9bc28e37564f",
               "exact_fraction": "1/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -455,12 +455,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "68011ae8-c275-546b-9b72-225e0ef9348e",
+              "deterministic_id": "4a9dfced-29b8-5da8-924b-ec8fbbfe19e4",
               "exact_fraction": "1/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -482,12 +482,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "5a342451-9b76-557f-9404-641e7a8b12a8",
+              "deterministic_id": "7ed5a45e-7aed-548a-be37-fe21799b0a11",
               "exact_fraction": "1/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -509,12 +509,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "962f5037-53df-5a6f-9066-3bde0abb1cda",
+              "deterministic_id": "27e9c36b-d42d-5657-9c19-c48f0c9e546d",
               "exact_fraction": "1/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -535,7 +535,7 @@
               "undefined_reason": null
             }
           ],
-          "deterministic_id": "824e33cc-c2c4-58cc-80be-577baf9479e7",
+          "deterministic_id": "f4b42595-f41b-5096-9dcb-3efd0d79cb44",
           "false_negative_count": 1,
           "false_positive_count": 1,
           "sample_size_assessment": {
@@ -578,17 +578,17 @@
               3
             ]
           ],
-          "deterministic_id": "fdc961c7-fe60-5060-b9ef-8d5b481de041",
+          "deterministic_id": "64bfda74-3734-5eef-886c-c4a93df1c72d",
           "dimension": "RESEARCH_DETECTION_STATUS",
           "proportions": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5454545454545454545454545455",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "2e270bb8-9703-5dd1-9dab-94a105790545",
+              "deterministic_id": "8de8b991-b187-5bc1-9dac-d66998f37881",
               "exact_fraction": "6/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -610,12 +610,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.1818181818181818181818181818",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "4ac37d77-3bb2-5008-9588-52d5cbb547c3",
+              "deterministic_id": "41383a47-1ca0-5805-83d7-038b3c03ae1a",
               "exact_fraction": "2/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -637,12 +637,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.2727272727272727272727272727",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "bab5f707-e10e-590b-947b-bde45272f0e2",
+              "deterministic_id": "be9141d9-1bac-5dc2-904b-59820dffd4d0",
               "exact_fraction": "3/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -664,12 +664,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.75",
               "defined": true,
               "denominator": 8,
-              "deterministic_id": "8f022fdc-196b-59a0-8b58-6504deedbbaa",
+              "deterministic_id": "bf1c860a-40d3-5cbd-95fa-e70c28102c56",
               "exact_fraction": "6/8",
               "interval": {
                 "confidence_level": "0.95",
@@ -691,7 +691,7 @@
             }
           ]
         },
-        "deterministic_id": "1e28bb54-9eb6-5ca9-aa96-927ed04c4ffb",
+        "deterministic_id": "577e7730-2317-5d77-9257-b201ed8da2d3",
         "diagnostics": [
           {
             "case_id": null,
@@ -747,7 +747,7 @@
         "provenance_classifications": [
           "SYNTHETIC_EDGE_CASE"
         ],
-        "request_id": "601600e5-1d63-5035-addf-1d842aa4a6fa",
+        "request_id": "ed40d511-cfa4-59ba-b34d-d0ef4f731f12",
         "rule_outcome_prevalence": [],
         "sample_size_assessments": [
           {
@@ -773,7 +773,7 @@
         ],
         "sample_size_policy_version": "phase_3c_sample_size_policy.v1",
         "schema_version": "1.0.0",
-        "source_dataset_id": "ab895fe7-48f7-5ba9-96ac-c4ea5c7b9d9d",
+        "source_dataset_id": "1135c227-acf0-537d-919e-8195e2361404",
         "source_registry_id": null,
         "statistics_policy_version": "phase_3c_descriptive_statistics_policy.v1",
         "symbol_dependence_summary": {
@@ -967,17 +967,17 @@
               0
             ]
           ],
-          "deterministic_id": "b639e62a-4ad4-5b16-bd80-666e5a43c3d2",
+          "deterministic_id": "ffff5826-a5ac-5f93-a270-3c0dfb70dd24",
           "dimension": "RESEARCH_CLASSIFICATION",
           "proportions": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "973ac785-066e-55c2-b350-3b19506dbade",
+              "deterministic_id": "bfa60231-ad71-5919-8bd8-2b59a71eec64",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -999,12 +999,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.3636363636363636363636363636",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "50e073c3-de95-514f-b19e-4b007384cb52",
+              "deterministic_id": "e25b64d9-7582-559d-8be9-a54384ecd96f",
               "exact_fraction": "4/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1026,12 +1026,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.1818181818181818181818181818",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "5f4c12bb-d1d8-57f8-9da9-50234250e242",
+              "deterministic_id": "1db5d869-d867-58e5-9bd4-5283e63c2718",
               "exact_fraction": "2/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1053,12 +1053,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "e80ba50c-9268-5e7b-8586-bdd98924cbce",
+              "deterministic_id": "b0860278-a33a-54b2-ad82-c55758763726",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1080,12 +1080,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.4545454545454545454545454545",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "813842b8-e445-5543-9b7a-1ab21fd4ac12",
+              "deterministic_id": "d08a98ef-355f-514a-bed7-1d7e835d58c0",
               "exact_fraction": "5/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1107,12 +1107,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "4db2637a-cc5d-5a8c-9716-3a0585a1cdac",
+              "deterministic_id": "37578e6a-3031-5a7a-a8f9-a81c8275dd62",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1134,12 +1134,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5454545454545454545454545455",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "b715493c-b1c5-5e30-89c5-7ff659c19867",
+              "deterministic_id": "f9ee5078-d9f4-5506-a72b-5bafee1448b6",
               "exact_fraction": "6/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1172,7 +1172,7 @@
             "required_complete_cases": true,
             "schema_version": "1.0.0"
           },
-          "deterministic_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+          "deterministic_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
           "exclusions": [],
           "fixture_classifications": [
             "SYNTHETIC_EDGE_CASE"
@@ -1204,7 +1204,7 @@
             "SYNUNK"
           ],
           "schema_version": "1.0.0",
-          "source_dataset_id": "ab895fe7-48f7-5ba9-96ac-c4ea5c7b9d9d",
+          "source_dataset_id": "1135c227-acf0-537d-919e-8195e2361404",
           "source_registry_id": null
         },
         "confidence_level": "0.95",
@@ -1213,12 +1213,12 @@
           "descriptive_rates": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": null,
               "defined": false,
               "denominator": 0,
-              "deterministic_id": "33868b72-1666-5f22-b1a6-295e36ba1056",
+              "deterministic_id": "57079bfd-8848-56af-ad86-09669bfbcd0b",
               "exact_fraction": "0/0",
               "interval": null,
               "interval_policy_version": "phase_3c_interval_policy.v1",
@@ -1230,12 +1230,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.3333333333333333333333333333",
               "defined": true,
               "denominator": 6,
-              "deterministic_id": "c75029cf-b666-583c-9463-da0e999638e4",
+              "deterministic_id": "f41e6731-8436-5eeb-a20f-e3669800b4e3",
               "exact_fraction": "2/6",
               "interval": {
                 "confidence_level": "0.95",
@@ -1257,12 +1257,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 4,
-              "deterministic_id": "d9e1bce3-6762-522d-a887-cda613d744ec",
+              "deterministic_id": "7500449a-1d02-5726-9898-35effbd8bd49",
               "exact_fraction": "0/4",
               "interval": {
                 "confidence_level": "0.95",
@@ -1284,12 +1284,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "1",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "7e5f3eb7-5eed-5175-b3b8-4cb48db031cf",
+              "deterministic_id": "c44cd34a-848c-5c13-b0b9-50dc309824ce",
               "exact_fraction": "2/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -1311,12 +1311,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.6666666666666666666666666667",
               "defined": true,
               "denominator": 6,
-              "deterministic_id": "481b3f85-b5dd-57f3-9d73-07525a1e5316",
+              "deterministic_id": "df68ebd4-fd69-5b59-b27b-e6ad25e17263",
               "exact_fraction": "4/6",
               "interval": {
                 "confidence_level": "0.95",
@@ -1338,12 +1338,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": null,
               "defined": false,
               "denominator": 0,
-              "deterministic_id": "dcc474f2-effa-5c0e-91e6-e6bf2729f2f2",
+              "deterministic_id": "ad5bfcf8-7d19-5462-887b-17c7396239d8",
               "exact_fraction": "0/0",
               "interval": null,
               "interval_policy_version": "phase_3c_interval_policy.v1",
@@ -1354,7 +1354,7 @@
               "undefined_reason": "ZERO_DENOMINATOR"
             }
           ],
-          "deterministic_id": "dcc52f7a-02d3-5373-93ab-d237d09ee2dd",
+          "deterministic_id": "e1e43efe-7743-59e0-9bd5-5d151093c0e6",
           "false_negative_count": 0,
           "false_positive_count": 4,
           "sample_size_assessment": {
@@ -1397,17 +1397,17 @@
               3
             ]
           ],
-          "deterministic_id": "fdc961c7-fe60-5060-b9ef-8d5b481de041",
+          "deterministic_id": "64bfda74-3734-5eef-886c-c4a93df1c72d",
           "dimension": "RESEARCH_DETECTION_STATUS",
           "proportions": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5454545454545454545454545455",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "2e270bb8-9703-5dd1-9dab-94a105790545",
+              "deterministic_id": "8de8b991-b187-5bc1-9dac-d66998f37881",
               "exact_fraction": "6/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1429,12 +1429,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.1818181818181818181818181818",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "4ac37d77-3bb2-5008-9588-52d5cbb547c3",
+              "deterministic_id": "41383a47-1ca0-5805-83d7-038b3c03ae1a",
               "exact_fraction": "2/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1456,12 +1456,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.2727272727272727272727272727",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "bab5f707-e10e-590b-947b-bde45272f0e2",
+              "deterministic_id": "be9141d9-1bac-5dc2-904b-59820dffd4d0",
               "exact_fraction": "3/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1483,12 +1483,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.75",
               "defined": true,
               "denominator": 8,
-              "deterministic_id": "8f022fdc-196b-59a0-8b58-6504deedbbaa",
+              "deterministic_id": "bf1c860a-40d3-5cbd-95fa-e70c28102c56",
               "exact_fraction": "6/8",
               "interval": {
                 "confidence_level": "0.95",
@@ -1510,7 +1510,7 @@
             }
           ]
         },
-        "deterministic_id": "b085728f-815e-5061-9c41-55ac541a8c78",
+        "deterministic_id": "bbf8c65e-33b7-5cec-84eb-d6ea06d1f181",
         "diagnostics": [
           {
             "case_id": null,
@@ -1566,7 +1566,7 @@
         "provenance_classifications": [
           "SYNTHETIC_EDGE_CASE"
         ],
-        "request_id": "601600e5-1d63-5035-addf-1d842aa4a6fa",
+        "request_id": "ed40d511-cfa4-59ba-b34d-d0ef4f731f12",
         "rule_outcome_prevalence": [],
         "sample_size_assessments": [
           {
@@ -1592,7 +1592,7 @@
         ],
         "sample_size_policy_version": "phase_3c_sample_size_policy.v1",
         "schema_version": "1.0.0",
-        "source_dataset_id": "ab895fe7-48f7-5ba9-96ac-c4ea5c7b9d9d",
+        "source_dataset_id": "1135c227-acf0-537d-919e-8195e2361404",
         "source_registry_id": null,
         "statistics_policy_version": "phase_3c_descriptive_statistics_policy.v1",
         "symbol_dependence_summary": {
@@ -1827,17 +1827,17 @@
               0
             ]
           ],
-          "deterministic_id": "b639e62a-4ad4-5b16-bd80-666e5a43c3d2",
+          "deterministic_id": "ffff5826-a5ac-5f93-a270-3c0dfb70dd24",
           "dimension": "RESEARCH_CLASSIFICATION",
           "proportions": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "973ac785-066e-55c2-b350-3b19506dbade",
+              "deterministic_id": "bfa60231-ad71-5919-8bd8-2b59a71eec64",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1859,12 +1859,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.3636363636363636363636363636",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "50e073c3-de95-514f-b19e-4b007384cb52",
+              "deterministic_id": "e25b64d9-7582-559d-8be9-a54384ecd96f",
               "exact_fraction": "4/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1886,12 +1886,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.1818181818181818181818181818",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "5f4c12bb-d1d8-57f8-9da9-50234250e242",
+              "deterministic_id": "1db5d869-d867-58e5-9bd4-5283e63c2718",
               "exact_fraction": "2/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1913,12 +1913,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "e80ba50c-9268-5e7b-8586-bdd98924cbce",
+              "deterministic_id": "b0860278-a33a-54b2-ad82-c55758763726",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1940,12 +1940,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.4545454545454545454545454545",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "813842b8-e445-5543-9b7a-1ab21fd4ac12",
+              "deterministic_id": "d08a98ef-355f-514a-bed7-1d7e835d58c0",
               "exact_fraction": "5/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1967,12 +1967,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "4db2637a-cc5d-5a8c-9716-3a0585a1cdac",
+              "deterministic_id": "37578e6a-3031-5a7a-a8f9-a81c8275dd62",
               "exact_fraction": "0/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -1994,12 +1994,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5454545454545454545454545455",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "b715493c-b1c5-5e30-89c5-7ff659c19867",
+              "deterministic_id": "f9ee5078-d9f4-5506-a72b-5bafee1448b6",
               "exact_fraction": "6/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -2032,7 +2032,7 @@
             "required_complete_cases": true,
             "schema_version": "1.0.0"
           },
-          "deterministic_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+          "deterministic_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
           "exclusions": [],
           "fixture_classifications": [
             "SYNTHETIC_EDGE_CASE"
@@ -2064,7 +2064,7 @@
             "SYNUNK"
           ],
           "schema_version": "1.0.0",
-          "source_dataset_id": "ab895fe7-48f7-5ba9-96ac-c4ea5c7b9d9d",
+          "source_dataset_id": "1135c227-acf0-537d-919e-8195e2361404",
           "source_registry_id": null
         },
         "confidence_level": "0.95",
@@ -2073,12 +2073,12 @@
           "descriptive_rates": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": null,
               "defined": false,
               "denominator": 0,
-              "deterministic_id": "33868b72-1666-5f22-b1a6-295e36ba1056",
+              "deterministic_id": "57079bfd-8848-56af-ad86-09669bfbcd0b",
               "exact_fraction": "0/0",
               "interval": null,
               "interval_policy_version": "phase_3c_interval_policy.v1",
@@ -2090,12 +2090,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.3333333333333333333333333333",
               "defined": true,
               "denominator": 6,
-              "deterministic_id": "c75029cf-b666-583c-9463-da0e999638e4",
+              "deterministic_id": "f41e6731-8436-5eeb-a20f-e3669800b4e3",
               "exact_fraction": "2/6",
               "interval": {
                 "confidence_level": "0.95",
@@ -2117,12 +2117,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0",
               "defined": true,
               "denominator": 4,
-              "deterministic_id": "d9e1bce3-6762-522d-a887-cda613d744ec",
+              "deterministic_id": "7500449a-1d02-5726-9898-35effbd8bd49",
               "exact_fraction": "0/4",
               "interval": {
                 "confidence_level": "0.95",
@@ -2144,12 +2144,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "1",
               "defined": true,
               "denominator": 2,
-              "deterministic_id": "7e5f3eb7-5eed-5175-b3b8-4cb48db031cf",
+              "deterministic_id": "c44cd34a-848c-5c13-b0b9-50dc309824ce",
               "exact_fraction": "2/2",
               "interval": {
                 "confidence_level": "0.95",
@@ -2171,12 +2171,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.6666666666666666666666666667",
               "defined": true,
               "denominator": 6,
-              "deterministic_id": "481b3f85-b5dd-57f3-9d73-07525a1e5316",
+              "deterministic_id": "df68ebd4-fd69-5b59-b27b-e6ad25e17263",
               "exact_fraction": "4/6",
               "interval": {
                 "confidence_level": "0.95",
@@ -2198,12 +2198,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": null,
               "defined": false,
               "denominator": 0,
-              "deterministic_id": "dcc474f2-effa-5c0e-91e6-e6bf2729f2f2",
+              "deterministic_id": "ad5bfcf8-7d19-5462-887b-17c7396239d8",
               "exact_fraction": "0/0",
               "interval": null,
               "interval_policy_version": "phase_3c_interval_policy.v1",
@@ -2214,7 +2214,7 @@
               "undefined_reason": "ZERO_DENOMINATOR"
             }
           ],
-          "deterministic_id": "dcc52f7a-02d3-5373-93ab-d237d09ee2dd",
+          "deterministic_id": "e1e43efe-7743-59e0-9bd5-5d151093c0e6",
           "false_negative_count": 0,
           "false_positive_count": 4,
           "sample_size_assessment": {
@@ -2257,17 +2257,17 @@
               3
             ]
           ],
-          "deterministic_id": "fdc961c7-fe60-5060-b9ef-8d5b481de041",
+          "deterministic_id": "64bfda74-3734-5eef-886c-c4a93df1c72d",
           "dimension": "RESEARCH_DETECTION_STATUS",
           "proportions": [
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.5454545454545454545454545455",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "2e270bb8-9703-5dd1-9dab-94a105790545",
+              "deterministic_id": "8de8b991-b187-5bc1-9dac-d66998f37881",
               "exact_fraction": "6/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -2289,12 +2289,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.1818181818181818181818181818",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "4ac37d77-3bb2-5008-9588-52d5cbb547c3",
+              "deterministic_id": "41383a47-1ca0-5805-83d7-038b3c03ae1a",
               "exact_fraction": "2/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -2316,12 +2316,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.2727272727272727272727272727",
               "defined": true,
               "denominator": 11,
-              "deterministic_id": "bab5f707-e10e-590b-947b-bde45272f0e2",
+              "deterministic_id": "be9141d9-1bac-5dc2-904b-59820dffd4d0",
               "exact_fraction": "3/11",
               "interval": {
                 "confidence_level": "0.95",
@@ -2343,12 +2343,12 @@
             },
             {
               "analysis_unit": "CASE_BOUNDARY",
-              "cohort_id": "dbd26597-97bd-5405-86ac-2acfc8078775",
+              "cohort_id": "74b108b9-95d9-558b-9a52-f1817000f1f3",
               "confidence_level": "0.95",
               "decimal_value": "0.75",
               "defined": true,
               "denominator": 8,
-              "deterministic_id": "8f022fdc-196b-59a0-8b58-6504deedbbaa",
+              "deterministic_id": "bf1c860a-40d3-5cbd-95fa-e70c28102c56",
               "exact_fraction": "6/8",
               "interval": {
                 "confidence_level": "0.95",
@@ -2370,7 +2370,7 @@
             }
           ]
         },
-        "deterministic_id": "b085728f-815e-5061-9c41-55ac541a8c78",
+        "deterministic_id": "bbf8c65e-33b7-5cec-84eb-d6ea06d1f181",
         "diagnostics": [
           {
             "case_id": null,
@@ -2426,7 +2426,7 @@
         "provenance_classifications": [
           "SYNTHETIC_EDGE_CASE"
         ],
-        "request_id": "601600e5-1d63-5035-addf-1d842aa4a6fa",
+        "request_id": "ed40d511-cfa4-59ba-b34d-d0ef4f731f12",
         "rule_outcome_prevalence": [],
         "sample_size_assessments": [
           {
@@ -2452,7 +2452,7 @@
         ],
         "sample_size_policy_version": "phase_3c_sample_size_policy.v1",
         "schema_version": "1.0.0",
-        "source_dataset_id": "ab895fe7-48f7-5ba9-96ac-c4ea5c7b9d9d",
+        "source_dataset_id": "1135c227-acf0-537d-919e-8195e2361404",
         "source_registry_id": null,
         "statistics_policy_version": "phase_3c_descriptive_statistics_policy.v1",
         "symbol_dependence_summary": {

@@ -2,7 +2,12 @@
 
 ## Status
 
-**Preregistered.** This document is committed before any forward outcome bar data is
+**Executed (2026-08-16).** Forward-outcome bars collected for 15 symbols via IBKR
+Gateway; artifacts stored under `intake/local-bars/ibkr-batch-05/raw/*-forward-outcome.*`
+with summary at `build/acquisition/stage2/collection-summary.json`. Fixture regeneration
+now prefers these Stage 2 bars over legacy frozen-forward artifacts.
+
+**Preregistered.** This document was committed before any forward outcome bar data was
 fetched, inspected, or computed for the 13 pilot symbols. Stage 1 evidence construction
 and Phase 3A evaluation freeze scripts are available on branch
 `phase/3e-historical-acquisition`. This plan authorizes outcome data access for Stage 2

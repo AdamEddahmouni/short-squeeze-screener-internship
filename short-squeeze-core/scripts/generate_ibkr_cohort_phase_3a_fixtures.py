@@ -38,6 +38,8 @@ from squeeze_core.research.serialization import serialize_research_model  # noqa
 from squeeze_core.serialization import canonical_json_bytes  # noqa: E402
 
 LIVE_BATCH05_ROOT = ROOT / "intake" / "local-bars" / "ibkr-batch-05"
+STAGE2_FORWARD_ROOT = LIVE_BATCH05_ROOT / "raw"
+STAGE2_SUMMARY = ROOT / "build" / "acquisition" / "stage2" / "collection-summary.json"
 SYNTHETIC_BATCH05_ROOT = ROOT / "tests" / "fixtures" / "acquisition" / "batch08" / "synthetic-batch05"
 LIVE_FREEZE_ROOT = LIVE_BATCH05_ROOT / "phase3a" / "batch-08"
 SYNTHETIC_FREEZE_ROOT = ROOT / "intake" / "local-bars" / "phase3a-batch08-synthetic"
@@ -67,26 +69,33 @@ def _resolve_roots() -> tuple[Path, Path, bool]:
     return SYNTHETIC_BATCH05_ROOT, SYNTHETIC_FREEZE_ROOT, False
 
 
-def _parse_forward_csv(batch05_root: Path, symbol: str) -> list[dict[str, str]]:
-    path = batch05_root / "raw" / f"{symbol}-frozen-forward-24h.csv"
+def _parse_forward_csv(batch05_root: Path, symbol: str) -> tuple[list[dict[str, str]], str]:
+    stage2_path = STAGE2_FORWARD_ROOT / f"{symbol}-forward-outcome.csv"
+    legacy_path = batch05_root / "raw" / f"{symbol}-frozen-forward-24h.csv"
+    if stage2_path.exists():
+        path = stage2_path
+        source = "stage2_forward_outcome"
+    else:
+        path = legacy_path
+        source = "frozen_forward_24h"
     with path.open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     if not rows:
         raise ValueError(f"empty forward window for {symbol}: {path}")
-    return rows
+    return rows, source
 
 
 def _outcome_moves(
     batch05_root: Path, symbol: str, reference: Decimal,
-) -> tuple[Decimal, Decimal, int]:
-    rows = _parse_forward_csv(batch05_root, symbol)
+) -> tuple[Decimal, Decimal, int, str]:
+    rows, source = _parse_forward_csv(batch05_root, symbol)
     highs = [Decimal(row["high"]) for row in rows]
     lows = [Decimal(row["low"]) for row in rows]
     if reference == 0:
-        return Decimal("0"), Decimal("0"), len(rows)
+        return Decimal("0"), Decimal("0"), len(rows), source
     maximum = max(((high - reference) / reference) * Decimal("100") for high in highs)
     adverse = min(((low - reference) / reference) * Decimal("100") for low in lows)
-    return maximum, adverse, len(rows)
+    return maximum, adverse, len(rows), source
 
 
 def _load_detection_bars(batch05_root: Path, symbol: str) -> tuple:
@@ -123,12 +132,18 @@ def _write_evidence(symbol: str, observations: tuple) -> None:
     path.write_bytes(b"\n".join(records) + b"\n")
 
 
-def _outcome_limitations(*, live: bool, forward_bar_count: int) -> tuple[str, ...]:
+def _outcome_limitations(*, live: bool, forward_bar_count: int, forward_source: str) -> tuple[str, ...]:
     base = (
         "outcome movement does not establish short-squeeze causation",
         "published short interest evidence is unavailable",
         "historical borrow evidence remains unavailable",
     )
+    if forward_source == "stage2_forward_outcome":
+        return base + (
+            "forward outcome window uses Phase 3E Stage 2 adjusted Monday window",
+            "weekend boundary shifted +72h calendar with ~6.5h regular session bias",
+            "absolute price-level semantics remain blocked by Batch 07 readiness",
+        )
     if live and forward_bar_count >= 100:
         return base + (
             "forward outcome window uses live IBKR historical bars",
@@ -199,8 +214,14 @@ def write_outputs() -> dict[str, object]:
         _write_evidence(symbol, observations)
 
         reference = _reference_price(batch05_root, symbol)
-        maximum, adverse, forward_bars = _outcome_moves(batch05_root, symbol, reference)
-        limitations = _outcome_limitations(live=live, forward_bar_count=forward_bars)
+        maximum, adverse, forward_bars, forward_source = _outcome_moves(
+            batch05_root, symbol, reference
+        )
+        limitations = _outcome_limitations(
+            live=live,
+            forward_bar_count=forward_bars,
+            forward_source=forward_source,
+        )
         _write_outcome(
             case_id=case_id,
             batch_case_id=batch_case_id,
@@ -217,6 +238,7 @@ def write_outputs() -> dict[str, object]:
         meta[symbol] = {
             "detection_bar_count": len(observations),
             "forward_bar_count": forward_bars,
+            "forward_source": forward_source,
             "reference_price": str(reference),
             "maximum_move_percent": str(maximum),
             "maximum_adverse_percent": str(adverse),

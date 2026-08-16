@@ -2,8 +2,8 @@
 
 ## Scope
 
-- Analysis result ID: `677ebbe2-50cc-56f7-a46a-851d1317402f`.
-- Source dataset ID: `e2e469a9-0141-5315-82c3-47a15a9f3793`.
+- Analysis result ID: `b9c4b702-6a4a-568d-bd5f-4ae5adbb845e`.
+- Source dataset ID: `6afac93f-0cd7-51a9-98cf-45863fd54550`.
 - Source registry ID: `None`.
 - This analysis is deterministic and descriptive only.
 
@@ -76,13 +76,13 @@
 - detection_prevalence/not_detected_prevalence_among_all_cases: 0/6 (0%).
 - detection_prevalence/unevaluable_prevalence_among_all_cases: 5/6 (83.33333333333333333333333333%).
 - detection_prevalence/detection_rate_among_evaluable_cases: 1/1 (100%).
-- outcome_prevalence/substantial_upward_move_prevalence_among_all_cases: 2/6 (33.33333333333333333333333333%).
-- outcome_prevalence/no_substantial_upward_move_prevalence_among_all_cases: 3/6 (50.0%).
+- outcome_prevalence/substantial_upward_move_prevalence_among_all_cases: 1/6 (16.66666666666666666666666667%).
+- outcome_prevalence/no_substantial_upward_move_prevalence_among_all_cases: 4/6 (66.66666666666666666666666667%).
 - outcome_prevalence/substantial_downward_move_prevalence_among_all_cases: 1/6 (16.66666666666666666666666667%).
 - outcome_prevalence/mixed_or_volatile_prevalence_among_all_cases: 0/6 (0%).
 - outcome_prevalence/outcome_unknown_prevalence_among_all_cases: 0/6 (0%).
 - outcome_prevalence/outcome_insufficient_data_prevalence_among_all_cases: 0/6 (0%).
-- outcome_prevalence/substantial_upward_move_prevalence_among_complete_outcomes: 2/6 (33.33333333333333333333333333%).
+- outcome_prevalence/substantial_upward_move_prevalence_among_complete_outcomes: 1/6 (16.66666666666666666666666667%).
 - classification_prevalence/true_positive_prevalence_among_all_cases: 1/6 (16.66666666666666666666666667%).
 - classification_prevalence/false_positive_prevalence_among_all_cases: 0/6 (0%).
 - classification_prevalence/true_negative_prevalence_among_all_cases: 0/6 (0%).
@@ -281,13 +281,13 @@
 - detection_prevalence/not_detected_prevalence_among_all_cases: [0E-12, 0.390334287902] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - detection_prevalence/unevaluable_prevalence_among_all_cases: [0.436497177814, 0.969946630252] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - detection_prevalence/detection_rate_among_evaluable_cases: [0.206549314377, 1.000000000000] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
-- outcome_prevalence/substantial_upward_move_prevalence_among_all_cases: [0.096771411106, 0.700006684862] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
-- outcome_prevalence/no_substantial_upward_move_prevalence_among_all_cases: [0.187616306483, 0.812383693517] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
+- outcome_prevalence/substantial_upward_move_prevalence_among_all_cases: [0.030053369748, 0.563502822186] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
+- outcome_prevalence/no_substantial_upward_move_prevalence_among_all_cases: [0.299993315138, 0.903228588894] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - outcome_prevalence/substantial_downward_move_prevalence_among_all_cases: [0.030053369748, 0.563502822186] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - outcome_prevalence/mixed_or_volatile_prevalence_among_all_cases: [0E-12, 0.390334287902] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - outcome_prevalence/outcome_unknown_prevalence_among_all_cases: [0E-12, 0.390334287902] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - outcome_prevalence/outcome_insufficient_data_prevalence_among_all_cases: [0E-12, 0.390334287902] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
-- outcome_prevalence/substantial_upward_move_prevalence_among_complete_outcomes: [0.096771411106, 0.700006684862] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
+- outcome_prevalence/substantial_upward_move_prevalence_among_complete_outcomes: [0.030053369748, 0.563502822186] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - classification_prevalence/true_positive_prevalence_among_all_cases: [0.030053369748, 0.563502822186] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - classification_prevalence/false_positive_prevalence_among_all_cases: [0E-12, 0.390334287902] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
 - classification_prevalence/true_negative_prevalence_among_all_cases: [0E-12, 0.390334287902] using `WILSON_SCORE` at 0.95; independence satisfied=`true`.
