@@ -39,8 +39,10 @@ squeeze_core = [
     "research/policies/*.json",
     "analysis/policies/*.json",
     "acquisition/policy_documents/*.json",
+    "calibration/policies/*.json",
 ]
 
 [tool.pytest.ini_options]
 addopts = "-q -p no:cacheprovider"
 testpaths = ["tests"]
+pythonpath = ["."]
