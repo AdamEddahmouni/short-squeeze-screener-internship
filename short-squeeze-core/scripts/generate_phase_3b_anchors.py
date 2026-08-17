@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
 from squeeze_core.contracts import AssetClass  # noqa: E402
+from squeeze_core.acquisition.operation_readiness.evidence_inputs import FROZEN_COHORT  # noqa: E402
 from squeeze_core.evaluation import (  # noqa: E402
     CandidateEvaluationResult,
     CategoryEvaluationSummary,
@@ -291,6 +292,51 @@ def _entry(
     )
 
 
+def _pilot_cohort_entries(peer_limitations: tuple[str, ...]) -> tuple:
+    """Build registry entries for IBKR pilot symbols with generated evaluation fixtures."""
+    entries = []
+    pilot = tuple(FROZEN_COHORT[:13]) + (("KLRS", "BATCH01_KLRS_20260718"), ("SG", "BATCH01_SG_20260718"))
+    surfaced = {"LBGJ", "KLRS", "GPRE"}
+    for symbol, batch_case_id in pilot:
+        eval_name = f"{symbol.lower()}_boundary_evaluation.json"
+        eval_path = EVALUATION / eval_name
+        if not eval_path.is_file():
+            continue
+        evaluation = _load_evaluation(eval_name)
+        platform = (
+            OriginalPlatformStatus.SURFACED
+            if symbol in surfaced
+            else OriginalPlatformStatus.UNKNOWN
+        )
+        case_type = (
+            CandidateCaseType.ORIGINAL_PLATFORM_SURFACED
+            if symbol in surfaced
+            else CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN
+        )
+        extra_limitations = peer_limitations
+        if symbol == "LBGJ":
+            extra_limitations = peer_limitations + (
+                "IBKR contract resolution verified: LI BANG INT CORP I- A (NASDAQ conId 907000939)",
+            )
+        entries.append(
+            _entry(
+                f"{symbol}_ARTIFACT_DISCOVERY",
+                symbol,
+                case_type,
+                CandidateCaseStatus.COMPLETE,
+                platform,
+                FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
+                as_of=evaluation.as_of,
+                evaluation_path=f"../evaluation/{eval_name}",
+                outcome_path=f"{symbol.lower()}_outcome_observation.json",
+                detection_id=batch_case_id,
+                artifacts=("archived-app-log",),
+                limitations=extra_limitations,
+            )
+        )
+    return tuple(entries)
+
+
 def _historical_entries():
     earliest = _load_evaluation("biya_earliest_boundary_evaluation.json")
     latest = _load_evaluation("biya_latest_boundary_evaluation.json")
@@ -331,64 +377,7 @@ def _historical_entries():
                 "published short interest publication timestamps are date-only uncertain",
             ),
         ),
-        _entry(
-            "TRVI_ARTIFACT_DISCOVERY", "TRVI", CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN,
-            CandidateCaseStatus.COMPLETE, OriginalPlatformStatus.UNKNOWN,
-            FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
-            as_of=_load_evaluation("trvi_boundary_evaluation.json").as_of,
-            evaluation_path="../evaluation/trvi_boundary_evaluation.json",
-            outcome_path="trvi_outcome_observation.json",
-            detection_id="BATCH01_TRVI_20260718",
-            artifacts=("archived-app-log",),
-            limitations=peer_limitations,
-        ),
-        _entry(
-            "LBGJ_ARTIFACT_DISCOVERY", "LBGJ", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
-            CandidateCaseStatus.COMPLETE, OriginalPlatformStatus.SURFACED,
-            FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
-            as_of=_load_evaluation("lbgj_boundary_evaluation.json").as_of,
-            evaluation_path="../evaluation/lbgj_boundary_evaluation.json",
-            outcome_path="lbgj_outcome_observation.json",
-            detection_id="BATCH01_LBGJ_20260718",
-            artifacts=("advisor-meeting-2026-07-17", "archived-app-log"),
-            limitations=peer_limitations + (
-                "IBKR contract resolution verified: LI BANG INT CORP I- A (NASDAQ conId 907000939)",
-            ),
-        ),
-        _entry(
-            "SLS_ARTIFACT_DISCOVERY", "SLS", CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN,
-            CandidateCaseStatus.COMPLETE, OriginalPlatformStatus.UNKNOWN,
-            FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
-            as_of=_load_evaluation("sls_boundary_evaluation.json").as_of,
-            evaluation_path="../evaluation/sls_boundary_evaluation.json",
-            outcome_path="sls_outcome_observation.json",
-            detection_id="BATCH01_SLS_20260718",
-            artifacts=("archived-app-log",),
-            limitations=peer_limitations,
-        ),
-        _entry(
-            "KLRS_ARTIFACT_DISCOVERY", "KLRS", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
-            CandidateCaseStatus.COMPLETE, OriginalPlatformStatus.SURFACED,
-            FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
-            as_of=_load_evaluation("klrs_boundary_evaluation.json").as_of,
-            evaluation_path="../evaluation/klrs_boundary_evaluation.json",
-            outcome_path="klrs_outcome_observation.json",
-            detection_id="BATCH01_KLRS_20260718",
-            artifacts=("archived-app-log", "archived-formula-redesign-handoff"),
-            limitations=peer_limitations,
-        ),
-        _entry(
-            "SG_ARTIFACT_DISCOVERY", "SG", CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN,
-            CandidateCaseStatus.COMPLETE, OriginalPlatformStatus.UNKNOWN,
-            FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
-            as_of=_load_evaluation("sg_boundary_evaluation.json").as_of,
-            evaluation_path="../evaluation/sg_boundary_evaluation.json",
-            outcome_path="sg_outcome_observation.json",
-            detection_id="BATCH01_SG_20260718",
-            artifacts=("archived-app-log",),
-            limitations=peer_limitations,
-        ),
-    )
+    ) + _pilot_cohort_entries(peer_limitations)
     discovered = (
         ("KLOS_IDENTITY_CONFLICT", "KLOS", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
          CandidateCaseStatus.BLOCKED_CONFLICTING_IDENTITY, OriginalPlatformStatus.SURFACED,

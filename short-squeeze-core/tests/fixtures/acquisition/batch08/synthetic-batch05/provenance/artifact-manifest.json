@@ -232,5 +232,41 @@
   "csv_byte_length": 687,
   "jsonl_sha256": "6ea21eb7fc60a647fced6ee7419551b1eb6ac24e83abbdfd1fb212683508fa39",
   "jsonl_byte_length": 1374
+ },
+ {
+  "symbol": "KLRS",
+  "request_name": "DETECTION_CONTEXT_PRECEDING_24H",
+  "csv_relative_path": "raw/KLRS-detection-context.csv",
+  "csv_sha256": "7f4ad64af711fc8b300bed6bfafde147cd1a33042f0141f929842e8a091c0154",
+  "csv_byte_length": 777,
+  "jsonl_sha256": "7f4ad64af711fc8b300bed6bfafde147cd1a33042f0141f929842e8a091c0154",
+  "jsonl_byte_length": 1554
+ },
+ {
+  "symbol": "KLRS",
+  "request_name": "FROZEN_FORWARD_24H",
+  "csv_relative_path": "raw/KLRS-frozen-forward-24h.csv",
+  "csv_sha256": "15d2bcddf3b7ebc6ad8688fcaa57a84ed32679d4b84ef02ec144ef656a9652a7",
+  "csv_byte_length": 699,
+  "jsonl_sha256": "15d2bcddf3b7ebc6ad8688fcaa57a84ed32679d4b84ef02ec144ef656a9652a7",
+  "jsonl_byte_length": 1398
+ },
+ {
+  "symbol": "SG",
+  "request_name": "DETECTION_CONTEXT_PRECEDING_24H",
+  "csv_relative_path": "raw/SG-detection-context.csv",
+  "csv_sha256": "3a2e67e0805c4cce5998ca8f8b9b162ec57e04d4034cb4f97cb84ba51381d9ba",
+  "csv_byte_length": 765,
+  "jsonl_sha256": "3a2e67e0805c4cce5998ca8f8b9b162ec57e04d4034cb4f97cb84ba51381d9ba",
+  "jsonl_byte_length": 1530
+ },
+ {
+  "symbol": "SG",
+  "request_name": "FROZEN_FORWARD_24H",
+  "csv_relative_path": "raw/SG-frozen-forward-24h.csv",
+  "csv_sha256": "1ce4e72971943b9572f1c417f798a4002deea08ff0a4d0df73feafea50b74cbc",
+  "csv_byte_length": 687,
+  "jsonl_sha256": "1ce4e72971943b9572f1c417f798a4002deea08ff0a4d0df73feafea50b74cbc",
+  "jsonl_byte_length": 1374
  }
 ]

@@ -43,7 +43,7 @@ Outputs JSON + Markdown side-by-side.
 ## Cohorts
 
 - `SYNTHETIC_CASES` — 11 software-validation edge cases
-- `HISTORICAL_COMPLETED_CASES` — sanitized public historical (**n=6** symbols, **7** case boundaries: BIYA×2, TRVI, LBGJ, KLRS, SG, SLS). Only BIYA has evaluable true-positive outcome labels today; KLRS, SG, SLS, TRVI, and LBGJ remain `ARTIFACT_DISCOVERY` / `UNEVALUABLE` until forward-outcome evidence is acquired (Phase 3E).
+- `HISTORICAL_COMPLETED_CASES` — sanitized public historical (**n=15** IBKR symbols with Stage 2 forward-outcome bars, **17** case boundaries including BIYA×2). All artifact-discovery symbols now have evaluable outcome labels from Phase 3E Stage 2; calibration remains `COUNTERFACTUAL_EXPLORATION_ONLY` until `min_case_count_for_recommendation: 30` is met.
 
 Detection-policy findings from the expanded cohort are governed in
 [ADR 0067](../adr/0067-phase-3b-detection-predicate-calibration-findings.md).

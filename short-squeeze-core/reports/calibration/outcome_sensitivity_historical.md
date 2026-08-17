@@ -19,23 +19,23 @@
 
 Current Phase 3B outcome label policy (±25% over 24 hours).
 
-- Cases: 7
-- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=5
+- Cases: 17
+- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=15
 
 ### upward_28
 
 Raise upward threshold to 28%; BIYA earliest boundary (28.34% max) is near the flip point.
 
-- Cases: 7
-- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=5
+- Cases: 17
+- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=15
 - Classification flips from baseline: 0
 
 ### upward_30
 
 Raise upward threshold to 30%; BIYA earliest boundary (28.34%) flips to no substantial move.
 
-- Cases: 7
-- Confusion matrix: TP=1 FP=1 TN=0 FN=0 unevaluable=5
+- Cases: 17
+- Confusion matrix: TP=1 FP=1 TN=0 FN=0 unevaluable=15
 - Classification flips from baseline: 1
   - `BIYA_EARLIEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_POSITIVE
 
@@ -43,8 +43,8 @@ Raise upward threshold to 30%; BIYA earliest boundary (28.34%) flips to no subst
 
 Raise upward threshold to 35%; both BIYA boundaries flip (31.68% latest still below 35%).
 
-- Cases: 7
-- Confusion matrix: TP=0 FP=2 TN=0 FN=0 unevaluable=5
+- Cases: 17
+- Confusion matrix: TP=0 FP=2 TN=0 FN=0 unevaluable=15
 - Classification flips from baseline: 2
   - `BIYA_EARLIEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_POSITIVE
   - `BIYA_LATEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_POSITIVE

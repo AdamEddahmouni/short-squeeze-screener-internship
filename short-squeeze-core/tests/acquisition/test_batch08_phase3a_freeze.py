@@ -68,7 +68,7 @@ SYNTHETIC_ROOT = FIXTURE_DIR / "synthetic-batch05"
 
 EXPECTED_COHORT_ORDER = (
     "XNCR", "PESI", "SLS", "ZNTL", "GPRE", "SSPC", "LBGJ", "TRVI", "LMNX", "MGNX",
-    "BHVN", "OBE", "AVTX",
+    "BHVN", "OBE", "AVTX", "KLRS", "SG",
 )
 EXPECTED_BOUNDARY = datetime(2026, 7, 18, 13, 37, 55, 17661, tzinfo=UTC)
 
@@ -148,8 +148,8 @@ def test_boundary_ids_match_the_recomputed_batch01_freeze(frozen):
         )
 
 
-def test_exactly_thirteen_requests_and_results_are_frozen(frozen):
-    assert len(frozen) == 13
+def test_exactly_fifteen_requests_and_results_are_frozen(frozen):
+    assert len(frozen) == 15
     assert all(item.record.phase3a_request_id for item in frozen)
     assert all(item.record.phase3a_result_id for item in frozen)
     assert all(
@@ -176,7 +176,7 @@ def test_global_preflight_remains_rejected_and_unchanged(frozen):
 
 def test_batch07_readiness_is_consumed_unchanged():
     cases = batch07_readiness(SYNTHETIC_ROOT)
-    assert len(cases) == 13
+    assert len(cases) == 15
     for case in cases.values():
         assert case.phase3a_request_readiness.value == "PHASE3A_REQUEST_READY"
         assert case.temporal_alignment_readiness.status.value == "ADMISSIBLE"
@@ -661,7 +661,7 @@ def test_local_retrieval_receipt_sensitivity_is_disclosed(frozen):
         tuple(item.record for item in alternative),
         ReceiptModelingPolicy.LOCAL_RETRIEVAL_RECEIPT,
     )
-    assert summary.case_count == 13
+    assert summary.case_count == 15
     # Under a literal local-receipt reading every bar is point-in-time ineligible, so the
     # bar-dependent rules diverge. Disclosed rather than hidden.
     assert "MARKET_DATA_AVAILABLE" in summary.rules_diverging_from_primary
@@ -683,8 +683,8 @@ def test_freeze_ordering_places_request_before_result_before_any_outcome():
     assert request.evaluation_result_frozen_at < request.outcome_captured_at
 
 
-def test_all_thirteen_leakage_audits_pass(frozen):
-    assert len(frozen) == 13
+def test_all_fifteen_leakage_audits_pass(frozen):
+    assert len(frozen) == 15
     for item in frozen:
         assert item.record.leakage_audit_status == "LEAKAGE_AUDIT_PASSED"
         assert item.record.leakage_audit_diagnostic_codes == ("LEAKAGE_AUDIT_PASSED",)
@@ -809,7 +809,7 @@ def test_publication_readiness_preview_publishes_nothing(frozen):
         receipt_policy=ReceiptModelingPolicy.PROVIDER_AVAILABILITY_AS_RECEIPT,
         boundary_time=FROZEN_BOUNDARY,
     )
-    assert len(report.publication_readiness_preview) == 13
+    assert len(report.publication_readiness_preview) == 15
     for preview in report.publication_readiness_preview:
         assert preview.phase3b_publication_performed is False
         assert preview.outcome_complete is False

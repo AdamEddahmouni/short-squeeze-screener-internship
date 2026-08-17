@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT))
 
 from squeeze_core.acquisition.operation_readiness.evidence_inputs import (  # noqa: E402
     FROZEN_BOUNDARY,
+    FROZEN_COHORT,
     boundary_id_for,
 )
 from squeeze_core.acquisition.phase3a_freeze.evidence_adapter import (  # noqa: E402
@@ -46,10 +47,11 @@ SYNTHETIC_FREEZE_ROOT = ROOT / "intake" / "local-bars" / "phase3a-batch08-synthe
 EVAL_OUT = ROOT / "tests" / "fixtures" / "evaluation"
 RESEARCH_OUT = ROOT / "tests" / "fixtures" / "research"
 
-COHORT = (
-    ("TRVI", "TRVI_ARTIFACT_DISCOVERY", "BATCH01_TRVI_20260718"),
-    ("LBGJ", "LBGJ_ARTIFACT_DISCOVERY", "BATCH01_LBGJ_20260718"),
-    ("SLS", "SLS_ARTIFACT_DISCOVERY", "BATCH01_SLS_20260718"),
+# Phase 3E preregistered 13-symbol pilot cohort plus KLRS/SG IBKR extensions.
+COHORT = tuple(
+    (symbol, f"{symbol}_ARTIFACT_DISCOVERY", case_id)
+    for symbol, case_id in FROZEN_COHORT[:13]
+) + (
     ("KLRS", "KLRS_ARTIFACT_DISCOVERY", "BATCH01_KLRS_20260718"),
     ("SG", "SG_ARTIFACT_DISCOVERY", "BATCH01_SG_20260718"),
 )

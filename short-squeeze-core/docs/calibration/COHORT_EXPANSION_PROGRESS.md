@@ -4,14 +4,14 @@ Tracks progress toward `min_case_count_for_recommendation: 30` in
 `phase_3d_calibration_policy_v1.json`. Calibration remains exploratory until the
 threshold is met.
 
-## Current labeled cohort (2026-08-16)
+## Current labeled cohort (2026-08-17)
 
 | Metric | Count |
 |--------|------:|
-| Unique historical symbols | 6 (BIYA, TRVI, LBGJ, KLRS, SG, SLS) |
-| Case boundaries | 7 (BIYA×2 + five artifact-discovery symbols) |
-| Evaluable outcome labels after Stage 2 | 7 (all boundaries now have Stage 2 forward-outcome bars) |
-| Independent symbols for policy recommendation | 6 (BIYA boundaries are dependent per ADR 0054) |
+| Unique historical symbols | 15 (13 pilot + KLRS, SG) |
+| Case boundaries | 17 (BIYA×2 + fifteen artifact-discovery symbols) |
+| Evaluable outcome labels after Stage 2 | 17 (all boundaries have Stage 2 forward-outcome bars) |
+| Independent symbols for policy recommendation | 14 (BIYA boundaries are dependent per ADR 0054) |
 
 ## Completed milestones
 
@@ -37,6 +37,7 @@ threshold is met.
 ```powershell
 cd short-squeeze-project\short-squeeze-core
 python scripts/acquisition/collect_forward_outcome_bars.py
+python scripts/acquisition/run_stage2_pipeline.py
 python scripts/generate_ibkr_cohort_phase_3a_fixtures.py
 python scripts/generate_phase_3b_anchors.py
 python scripts/generate_phase_3c_anchors.py

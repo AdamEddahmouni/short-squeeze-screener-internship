@@ -19,36 +19,50 @@
 
 Current Phase 3B structural momentum predicate (3 rules).
 
-- Cases: 7
-- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=5
+- Cases: 17
+- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=15
 
 ### momentum_pct_change
 
 Add PERCENTAGE_CHANGE_MINIMUM; tests whether metric availability changes BIYA detection.
 
-- Cases: 7
-- Confusion matrix: TP=2 FP=0 TN=2 FN=0 unevaluable=3
-- Classification flips from baseline: 2
+- Cases: 17
+- Confusion matrix: TP=2 FP=0 TN=9 FN=0 unevaluable=6
+- Classification flips from baseline: 9
+  - `AVTX_ARTIFACT_DISCOVERY` (AVTX): UNEVALUABLE → TRUE_NEGATIVE
+  - `BHVN_ARTIFACT_DISCOVERY` (BHVN): UNEVALUABLE → TRUE_NEGATIVE
+  - `GPRE_ARTIFACT_DISCOVERY` (GPRE): UNEVALUABLE → TRUE_NEGATIVE
   - `KLRS_ARTIFACT_DISCOVERY` (KLRS): UNEVALUABLE → TRUE_NEGATIVE
+  - `LMNX_ARTIFACT_DISCOVERY` (LMNX): UNEVALUABLE → TRUE_NEGATIVE
+  - `MGNX_ARTIFACT_DISCOVERY` (MGNX): UNEVALUABLE → TRUE_NEGATIVE
+  - `OBE_ARTIFACT_DISCOVERY` (OBE): UNEVALUABLE → TRUE_NEGATIVE
   - `SG_ARTIFACT_DISCOVERY` (SG): UNEVALUABLE → TRUE_NEGATIVE
+  - `ZNTL_ARTIFACT_DISCOVERY` (ZNTL): UNEVALUABLE → TRUE_NEGATIVE
 
 ### momentum_full
 
 Require all six momentum discovery rules.
 
-- Cases: 7
-- Confusion matrix: TP=0 FP=0 TN=2 FN=2 unevaluable=3
-- Classification flips from baseline: 4
+- Cases: 17
+- Confusion matrix: TP=0 FP=0 TN=9 FN=2 unevaluable=6
+- Classification flips from baseline: 11
+  - `AVTX_ARTIFACT_DISCOVERY` (AVTX): UNEVALUABLE → TRUE_NEGATIVE
+  - `BHVN_ARTIFACT_DISCOVERY` (BHVN): UNEVALUABLE → TRUE_NEGATIVE
   - `BIYA_EARLIEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_NEGATIVE
   - `BIYA_LATEST_BOUNDARY` (BIYA): TRUE_POSITIVE → FALSE_NEGATIVE
+  - `GPRE_ARTIFACT_DISCOVERY` (GPRE): UNEVALUABLE → TRUE_NEGATIVE
   - `KLRS_ARTIFACT_DISCOVERY` (KLRS): UNEVALUABLE → TRUE_NEGATIVE
+  - `LMNX_ARTIFACT_DISCOVERY` (LMNX): UNEVALUABLE → TRUE_NEGATIVE
+  - `MGNX_ARTIFACT_DISCOVERY` (MGNX): UNEVALUABLE → TRUE_NEGATIVE
+  - `OBE_ARTIFACT_DISCOVERY` (OBE): UNEVALUABLE → TRUE_NEGATIVE
   - `SG_ARTIFACT_DISCOVERY` (SG): UNEVALUABLE → TRUE_NEGATIVE
+  - `ZNTL_ARTIFACT_DISCOVERY` (ZNTL): UNEVALUABLE → TRUE_NEGATIVE
 
 ### short_pressure_core
 
 Baseline plus PUBLISHED_SHORT_INTEREST_AVAILABLE.
 
-- Cases: 7
-- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=5
+- Cases: 17
+- Confusion matrix: TP=2 FP=0 TN=0 FN=0 unevaluable=15
 - Classification flips from baseline: 0
 
