@@ -79,6 +79,10 @@ registry is the dataset this phase unlocks.
 
 **Prerequisites (gate):**
 
+- **Preregistration (item 1.1):** [phase-4-calibration-preregistration.md](../phase-4-calibration-preregistration.md)
+  fixes dataset, outcome, model sequence, regime slices, purge/embargo, metrics,
+  non-dominance, and success/failure thresholds before any fitting. Open items
+  O-1..O-6 must be locked before fits start.
 - Mechanism-class label adjudication for the registry (spec §21: "separate label
   adjudication for mechanism class") — outcome labels alone (`±25%/24h`) are a
   detection predicate, not a mechanism label (spec §8).

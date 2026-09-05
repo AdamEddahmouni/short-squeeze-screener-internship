@@ -96,6 +96,10 @@ trees only if data justifies them.
   (5) embargo/purging rule, (6) the metric set (Brier, PR-AUC, precision@K, calibration
   curves, log loss, EV under explicit costs — never raw accuracy), (7) GameStop
   non-dominance rule, (8) the pre-registered success/failure thresholds.
+- **Draft added 2026-09-05:** [phase-4-calibration-preregistration.md](../phase-4-calibration-preregistration.md)
+  (v0.1-draft) — dataset counts measured from committed fixtures, 24h-horizon data
+  limitation recorded, O-1..O-6 open items listed. **Not owner-reviewed; do not start
+  fitting until the open items are locked** (item not self-closed).
 - **Acceptance:** a reviewer can tell exactly what will be fit, on what data, and what
   counts as success before any fitting happens. Modeled on the Phase 3F preregistration
   pattern.
