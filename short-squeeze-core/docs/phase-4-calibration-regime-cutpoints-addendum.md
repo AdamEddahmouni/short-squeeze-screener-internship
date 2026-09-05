@@ -61,9 +61,11 @@ data):
   before the evaluation fold starts.
 
 **Re-derivation rule:** if open item O-1 later extends the supported horizons, the
-purge must be re-derived as `w ≥ longest forward horizon in calendar days + 5` (and
-`e = w / 2`, rounded up) in a new outcome-blind addendum revision; the values in this
-addendum are fixed for the current preregistered design.
+purge must be re-derived as `w ≥ longest forward horizon in calendar days + 2` (and
+`e = w / 2`, rounded up) in a new outcome-blind addendum revision — the same formula
+that yields the current fixed values (20 trading days ≈ 28 calendar days → `w` =
+28 + 2 = 30, `e` = 30 / 2 = 15); the values in this addendum are fixed for the
+current preregistered design.
 
 ## 5. Interaction with the other pre-registered rules
 
@@ -90,3 +92,4 @@ requires a new outcome-blind revision recorded here.
 | Date | Change |
 |---|---|
 | 2026-09-05 | Initial outcome-blind draft: slice partition from SEC staff report + FOMC calendar; purge 30 / embargo 15 calendar days; re-derivation rule recorded |
+| 2026-09-05 | Audit correction (v0.1-draft → no version bump needed, same date): re-derivation rule aligned to the formula that reproduces the fixed values (`w ≥ horizon calendar days + 2`, `e = w / 2` rounded up) so the rule is self-consistent with purge 30 / embargo 15 |

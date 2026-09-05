@@ -5,7 +5,7 @@ Fitting must not start until the open items in [§10](#10-open-items-to-lock-bef
 **Spec:** [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](research/SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) (`squeeze_causal_research_spec.v1`)
 **Roadmap:** [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](research/SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md) Phase 4 (closes spec §19 limitation 1)
 **Sprint:** [SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md](research/SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md) item 1.1
-**Version:** `phase_4_calibration_preregistration.v0.5-draft` (O-2, O-3, O-4 addenda linked, 2026-09-05)
+**Version:** `phase_4_calibration_preregistration.v0.6-draft` (O-2, O-3, O-4 addenda linked; audit corrections 2026-09-05)
 
 ## 1. Purpose and ground rules
 
@@ -51,10 +51,12 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
 | Registered BIYA boundaries | 3 (`BIYA_EARLIEST_BOUNDARY`, `BIYA_ARTIFACT_DISCOVERY`, `BIYA_LATEST_BOUNDARY`) | same |
 | Analysis dataset case boundaries | 35 | `tests/fixtures/analysis` / `test_runner.py` constants |
 | Analysis dataset unique symbols | 33 | same |
+| Research-dataset rows | 46 (11 SYN + 35 historical-with-outcomes) | `phase_3b_research_dataset.json` (registry minus KLOS minus AACP) |
+| — unique symbols in research dataset | 44 (11 SYN + 33 historical) | same |
 | Committed outcome-observation files | 35 (33 unique symbols; BIYA ×3; 33 `COMPLETE` + 2 `PARTIAL`) | `tests/fixtures/research/*_outcome_observation.json` |
 | Pipeline-registered boundaries incl. batch 05 | 36 (31 pre-batch-05 + AACB/AACG/AACI/AACP/AADX) | reconciled accounting (O-5, below) |
 | Evaluable Stage-2 outcome labels | 35 (AACP has no outcome file) | reconciled accounting (O-5, below) |
-| Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `phase_3d_calibration_policy_v1.json` |
+| Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `src/squeeze_core/calibration/policies/phase_3d_calibration_policy_v1.json` |
 
 > **O-5 reconciliation (2026-09-05, resolved):** counts above are measured from the
 > regenerated committed fixtures. The registry now **includes batch-05** (48 entries;
@@ -91,9 +93,11 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
   detection-unevaluable at n=30; at the current 48-entry registry the regenerated
   Phase 3C confusion matrix measures **33 of 35 historical case boundaries**
   detection-unevaluable under the retained baseline policy —
-  `phase_3c_confusion_matrix_summary.json`). The sprint dataset decision accepts this
-  limitation explicitly for Phase 4. No Batch 07 semantics gate is lowered to inflate
-  evaluability.
+  `phase_3c_historical_case_boundary_analysis.json`, `analysis_unit: CASE_BOUNDARY`,
+  2 TP / 33 unevaluable / 35; at the unique-symbol level
+  `phase_3c_confusion_matrix_summary.json` measures 1 TP / 32 unevaluable / 33). The
+  sprint dataset decision accepts this limitation explicitly for Phase 4. No Batch 07
+  semantics gate is lowered to inflate evaluability.
 - **No backfill into unsupported horizons:** the evaluator's `occurrence_probability`
   fallback (`_horizon_probabilities_from_model`) must **not** fill the 3/5/10/20-day
   slots from a 1-day estimate. Partial `hazard_by_horizon` coverage keeps the
@@ -306,3 +310,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | 2026-09-05 | O-2 addendum drafted and linked (v0.3-draft): exhaustive 4-slice partition (pre-2020 / meme-regime / high-rate / post-normalization) from the SEC meme-stock staff report + FOMC calendar; purge 30 / embargo 15 calendar days with re-derivation rule; pending reviewer confirmation |
 | 2026-09-05 | O-3 addendum drafted and linked (v0.4-draft): exact point-in-time feature table from the evaluator's evidence inputs (25 rule outcomes / 14 evidence metrics / 28 snapshot fields / 6 derived dimension scores), fixed encodings + missingness indicators, explicit non-features; pending reviewer confirmation |
 | 2026-09-05 | O-4 addendum drafted and linked (v0.5-draft): reference cost set for EV reporting — fixed reference position (long, 1× cash, ≤24 h), commission 0.50% + slippage 0.50% per side (round-trip 2.00%), financing 0.00%, fixed EV expression + reporting constraints; not-tuned/outcome-blind; pending owner confirmation |
+| 2026-09-05 | Cross-addendum audit (v0.6-draft, outcome-blind, no fixture changes): §2.1 gains the research-dataset rows (46 rows / 44 unique symbols) to match the COHORT single source of truth; §2.3 detection-evaluability citation corrected to `phase_3c_historical_case_boundary_analysis.json` (CASE_BOUNDARY: 2 TP / 33 unevaluable / 35) with the unique-symbol-level figure (1 TP / 32 unevaluable / 33) noted alongside; all measured counts re-verified against committed fixtures |

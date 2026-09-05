@@ -196,9 +196,11 @@ transition history (`previous_state` + hysteresis), not a boundary evidence inpu
 ## 6. Consequences for the current cohort
 
 Measured from the committed batch-05 boundary evaluations (e.g.
-`tests/fixtures/evaluation/aacb_boundary_evaluation.json`), the market-bar rules are
-the only rules with `PASS`/`FAIL` outcomes today; the short-pressure, catalyst, and
-most momentum rules are `UNKNOWN` because only `MARKET_BARS` is present in the
+`tests/fixtures/evaluation/aacb_boundary_evaluation.json`: 7 `PASS` / 2 `FAIL` /
+16 `UNKNOWN` across the 25 rules), only the market-bar rules and the
+`EVIDENCE_VALIDITY` meta-rules carry `PASS`/`FAIL` outcomes today — the
+short-pressure, catalyst, and most momentum rules (`PRICE_RANGE`, `RELATIVE_VOLUME_MINIMUM`,
+`FLOAT_MAXIMUM`) are `UNKNOWN` because only `MARKET_BARS` is present in the
 detection-context evidence set (`DETECTION_CONTEXT_PRESENT_DOMAINS == {MARKET_BARS}`,
 `operation_readiness/dependencies.py`). The feature table above is **not trimmed to
 what is non-missing today**: absent features stay in the matrix with missingness
@@ -210,3 +212,4 @@ indicators, and any fit reports the per-feature missingness rate. Feasibility ga
 | Date | Change |
 |---|---|
 | 2026-09-05 | Initial draft (v0.1): exact feature list enumerated from the committed evaluator evidence-input contracts and boundary-evaluation fixtures; outcome-blind; pending reviewer confirmation (O-3) |
+| 2026-09-05 | Audit correction (same date, no version bump): §6 consequence claim corrected — `EVIDENCE_VALIDITY` meta-rules also carry `PASS`/`FAIL` (5 PASS + 1 FAIL in the AACB fixture), not only market-bar rules; measured counts (7 PASS / 2 FAIL / 16 UNKNOWN) stated explicitly |
