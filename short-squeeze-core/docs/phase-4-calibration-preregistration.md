@@ -5,7 +5,7 @@ Fitting must not start until the open items in [§10](#10-open-items-to-lock-bef
 **Spec:** [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](research/SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) (`squeeze_causal_research_spec.v1`)
 **Roadmap:** [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](research/SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md) Phase 4 (closes spec §19 limitation 1)
 **Sprint:** [SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md](research/SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md) item 1.1
-**Version:** `phase_4_calibration_preregistration.v0.3-draft` (O-2 addendum linked, 2026-09-05)
+**Version:** `phase_4_calibration_preregistration.v0.4-draft` (O-2 and O-3 addenda linked, 2026-09-05)
 
 ## 1. Purpose and ground rules
 
@@ -163,9 +163,13 @@ by cross-validation on the **training** folds only.
   consumes at the boundary (vulnerability, constraint pressure, short stress,
   ignition strength, reflexivity strength, remaining fuel) and their direct
   evidence-metric inputs (spec §3, §5 groups A–I).
-- **Feature freeze addendum:** the exact final feature table is appended to this
-  document **before any fit** and **before any label-timestamp or outcome inspection**
-  (open item O-3). Feature *selection by outcome* is forbidden.
+- **Feature freeze addendum:** the exact final feature table is fixed outcome-blind
+  in [phase-4-calibration-feature-table-addendum.md](phase-4-calibration-feature-table-addendum.md)
+  (open item O-3) — the exact point-in-time feature list from the evaluator's
+  evidence inputs (25 rule outcomes, 14 evidence metrics, 28 snapshot fields, 6
+  derived dimension scores), **appended before any fit and before any
+  label-timestamp or outcome inspection**. Feature *selection by outcome* is
+  forbidden.
 
 ## 6. Regime slices and the GameStop non-dominance rule (pre-registered)
 
@@ -259,7 +263,7 @@ imbalance is reported, not engineered away).
 |---|---|---|---|
 | O-1 | Owned multi-day forward-path data for horizons 3/5/10/20, or explicit acceptance that those slots stay `RESEARCH_ONLY` | Owner (data feasibility) | Horizons > 1 cannot be calibrated |
 | O-2 | Regime cutpoints + purge/embargo values — **drafted 2026-09-05** in [phase-4-calibration-regime-cutpoints-addendum.md](phase-4-calibration-regime-cutpoints-addendum.md) (outcome-blind; SEC/FOMC cited calendar; purge 30 / embargo 15 calendar days) | Reviewer confirms addendum | §6/§7 executable once confirmed |
-| O-3 | Final feature table (outcome-blind) | Reviewer confirms addendum | §5 not executable |
+| O-3 | Final feature table (outcome-blind) — **drafted 2026-09-05** in [phase-4-calibration-feature-table-addendum.md](phase-4-calibration-feature-table-addendum.md): exact point-in-time list from the evaluator's evidence inputs (25 rule outcomes / 14 evidence metrics / 28 snapshot fields / 6 derived dimension scores), missingness + encoding rules fixed | Reviewer confirms addendum | §5 not executable |
 | O-4 | Reference cost set for EV reporting (owner-specified, not tuned) | Owner | EV metric not reportable |
 | O-5 | ~~Reconcile registry accounting across [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md) vs. committed fixtures~~ — **Resolved 2026-09-05**: reconciled accounting added to the COHORT doc **and the registry fixture regenerated to include batch-05** (48 entries = 36 historical boundaries incl. batch-05 / 34 symbols / 11 SYN / 1 AACP EVALUATION_ONLY / 1 KLOS; 35 outcome files / 46 dataset rows / 35 evaluable / 1 AACP exclusion). Single source of truth: regenerated fixtures + COHORT doc | Owner + reviewer | ~~Dataset §2 not fully locked~~ — closed; reviewer re-check on final approval |
 | O-6 | Owner review of this preregistration (status → approved or amended) | Owner | No fitting at all |
@@ -296,3 +300,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | 2026-09-05 | O-5 resolved (part 2): registry fixture regenerated to include batch-05 (generator `_batch05_entries()`; AACP `EVALUATION_ONLY`); Phase 3B/3C fixtures + analysis-test constants updated in the same change; §2 table re-measured (48 registry entries = 36 historical boundaries / 34 symbols / 11 SYN / 1 AACP / 1 KLOS; 46 dataset rows; 35 evaluable labels) |
 | 2026-09-05 | Spec/ADR audit (v0.2-draft, outcome-blind): gaps closed — spec §9 horizon tuple `(1,3,5,10,20)` enumerated with 1-day ≡ owned 24h label; §10 hazard event/censoring pinned and tree-variant margins fixed (Brier skill ≥ +0.05, PR-AUC ≥ +0.05); §13 precision+recall added and base-rate/imbalance reporting required; ADR-0054 independence framing (`HISTORICAL_CASE_BOUNDARIES_NOT_INDEPENDENT`); ADR-0067 retained detection predicate + rejected gate variants + current 33/35 unevaluable measurement + no occurrence-probability backfill into unsupported horizons; ADR-0068 outcome-variant rejection + Adam deferral added to non-goals |
 | 2026-09-05 | O-2 addendum drafted and linked (v0.3-draft): exhaustive 4-slice partition (pre-2020 / meme-regime / high-rate / post-normalization) from the SEC meme-stock staff report + FOMC calendar; purge 30 / embargo 15 calendar days with re-derivation rule; pending reviewer confirmation |
+| 2026-09-05 | O-3 addendum drafted and linked (v0.4-draft): exact point-in-time feature table from the evaluator's evidence inputs (25 rule outcomes / 14 evidence metrics / 28 snapshot fields / 6 derived dimension scores), fixed encodings + missingness indicators, explicit non-features; pending reviewer confirmation |
