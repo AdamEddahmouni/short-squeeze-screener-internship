@@ -19,7 +19,7 @@ import (`docs/MONOREPO_WORKFLOW.md`), never by editing the snapshot directly.
 |---|---|
 | Product | Short Squeeze Research Screener v0.16.0, read-only (no orders, no recommendations) |
 | Causal evaluator | `squeeze_causal_baseline.v4` — evidence-gated state machine, fail-closed `UNEVALUABLE`, mechanism labels, separated confidence, `RESEARCH_ONLY` horizon slots |
-| Phase 3F cohort | 29 IBKR frozen-boundary symbols; 43-entry registry (31 historical case boundaries / 29 symbols / 11 SYN / 1 KLOS blocked); 35 evaluable Stage-2 outcome labels; 1 permanent exclusion (AACP) |
+| Phase 3F cohort | 29 IBKR frozen-boundary symbols; 48-entry registry (36 historical case boundaries incl. batch 05 / 34 symbols / 11 SYN / 1 AACP evaluation-only / 1 KLOS blocked); 35 evaluable Stage-2 outcome labels; 1 permanent exclusion (AACP) |
 | Calibration harness | `tools/run_calibration_suite.py` (Phase 3D outcome/detection counterfactuals) — exists |
 | Horizon contract | `HorizonModelSnapshot` + evaluator consumption (`_horizon_probabilities_from_model`) — **consumer exists, producer does not** |
 | Exhaustion | `fuel.py::estimate_exhaustion_risk`, `EXHAUSTION` state assignment — implemented; exit evidence package + cooldown spec missing |
@@ -80,7 +80,7 @@ pit_verified=True, hazard_by_horizon)` entries that flip the evaluator's horizon
 `CALIBRATED` with model-version provenance. This is the single largest remaining milestone.
 
 **Dataset decision (recorded):** Phase 4 calibrates on the **35 evaluable Stage-2 outcome
-labels that exist and are owned** (43-entry registry as context; reconciled accounting in
+labels that exist and are owned** (48-entry registry as context; reconciled accounting in
 [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md)), accepting the ADR-0067
 detection-evaluability limitation explicitly in the preregistration. Mechanism-class
 adjudication (spec §21) is a **separate, optional extension**, not a hard Phase-4 gate —
@@ -91,7 +91,7 @@ trees only if data justifies them.
 ### 1.1 — Phase-4 preregistration
 
 - **Fix:** `docs/phase-4-calibration-preregistration.md` naming (1) the dataset (35 evaluable
-  labels, 43-entry registry context, dependent-observation rule per ADR-0054), (2) outcome definition
+  labels, 48-entry registry context, dependent-observation rule per ADR-0054), (2) outcome definition
   (detection predicate at ±25%/24h — no mechanism claim), (3) the model sequence
   (logistic/hazard baseline first), (4) regime slices (pre-2020, meme regime, high-rate),
   (5) embargo/purging rule, (6) the metric set (Brier, PR-AUC, precision@K, calibration
@@ -302,4 +302,5 @@ owner-side path are in-sprint; the rest stay registered gaps.
 |---|---|
 | 2026-09-06 | Initial sprint plan; dataset decision recorded (34-label path, mechanism adjudication separately gated); fixture-gap root cause identified |
 | 2026-09-05 | 0.3 closed: batch07 manifests extended to the 29-symbol `FROZEN_COHORT` (KLRS/SG/BATCH3F0x mirror rows), golden report regenerated, test asserts against the cohort constant — `test_operation_readiness.py` 37/37 green. 0.4 closed: full suite re-run; remaining failures are only the two environmental buckets (26 compatibility/CI-baseline, 6 live-IB-Gateway), 0 errors |
-| 2026-09-05 | Registry accounting reconciled (O-5): authoritative counts measured from committed fixtures — 43-entry registry = 31 historical case boundaries / 29 unique symbols / 11 SYN / 1 KLOS; 35 outcome-observation files; 36 pipeline boundaries incl. batch 05; 35 evaluable labels; 1 AACP exclusion. See [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md) |
+| 2026-09-05 | Registry accounting reconciled (O-5, part 1): authoritative counts measured from committed fixtures — 43-entry registry = 31 historical case boundaries / 29 unique symbols / 11 SYN / 1 KLOS; 35 outcome-observation files; 36 pipeline boundaries incl. batch 05; 35 evaluable labels; 1 AACP exclusion. See [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md) |
+| 2026-09-05 | O-5 part 2: registry fixture regenerated to include batch-05 (48 entries = 36 historical boundaries / 34 symbols / 11 SYN / 1 AACP evaluation-only / 1 KLOS); Phase 3B/3C fixtures + analysis-test constants updated in the same change |

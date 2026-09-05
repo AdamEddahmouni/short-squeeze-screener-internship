@@ -40,29 +40,30 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
 
 | Quantity | Count | Source (committed fixture) |
 |---|---:|---|
-| Registered registry entries | 43 | `tests/fixtures/research/phase_3b_case_registry.json` (`phase_3b_case_registry.v1`) |
-| — of which `COMPLETE` | 42 | same |
+| Registered registry entries | 48 | `tests/fixtures/research/phase_3b_case_registry.json` (`phase_3b_case_registry.v1`) |
+| — of which `COMPLETE` | 46 | same |
+| — of which `EVALUATION_ONLY` | 1 (AACP, permanent `OUTCOME_UNEVALUABLE` — [AACP_OUTCOME_EXCLUSION_RECORD.md](calibration/AACP_OUTCOME_EXCLUSION_RECORD.md)) | same |
 | — of which `BLOCKED_CONFLICTING_IDENTITY` | 1 (`KLOS_IDENTITY_CONFLICT`, excluded) | same |
 | — of which ADR-0053 synthetic evaluations | 11 (`SYN_*`, excluded from historical analysis) | same |
-| — historical case boundaries (excl. SYN, excl. KLOS) | 31 | same |
-| — unique historical symbols | 29 (BIYA ×3 boundaries) | same |
-| Unique symbols in registry (incl. SYN symbols) | 41 | same |
+| — historical case boundaries (excl. SYN, excl. KLOS) | 36 (incl. batch-05 AACB/AACG/AACI/AACP/AADX) | same |
+| — unique historical symbols | 34 (BIYA ×3 boundaries) | same |
+| Unique symbols in registry (incl. SYN symbols) | 46 | same |
 | Registered BIYA boundaries | 3 (`BIYA_EARLIEST_BOUNDARY`, `BIYA_ARTIFACT_DISCOVERY`, `BIYA_LATEST_BOUNDARY`) | same |
-| Analysis dataset case boundaries | 31 | `tests/fixtures/analysis` / `test_runner.py` constants |
-| Analysis dataset unique symbols | 29 | same |
+| Analysis dataset case boundaries | 35 | `tests/fixtures/analysis` / `test_runner.py` constants |
+| Analysis dataset unique symbols | 33 | same |
 | Committed outcome-observation files | 35 (33 unique symbols; BIYA ×3; 33 `COMPLETE` + 2 `PARTIAL`) | `tests/fixtures/research/*_outcome_observation.json` |
-| Pipeline-registered boundaries incl. batch 05 | 36 (31 historical + AACB/AACG/AACI/AACP/AADX) | reconciled accounting (O-5, below) |
+| Pipeline-registered boundaries incl. batch 05 | 36 (31 pre-batch-05 + AACB/AACG/AACI/AACP/AADX) | reconciled accounting (O-5, below) |
 | Evaluable Stage-2 outcome labels | 35 (AACP has no outcome file) | reconciled accounting (O-5, below) |
-| Permanent outcome exclusions | 1 (AACP — [AACP_OUTCOME_EXCLUSION_RECORD.md](calibration/AACP_OUTCOME_EXCLUSION_RECORD.md)) | same |
 | Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `phase_3d_calibration_policy_v1.json` |
 
-> **O-5 reconciliation (2026-09-05):** counts above are measured from committed
-> fixtures; the earlier "34 evaluable Stage-2 labels" figure counted 30 prior + 4
+> **O-5 reconciliation (2026-09-05, resolved):** counts above are measured from the
+> regenerated committed fixtures. The registry now **includes batch-05** (48 entries;
+> generator + Phase 3B/3C fixtures + analysis-test constants updated in the same
+> change). The earlier "34 evaluable Stage-2 labels" figure counted 30 prior + 4
 > batch-05 before the Batch-04 BIYA-artifact outcome was regenerated into the fixture
 > set. The single source of truth lives in
 > [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md)
-> (§ "Reconciled accounting"). Note the committed registry fixture excludes batch-05
-> entries (present only in the outcome-observation set / intake provenance).
+> (§ "Reconciled accounting").
 | Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `phase_3d_calibration_policy_v1.json` |
 
 ### 2.2 Units of analysis and the dependence rule
@@ -231,7 +232,7 @@ forward evidence justifies promotion of the *framing* (never of policy).
 | O-2 | Regime cutpoints + purge `w` / embargo `e` values, outcome-blind, with cited calendar | Reviewer confirms addendum | §6/§7 not executable |
 | O-3 | Final feature table (outcome-blind) | Reviewer confirms addendum | §5 not executable |
 | O-4 | Reference cost set for EV reporting (owner-specified, not tuned) | Owner | EV metric not reportable |
-| O-5 | ~~Reconcile registry accounting across [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md) vs. committed fixtures~~ — **Resolved 2026-09-05**: reconciled accounting (single source of truth) added to the COHORT doc; dataset §2 updated to the measured counts (43 registry entries = 31 historical boundaries / 29 symbols / 11 SYN / 1 KLOS; 35 outcome files / 36 pipeline boundaries incl. batch 05 / 35 evaluable / 1 AACP exclusion) | Owner + reviewer | ~~Dataset §2 not fully locked~~ — closed; reviewer re-check on final approval |
+| O-5 | ~~Reconcile registry accounting across [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md) vs. committed fixtures~~ — **Resolved 2026-09-05**: reconciled accounting added to the COHORT doc **and the registry fixture regenerated to include batch-05** (48 entries = 36 historical boundaries incl. batch-05 / 34 symbols / 11 SYN / 1 AACP EVALUATION_ONLY / 1 KLOS; 35 outcome files / 46 dataset rows / 35 evaluable / 1 AACP exclusion). Single source of truth: regenerated fixtures + COHORT doc | Owner + reviewer | ~~Dataset §2 not fully locked~~ — closed; reviewer re-check on final approval |
 | O-6 | Owner review of this preregistration (status → approved or amended) | Owner | No fitting at all |
 
 ## 11. Non-goals
@@ -258,4 +259,5 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | Date | Change |
 |---|---|
 | 2026-09-05 | Initial draft (v0.1); dataset counts measured from committed fixtures; 24h-horizon data limitation and O-1..O-6 recorded before any fitting |
-| 2026-09-05 | O-5 resolved: reconciled accounting added to [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md); §2 updated to measured counts (43-entry registry = 31 historical boundaries / 29 symbols / 11 SYN / 1 KLOS; 35 outcome files; 36 pipeline boundaries incl. batch 05; 35 evaluable labels; 1 AACP exclusion); SYN entry count corrected 9→11 |
+| 2026-09-05 | O-5 resolved (part 1): reconciled accounting added to [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md); §2 updated to measured counts; SYN entry count corrected 9→11 |
+| 2026-09-05 | O-5 resolved (part 2): registry fixture regenerated to include batch-05 (generator `_batch05_entries()`; AACP `EVALUATION_ONLY`); Phase 3B/3C fixtures + analysis-test constants updated in the same change; §2 table re-measured (48 registry entries = 36 historical boundaries / 34 symbols / 11 SYN / 1 AACP / 1 KLOS; 46 dataset rows; 35 evaluable labels) |
