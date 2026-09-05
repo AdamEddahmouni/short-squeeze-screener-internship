@@ -6,7 +6,7 @@
 | Scope | Finish the causal Short Squeeze lane end-to-end (roadmap Phases 4–7) plus repo close-out |
 | Source | [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md), [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) |
 | Product version | 0.16.0 (current) |
-| Status | Open — 3/26 items closed (0.3, 0.4, 1.2) |
+| Status | Open — 3/26 items closed (0.3, 0.4, 1.2); 1.3 reporting half implemented (fit gated on O-2/O-3/O-4/O-6 confirmations) |
 | Ownership | Short-squeeze child repo (`short-squeeze-project`); platform-facing items coordinated through the parent monorepo (guarded import) |
 
 **How to use:** tick `[ ]` → `[x]` as items close. Work that lands in the child repo follows
@@ -140,6 +140,22 @@ trees only if data justifies them.
   modeled as missing); produce `hazard_by_horizon` for (1, 3, 5, 10, 20).
 - **Acceptance:** diagnostics from 1.2 pass the preregistered thresholds or the result is
   honestly reported as not-yet-calibrated (`RESEARCH_ONLY` retained — no forced flip).
+- **Progress (2026-09-05):** the reporting half is implemented ahead of any fit
+  (`src/squeeze_core/calibration/fit_report.py`, runner
+  `tools/run_fit_report_skeleton.py`, tests `tests/calibration/test_fit_report.py`):
+  the preregistered F-1..F-4 feasibility ladder runs over committed inputs, and the
+  honest `NOT_CALIBRATED` report is committed with the failing gate named — **F-1**
+  (3 positives < 10; F-2 27, F-3 2-fold pass, F-4 owner data-feasibility recorded as
+  `passed=None` under O-1). Slot statuses use the `HorizonModelSnapshot` contract
+  vocabulary; `RESEARCH_ONLY` retained; `fit_attempted=false` with §10 blockers
+  (O-2/O-3/O-4/O-6 + F-1) carried on the report. The fit itself stays blocked until
+  O-2/O-3/O-4/O-6 are confirmed; once they are, the fit runs into this prepared
+  ladder and the report is re-issued — either keeping `NOT_CALIBRATED` or, if every
+  gate passes, as a fit result. Report:
+  `reports/calibration/phase_4_fit_report_skeleton.{json,md}`;
+  doc: [phase-4-fit-report-skeleton.md](../phase-4-fit-report-skeleton.md).
+  Item 1.3 remains **open** until the fit attempt itself is made (or the honest
+  NOT_CALIBRATED result stands as the final Phase 4 outcome).
 
 ### 1.4 — Calibrated `HorizonModelSnapshot` wiring
 

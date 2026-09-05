@@ -69,6 +69,11 @@ outcome-observation fixtures (33 symbol clusters; BIYA grouped):
 Both are regenerated artifacts; re-run the runner after any registry/fixture
 change and commit the refreshed outputs in the same change.
 
+The item 1.3 reporting skeleton consumes this plan's diagnostics as the F-3 input
+of the preregistered feasibility ladder — see
+[phase-4-fit-report-skeleton.md](phase-4-fit-report-skeleton.md) and
+`tools/run_fit_report_skeleton.py`.
+
 ## 4. Tests
 
 `tests/calibration/test_walkforward.py` covers: cutpoint membership and
@@ -84,3 +89,4 @@ no-training-boundaries finding and the probability-free field check.
 | Date | Change |
 |---|---|
 | 2026-09-05 | Initial scaffold (sprint item 1.2): grouped chronological folds, purge 30 / embargo 15 (O-2), regime slices, degeneracy gate, diagnostics; committed-cohort structure measured and recorded; no fitting performed |
+| 2026-09-05 | Cross-link: the item 1.3 fit-report skeleton consumes these diagnostics as the F-3 gate input ([phase-4-fit-report-skeleton.md](phase-4-fit-report-skeleton.md)) |

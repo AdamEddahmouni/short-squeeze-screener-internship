@@ -242,6 +242,17 @@ If F-1…F-4 or C-1…C-3 fail, the Phase 4 result is reported honestly as
 evaluator's `RESEARCH_ONLY` slots are retained; nothing is force-flipped to
 `CALIBRATED`.
 
+> **Reporting-skeleton note (2026-09-05):** the §8.1 feasibility ladder and the
+> honest `NOT_CALIBRATED` report are implemented ahead of any fit
+> (`src/squeeze_core/calibration/fit_report.py`,
+> [phase-4-fit-report-skeleton.md](phase-4-fit-report-skeleton.md)); the committed
+> cohort measures **F-1 failing** (3 positives < 10) with F-2/F-3 passing and F-4
+> recorded as owner data-feasibility (`passed=None`, O-1). On the committed cohort
+> the F-1 failure alone decides §8.2's honest-reporting arm; the C-1…C-3 gates
+> remain unevaluable until the owner-gated fitting stage runs. Slot statuses use
+> exactly the `HorizonModelSnapshot` contract vocabulary (`RESEARCH_ONLY |
+> CALIBRATED`); nothing is force-flipped.
+
 ## 9. Metrics (pre-registered; never raw accuracy)
 
 Primary, reported on held-out folds:
@@ -319,3 +330,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | 2026-09-05 | O-4 addendum drafted and linked (v0.5-draft): reference cost set for EV reporting — fixed reference position (long, 1× cash, ≤24 h), commission 0.50% + slippage 0.50% per side (round-trip 2.00%), financing 0.00%, fixed EV expression + reporting constraints; not-tuned/outcome-blind; pending owner confirmation |
 | 2026-09-05 | Cross-addendum audit (v0.6-draft, outcome-blind, no fixture changes): §2.1 gains the research-dataset rows (46 rows / 44 unique symbols) to match the COHORT single source of truth; §2.3 detection-evaluability citation corrected to `phase_3c_historical_case_boundary_analysis.json` (CASE_BOUNDARY: 2 TP / 33 unevaluable / 35) with the unique-symbol-level figure (1 TP / 32 unevaluable / 33) noted alongside; all measured counts re-verified against committed fixtures |
 | 2026-09-05 | §7 scaffold note: walk-forward split machinery implemented (sprint item 1.2); committed cohort measures 2 non-empty evaluation folds / 0 admissible training boundaries under the pre-registered windows — recorded for item 1.3's honest reporting, no windows changed |
+| 2026-09-05 | §8.2 reporting-skeleton note: feasibility ladder + honest `NOT_CALIBRATED` reporting implemented ahead of any fit (sprint item 1.3); committed cohort measures F-1 failing (3 positives < 10), F-2/F-3 passing, F-4 owner data-feasibility (`passed=None`, O-1); slot statuses fixed to the snapshot contract vocabulary; no fitting performed |
