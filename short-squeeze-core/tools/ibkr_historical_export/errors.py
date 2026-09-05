@@ -49,12 +49,22 @@ def is_transient(code: int) -> bool:
     return code in TRANSIENT_RETRY_CODES
 
 
+# Socket-level or TWS connectivity loss — the session must reconnect before new requests.
+DISCONNECT_CODES: frozenset[int] = frozenset({1100, 2110})
+
+
+def is_disconnect(code: int) -> bool:
+    return code in DISCONNECT_CODES
+
+
 __all__ = [
     "PERMISSION_CODES",
     "DATA_UNAVAILABLE_CODES",
     "TRANSIENT_RETRY_CODES",
+    "DISCONNECT_CODES",
     "is_request_ending",
     "is_no_data_empty",
     "classify_historical_error",
     "is_transient",
+    "is_disconnect",
 ]

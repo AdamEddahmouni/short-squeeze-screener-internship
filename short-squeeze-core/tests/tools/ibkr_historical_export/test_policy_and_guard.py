@@ -21,7 +21,7 @@ def test_assert_localhost_rejects_remote():
 
 
 def test_port_probe_order():
-    assert policy.PORT_PROBE_ORDER == (4002, 4001)
+    assert policy.PORT_PROBE_ORDER == (4002, 4001, 4004, 4003)
 
 
 def test_client_id_sequence():

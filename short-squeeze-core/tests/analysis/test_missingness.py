@@ -23,30 +23,29 @@ def test_historical_missing_short_pressure_and_history_are_explicit():
     rows = tuple(row for row in load_dataset().rows if row.symbol == "BIYA")
     summary = _by_domain(build_domain_missingness(rows, CONTEXT))
     for domain in (
-        "PUBLISHED_SHORT_INTEREST",
-        "PUBLISHED_SHORT_INTEREST_CHANGE",
         "DAYS_TO_COVER",
         "BORROW_FEE",
         "BORROW_FEE_CHANGE",
         "BORROW_AVAILABILITY",
         "BORROW_AVAILABILITY_CHANGE",
-        "FLOAT",
-        "PERCENTAGE_CHANGE_HISTORY",
-        "RELATIVE_VOLUME_HISTORY",
         "SEC_FILINGS",
-        "INSUFFICIENT_HISTORY",
         "MULTIPLE_BOUNDARIES_PER_SYMBOL",
     ):
-        assert summary[domain].missing_count == 2
-        assert summary[domain].denominator == 2
+        assert summary[domain].missing_count == 3
+        assert summary[domain].denominator == 3
         assert summary[domain].affected_case_ids == (
+            "BIYA_ARTIFACT_DISCOVERY",
             "BIYA_EARLIEST_BOUNDARY",
             "BIYA_LATEST_BOUNDARY",
         )
         assert summary[domain].affected_symbols == ("BIYA",)
-    assert summary["NEWS"].missing_count == 0
-    assert summary["NEWS_TIMESTAMP"].missing_count == 0
-    assert summary["PROVIDER_SCOPE"].missing_count == 0
+    assert summary["PUBLISHED_SHORT_INTEREST"].missing_count == 0
+    assert summary["NEWS"].missing_count == 1
+    assert summary["NEWS"].affected_case_ids == ("BIYA_ARTIFACT_DISCOVERY",)
+    assert summary["NEWS_TIMESTAMP"].missing_count == 1
+    assert summary["NEWS_TIMESTAMP"].affected_case_ids == ("BIYA_ARTIFACT_DISCOVERY",)
+    assert summary["PROVIDER_SCOPE"].missing_count == 1
+    assert summary["PROVIDER_SCOPE"].affected_case_ids == ("BIYA_ARTIFACT_DISCOVERY",)
 
 
 def test_conflict_insufficiency_and_partial_outcome_cases_are_not_failures():

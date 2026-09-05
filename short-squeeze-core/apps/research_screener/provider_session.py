@@ -209,9 +209,18 @@ class LiveProvider:
     def ensure_connected(self) -> None:
         """Connect if not already connected. Reconnects transparently after a restart."""
         with self._lock:
+            try:
+                from tools.ibkr_historical_export.collector import _session_is_live
+            except ImportError:
+                _session_is_live = None  # type: ignore[assignment,misc]
             if self._session is not None:
                 try:
-                    if self._session.isConnected():
+                    live = (
+                        _session_is_live(self._session)
+                        if _session_is_live is not None
+                        else self._session.isConnected()
+                    )
+                    if live:
                         return
                 except Exception:  # noqa: BLE001 - a dead session is simply replaced
                     pass
@@ -222,6 +231,7 @@ class LiveProvider:
                 from tools.ibkr_historical_export.collector import (
                     connect_configured,
                     probe_and_connect,
+                    reconnect_using_result,
                 )
             except ImportError as exc:
                 self.connection_status.failed(
@@ -237,7 +247,13 @@ class LiveProvider:
             try:
                 ibkr_policy.CLIENT_ID_SEQUENCE = APP_CLIENT_ID_SEQUENCE
                 endpoint = self._ibkr_endpoint
-                if endpoint is not None and not _is_loopback_host(endpoint.host):
+                if self._connection is not None:
+                    session, result = reconnect_using_result(
+                        self._build_session,
+                        self._connection,
+                        host=endpoint.host if endpoint is not None else ibkr_policy.HOST,
+                    )
+                elif endpoint is not None and not _is_loopback_host(endpoint.host):
                     session, result = connect_configured(
                         self._build_session,
                         endpoint.host,
@@ -305,7 +321,8 @@ class LiveProvider:
         if session is None:
             return False
         try:
-            return bool(session.isConnected())
+            from tools.ibkr_historical_export.collector import _session_is_live
+            return _session_is_live(session)
         except Exception:  # noqa: BLE001
             return False
 

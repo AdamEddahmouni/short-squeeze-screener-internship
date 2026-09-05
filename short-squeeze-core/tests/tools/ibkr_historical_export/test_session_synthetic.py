@@ -127,6 +127,21 @@ def test_next_valid_id_marks_ready():
     assert session._ready.is_set()
 
 
+def test_connection_closed_marks_session_not_live():
+    session = IbkrSession()
+    session.record_endpoint("127.0.0.1", 4001, 27185)
+    session.nextValidId(1)
+    session.connectionClosed()
+    assert session.is_live() is False
+
+
+def test_disconnect_error_marks_session_not_live():
+    session = IbkrSession()
+    session.nextValidId(1)
+    session.error(-1, 1100, "Connectivity between IB and TWS has been lost", "")
+    assert session.is_live() is False
+
+
 def test_make_conid_contract_fields():
     contract = make_conid_contract(111, "XNCR")
     assert contract.conId == 111

@@ -28,7 +28,7 @@ def _csv_and_hash():
     return data, sha, length
 
 
-def test_unknown_semantics_reject_honestly():
+def test_ibkr_honest_unknowns_pass_preflight():
     data, sha, length = _csv_and_hash()
     outcome = run_bundle_preflight(
         bundle_id="B", symbol="XNCR", csv_bytes=data,
@@ -38,11 +38,12 @@ def test_unknown_semantics_reject_honestly():
         expected_start_time=REQUEST_A.expected_window_start,
         expected_end_time=REQUEST_A.expected_window_end,
     )
-    assert outcome.status is PreflightStatus.PREFLIGHT_REJECTED
-    assert "MISSING_ADJUSTMENT_SEMANTICS" in outcome.reason_codes
+    assert outcome.status is PreflightStatus.PREFLIGHT_READY
+    assert "MISSING_ADJUSTMENT_SEMANTICS" not in outcome.reason_codes
+    assert "MISSING_TIMESTAMP_SEMANTICS" not in outcome.reason_codes
 
 
-def test_manifest_declares_unknown_adjustments():
+def test_manifest_declares_adr_0066_semantics():
     manifest = build_manifest(
         bundle_id="B", symbol="XNCR",
         artifact_relative_path="raw/XNCR-detection-context.csv",
@@ -53,8 +54,9 @@ def test_manifest_declares_unknown_adjustments():
         profile_id="p",
     )
     assert manifest.provider_name == "Interactive Brokers"
-    assert manifest.price_adjustment_semantics.value == "UNKNOWN"
+    assert manifest.price_adjustment_semantics.value == "SPLIT_ADJUSTED"
     assert manifest.volume_adjustment_semantics.value == "UNKNOWN"
+    assert manifest.timestamp_semantics.value == "UNKNOWN"
     assert manifest.value_authenticity.value == "VENDOR_SUPPLIED"
     assert manifest.data_time_basis.value == "HISTORICAL"
 
@@ -83,4 +85,4 @@ def test_report_never_performs_association_or_outcome():
     assert report.phase_3a_records_created is False
     assert report.phase_3b_records_created is False
     assert report.phase_3e_started is False
-    assert report.ready_for_case_association is False
+    assert report.ready_for_case_association is True

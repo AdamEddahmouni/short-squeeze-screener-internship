@@ -5,6 +5,7 @@ import json
 import shutil
 import sys
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -14,17 +15,22 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
 from squeeze_core.contracts import AssetClass  # noqa: E402
+from squeeze_core.acquisition.operation_readiness.evidence_inputs import FROZEN_COHORT  # noqa: E402
 from squeeze_core.evaluation import (  # noqa: E402
     CandidateEvaluationResult,
     CategoryEvaluationSummary,
     RuleCategory,
+    RuleEvaluationRequest,
     RuleEvaluationResult,
     RuleOutcome,
+    evaluate_candidate,
 )
+from squeeze_core.evaluation.policies import lookup_policy  # noqa: E402
 from squeeze_core.evaluation.serialization import (  # noqa: E402
     deserialize_candidate_evaluation,
     serialize_candidate_evaluation,
 )
+from squeeze_core.metrics import MetricName, MetricUnit  # noqa: E402
 from squeeze_core.research.batch import run_research_batch  # noqa: E402
 from squeeze_core.research.classification import classify_research_case  # noqa: E402
 from squeeze_core.research.dataset import (  # noqa: E402
@@ -66,6 +72,13 @@ from squeeze_core.research.summaries import (  # noqa: E402
     build_rule_frequency_summary,
 )
 from squeeze_core.serialization import canonical_hash, canonical_json_bytes  # noqa: E402
+from tests.evaluation.helpers import (  # noqa: E402
+    AS_OF,
+    bar,
+    normalized_metric,
+    short_interest,
+    snapshot,
+)
 
 
 OUT = ROOT / "tests" / "fixtures" / "research"
@@ -75,6 +88,7 @@ OUTCOME_CASE = (
     / "biya_outcome_case.json"
 )
 PHASE_3A_POLICY_VERSION = "phase_3a_transparent_candidate_policy.v1"
+SYNTHETIC_POLICY = lookup_policy(PHASE_3A_POLICY_VERSION)
 REGISTRY_VERSION = "phase_3b_case_registry.v1"
 BATCH_VERSION = "phase_3b_batch.v1"
 
@@ -117,15 +131,78 @@ def _category_summaries(results):
     return tuple(summaries)
 
 
-def _synthetic_evaluation(symbol: str, overrides: dict[str, RuleOutcome]):
-    base = _load_evaluation("biya_earliest_boundary_evaluation.json")
+@dataclass(frozen=True)
+class SyntheticMetricSpec:
+    bar_close: str | None = "8"
+    include_bar: bool = True
+    bar_status: str = "COMPLETED"
+    percentage_return: str | None = "12"
+    relative_volume: str | None = "6"
+    float_shares: int | None = 10_000_000
+    include_short_interest: bool = True
+
+
+def _with_symbol(observation, symbol: str):
+    return observation.model_copy(update={"symbol": symbol})
+
+
+def _synthetic_evaluation(
+    symbol: str,
+    metric_spec: SyntheticMetricSpec,
+    overrides: dict[str, RuleOutcome],
+):
+    observations: list = []
+    if metric_spec.include_bar and metric_spec.bar_close is not None:
+        observations.append(
+            _with_symbol(
+                bar(metric_spec.bar_close, status=metric_spec.bar_status),
+                symbol,
+            )
+        )
+    if metric_spec.float_shares is not None:
+        observations.append(_with_symbol(snapshot(float_shares=metric_spec.float_shares), symbol))
+    if metric_spec.include_short_interest:
+        observations.append(_with_symbol(short_interest(), symbol))
+
+    metrics = []
+    if metric_spec.percentage_return is not None:
+        metrics.append(
+            normalized_metric(
+                MetricName.PERCENTAGE_RETURN,
+                metric_spec.percentage_return,
+                MetricUnit.PERCENT,
+            ).model_copy(update={"symbol": symbol})
+        )
+    if metric_spec.relative_volume is not None:
+        metrics.append(
+            normalized_metric(
+                MetricName.RELATIVE_VOLUME,
+                metric_spec.relative_volume,
+                MetricUnit.RATIO,
+            ).model_copy(update={"symbol": symbol})
+        )
+
+    request = RuleEvaluationRequest(
+        symbol=symbol,
+        asset_class=AssetClass.EQUITY,
+        as_of=AS_OF,
+        policy_version=SYNTHETIC_POLICY.policy_version,
+        enabled_rule_ids=SYNTHETIC_POLICY.enabled_rule_ids,
+        provider_scope=("provider-a",),
+        input_observations=tuple(observations),
+        input_metrics=tuple(metrics),
+    )
+    evaluation = evaluate_candidate(request, SYNTHETIC_POLICY)
+    if not overrides:
+        return evaluation
+
     rules = []
-    for result in base.rule_results:
+    for result in evaluation.rule_results:
         values = result.model_dump(exclude={"deterministic_id"})
-        values["symbol"] = symbol
-        values["outcome"] = overrides.get(result.rule_id, result.outcome)
+        if result.rule_id in overrides:
+            values["outcome"] = overrides[result.rule_id]
         rules.append(RuleEvaluationResult(**values))
-    values = base.model_dump(exclude={
+    values = evaluation.model_dump(exclude={
         "deterministic_id", "symbol", "rule_results", "results_by_category"
     })
     return CandidateEvaluationResult(
@@ -215,13 +292,62 @@ def _entry(
     )
 
 
+def _pilot_cohort_entries(peer_limitations: tuple[str, ...]) -> tuple:
+    """Build registry entries for IBKR pilot symbols with generated evaluation fixtures."""
+    entries = []
+    surfaced = {"LBGJ", "KLRS", "GPRE"}
+    for symbol, batch_case_id in FROZEN_COHORT:
+        eval_name = f"{symbol.lower()}_boundary_evaluation.json"
+        eval_path = EVALUATION / eval_name
+        if not eval_path.is_file():
+            continue
+        evaluation = _load_evaluation(eval_name)
+        platform = (
+            OriginalPlatformStatus.SURFACED
+            if symbol in surfaced
+            else OriginalPlatformStatus.UNKNOWN
+        )
+        case_type = (
+            CandidateCaseType.ORIGINAL_PLATFORM_SURFACED
+            if symbol in surfaced
+            else CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN
+        )
+        extra_limitations = peer_limitations
+        if symbol == "LBGJ":
+            extra_limitations = peer_limitations + (
+                "IBKR contract resolution verified: LI BANG INT CORP I- A (NASDAQ conId 907000939)",
+            )
+        entries.append(
+            _entry(
+                f"{symbol}_ARTIFACT_DISCOVERY",
+                symbol,
+                case_type,
+                CandidateCaseStatus.COMPLETE,
+                platform,
+                FixtureClassification.SANITIZED_PUBLIC_HISTORICAL_DATA,
+                as_of=evaluation.as_of,
+                evaluation_path=f"../evaluation/{eval_name}",
+                outcome_path=f"{symbol.lower()}_outcome_observation.json",
+                detection_id=batch_case_id,
+                artifacts=("archived-app-log",),
+                limitations=extra_limitations,
+            )
+        )
+    return tuple(entries)
+
+
 def _historical_entries():
     earliest = _load_evaluation("biya_earliest_boundary_evaluation.json")
     latest = _load_evaluation("biya_latest_boundary_evaluation.json")
     common_limitations = (
         "original methodology remains unverified",
-        "published short interest and historical borrow evidence are unavailable",
+        "historical borrow evidence remains unavailable",
         "outcome movement does not establish short-squeeze causation",
+    )
+    peer_limitations = common_limitations + (
+        "published short interest evidence is unavailable",
+        "detection-context bars may use live IBKR historical intake when operator collection succeeds",
+        "absolute price-level semantics remain blocked by Batch 07 readiness",
     )
     complete = (
         _entry(
@@ -233,7 +359,9 @@ def _historical_entries():
             outcome_path="biya_earliest_outcome_observation.json",
             detection_id="phase-2v-biya-earliest-boundary",
             artifacts=("archived-app-log", "advisor-meeting-2026-07-17"),
-            limitations=common_limitations,
+            limitations=common_limitations + (
+                "published short interest publication timestamps are date-only uncertain",
+            ),
         ),
         _entry(
             "BIYA_LATEST_BOUNDARY", "BIYA", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
@@ -244,25 +372,12 @@ def _historical_entries():
             outcome_path="biya_latest_outcome_observation.json",
             detection_id="phase-2v-biya-latest-boundary",
             artifacts=("archived-app-log", "advisor-meeting-2026-07-17"),
-            limitations=common_limitations,
+            limitations=common_limitations + (
+                "published short interest publication timestamps are date-only uncertain",
+            ),
         ),
-    )
+    ) + _pilot_cohort_entries(peer_limitations)
     discovered = (
-        ("KLRS_ARTIFACT_DISCOVERY", "KLRS", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
-         CandidateCaseStatus.ARTIFACT_DISCOVERY_ONLY, OriginalPlatformStatus.SURFACED,
-         ("archived-app-log", "archived-formula-redesign-handoff")),
-        ("LBGJ_ARTIFACT_DISCOVERY", "LBGJ", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
-         CandidateCaseStatus.ARTIFACT_DISCOVERY_ONLY, OriginalPlatformStatus.SURFACED,
-         ("advisor-meeting-2026-07-17", "archived-app-log")),
-        ("SG_ARTIFACT_DISCOVERY", "SG", CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN,
-         CandidateCaseStatus.ARTIFACT_DISCOVERY_ONLY, OriginalPlatformStatus.UNKNOWN,
-         ("archived-app-log",)),
-        ("TRVI_ARTIFACT_DISCOVERY", "TRVI", CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN,
-         CandidateCaseStatus.ARTIFACT_DISCOVERY_ONLY, OriginalPlatformStatus.UNKNOWN,
-         ("archived-app-log",)),
-        ("SLS_ARTIFACT_DISCOVERY", "SLS", CandidateCaseType.ORIGINAL_PLATFORM_STATUS_UNKNOWN,
-         CandidateCaseStatus.ARTIFACT_DISCOVERY_ONLY, OriginalPlatformStatus.UNKNOWN,
-         ("archived-app-log",)),
         ("KLOS_IDENTITY_CONFLICT", "KLOS", CandidateCaseType.ORIGINAL_PLATFORM_SURFACED,
          CandidateCaseStatus.BLOCKED_CONFLICTING_IDENTITY, OriginalPlatformStatus.SURFACED,
          ("advisor-meeting-2026-07-17", "reconstruction-timeline")),
@@ -280,17 +395,17 @@ def _historical_entries():
 
 
 _SYNTHETIC = (
-    ("SYN_TRUE_POSITIVE", "SYNTP", {}, Decimal("25"), Decimal("-4"), OutcomeCompleteness.PARTIAL, OriginalPlatformStatus.NOT_SURFACED),
-    ("SYN_FALSE_POSITIVE", "SYNFP", {}, Decimal("4"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.SURFACED),
-    ("SYN_FALSE_NEGATIVE", "SYNFN", {"PRICE_RANGE": RuleOutcome.FAIL}, Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.SURFACED),
-    ("SYN_TRUE_NEGATIVE", "SYNTN", {"PRICE_RANGE": RuleOutcome.FAIL}, Decimal("4"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.NOT_SURFACED),
-    ("SYN_UNEVALUABLE_UNKNOWN", "SYNUNK", {"PRICE_RANGE": RuleOutcome.UNKNOWN}, Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
-    ("SYN_UNEVALUABLE_CONFLICTED", "SYNCFL", {"PRICE_RANGE": RuleOutcome.CONFLICTED}, Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
-    ("SYN_UNEVALUABLE_INSUFFICIENT", "SYNINS", {"PRICE_RANGE": RuleOutcome.INSUFFICIENT_DATA}, Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
-    ("SYN_OUTCOME_UNKNOWN", "SYNOUNK", {}, None, None, OutcomeCompleteness.UNAVAILABLE, OriginalPlatformStatus.UNKNOWN),
-    ("SYN_OUTCOME_INSUFFICIENT", "SYNOINS", {}, Decimal("4"), Decimal("-4"), OutcomeCompleteness.PARTIAL, OriginalPlatformStatus.UNKNOWN),
-    ("SYN_MIXED_VOLATILE", "SYNMIX", {}, Decimal("25"), Decimal("-25"), OutcomeCompleteness.PARTIAL, OriginalPlatformStatus.UNKNOWN),
-    ("SYN_SUBSTANTIAL_DOWNWARD", "SYNDOWN", {}, Decimal("4"), Decimal("-25"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_TRUE_POSITIVE", "SYNTP", {}, SyntheticMetricSpec(), Decimal("25"), Decimal("-4"), OutcomeCompleteness.PARTIAL, OriginalPlatformStatus.NOT_SURFACED),
+    ("SYN_FALSE_POSITIVE", "SYNFP", {}, SyntheticMetricSpec(percentage_return="3"), Decimal("4"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.SURFACED),
+    ("SYN_FALSE_NEGATIVE", "SYNFN", {}, SyntheticMetricSpec(bar_close="25"), Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.SURFACED),
+    ("SYN_TRUE_NEGATIVE", "SYNTN", {}, SyntheticMetricSpec(bar_close="25"), Decimal("4"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.NOT_SURFACED),
+    ("SYN_UNEVALUABLE_UNKNOWN", "SYNUNK", {}, SyntheticMetricSpec(include_bar=False), Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_UNEVALUABLE_CONFLICTED", "SYNCFL", {"PRICE_RANGE": RuleOutcome.CONFLICTED}, SyntheticMetricSpec(), Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_UNEVALUABLE_INSUFFICIENT", "SYNINS", {"PRICE_RANGE": RuleOutcome.INSUFFICIENT_DATA}, SyntheticMetricSpec(), Decimal("25"), Decimal("-4"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_OUTCOME_UNKNOWN", "SYNOUNK", {}, SyntheticMetricSpec(), None, None, OutcomeCompleteness.UNAVAILABLE, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_OUTCOME_INSUFFICIENT", "SYNOINS", {}, SyntheticMetricSpec(), Decimal("4"), Decimal("-4"), OutcomeCompleteness.PARTIAL, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_MIXED_VOLATILE", "SYNMIX", {}, SyntheticMetricSpec(), Decimal("25"), Decimal("-25"), OutcomeCompleteness.PARTIAL, OriginalPlatformStatus.UNKNOWN),
+    ("SYN_SUBSTANTIAL_DOWNWARD", "SYNDOWN", {}, SyntheticMetricSpec(percentage_return="3"), Decimal("4"), Decimal("-25"), OutcomeCompleteness.COMPLETE, OriginalPlatformStatus.UNKNOWN),
 )
 
 
@@ -303,8 +418,8 @@ def _write_source_fixtures():
         )
 
     synthetic_entries = []
-    for case_id, symbol, overrides, maximum, adverse, completeness, platform in _SYNTHETIC:
-        evaluation = _synthetic_evaluation(symbol, overrides)
+    for case_id, symbol, overrides, metric_spec, maximum, adverse, completeness, platform in _SYNTHETIC:
+        evaluation = _synthetic_evaluation(symbol, metric_spec, overrides)
         evaluation_name = f"{case_id.lower()}_evaluation.json"
         outcome_name = f"{case_id.lower()}_outcome.json"
         (OUT / evaluation_name).write_bytes(serialize_candidate_evaluation(evaluation))

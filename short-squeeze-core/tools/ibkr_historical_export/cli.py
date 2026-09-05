@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from . import policy
-from .collector import probe_and_connect, run_collection
+from .collector import ResilientConnection, probe_and_connect, run_collection
 from .paths import PrivateLayout, default_private_root
 from .serialization import sha256_and_length
 from .statuses import CollectionStatus
@@ -64,10 +64,12 @@ def cmd_run(args) -> int:
     session, result = _connect(layout)
     if session is None:
         return 2
+    resilient = ResilientConnection(_session_factory, result)
+    resilient._session = session
     try:
-        summary = run_collection(session, layout, result)
+        summary = run_collection(resilient, layout)
     finally:
-        session.shutdown()
+        resilient.shutdown()
     resolved = sum(1 for s in summary["symbols"] if s["contract_status"] == "CONTRACT_RESOLVED")
     print(f"collection complete: {resolved}/{len(summary['symbols'])} contracts resolved")
     print(f"summary: {layout.collection_summary}")

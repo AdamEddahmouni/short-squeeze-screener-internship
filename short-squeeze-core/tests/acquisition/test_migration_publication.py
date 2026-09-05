@@ -51,11 +51,14 @@ def test_incomplete_migrations_remain_visible_without_reinterpretation():
         "SLS_ARTIFACT_DISCOVERY", "KLOS_IDENTITY_CONFLICT",
     }
     assert by_id["KLOS_IDENTITY_CONFLICT"].curation_status is CurationStatus.BLOCKED
-    for case_id in ("KLRS_ARTIFACT_DISCOVERY", "LBGJ_ARTIFACT_DISCOVERY",
-                    "SG_ARTIFACT_DISCOVERY", "TRVI_ARTIFACT_DISCOVERY",
-                    "SLS_ARTIFACT_DISCOVERY"):
-        assert by_id[case_id].curation_status is CurationStatus.PARTIAL
-        assert "no defensible complete detection snapshot survives" in by_id[case_id].limitations
+    for case_id in (
+        "KLRS_ARTIFACT_DISCOVERY",
+        "LBGJ_ARTIFACT_DISCOVERY",
+        "SG_ARTIFACT_DISCOVERY",
+        "TRVI_ARTIFACT_DISCOVERY",
+        "SLS_ARTIFACT_DISCOVERY",
+    ):
+        assert by_id[case_id].curation_status is CurationStatus.PUBLISHED
 
 
 def test_publication_adapter_returns_valid_unchanged_phase3b_models():
@@ -86,7 +89,7 @@ def test_dataset_publication_blocks_incomplete_synthetic_and_failed_leakage():
     rows = {item.case_id: item for item in dataset.rows}
     with pytest.raises(ValueError, match="complete leakage-passing"):
         build_phase3b_dataset_candidate(
-            by_id["KLRS_ARTIFACT_DISCOVERY"], rows["BIYA_EARLIEST_BOUNDARY"]
+            by_id["KLOS_IDENTITY_CONFLICT"], rows["BIYA_EARLIEST_BOUNDARY"]
         )
     failed = by_id["BIYA_EARLIEST_BOUNDARY"].model_copy(update={"leakage_audit_passed": False})
     with pytest.raises(ValueError, match="complete leakage-passing"):

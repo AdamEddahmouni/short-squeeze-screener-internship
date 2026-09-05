@@ -41,11 +41,16 @@ class AnalysisRunnerError(ValueError):
         self.code = code
 
 
+_PEER_HISTORICAL_SYMBOLS = ("BIYA", "KLRS", "LBGJ", "SG", "SLS", "TRVI")
+
 HISTORICAL_LIMITATIONS = (
     ResearchLimitation(
-        code="HISTORICAL_ONE_UNIQUE_SYMBOL",
-        statement="The historical completed dataset currently represents one unique symbol.",
-        affected_symbols=("BIYA",),
+        code="HISTORICAL_SMALL_UNIQUE_SYMBOL_COHORT",
+        statement=(
+            "The historical completed dataset currently represents six unique symbols "
+            "with one fully detected case (BIYA)."
+        ),
+        affected_symbols=_PEER_HISTORICAL_SYMBOLS,
     ),
     ResearchLimitation(
         code="BIYA_BOUNDARIES_DEPENDENT",
@@ -56,27 +61,27 @@ HISTORICAL_LIMITATIONS = (
     ResearchLimitation(
         code="HISTORICAL_CASE_BOUNDARIES_NOT_INDEPENDENT",
         statement="Case-boundary counts are not independent performance samples.",
-        affected_symbols=("BIYA",),
+        affected_symbols=_PEER_HISTORICAL_SYMBOLS,
     ),
     ResearchLimitation(
         code="EARLIEST_BOUNDARY_SELECTION_OUTCOME_BLIND",
         statement="The default unique-symbol analysis selects the earliest boundary without using the outcome.",
-        affected_symbols=("BIYA",),
+        affected_symbols=_PEER_HISTORICAL_SYMBOLS,
     ),
     ResearchLimitation(
         code="HISTORICAL_SAMPLE_INSUFFICIENT_FOR_PREDICTIVE_VALIDATION",
         statement="The historical sample is insufficient for predictive validation.",
-        affected_symbols=("BIYA",),
+        affected_symbols=_PEER_HISTORICAL_SYMBOLS,
     ),
     ResearchLimitation(
         code="OUTCOME_DOES_NOT_PROVE_SQUEEZE_CAUSATION",
         statement="Outcome confirmation does not prove short-squeeze causation.",
-        affected_symbols=("BIYA",),
+        affected_symbols=_PEER_HISTORICAL_SYMBOLS,
     ),
     ResearchLimitation(
         code="MISSING_SHORT_PRESSURE_EVIDENCE_MATERIAL",
         statement="Missing short-pressure evidence remains material.",
-        affected_symbols=("BIYA",),
+        affected_symbols=("KLRS", "LBGJ", "SG", "SLS", "TRVI"),
     ),
     ResearchLimitation(
         code="RULE_PREVALENCE_NOT_PREDICTIVE_IMPORTANCE",

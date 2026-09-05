@@ -35,7 +35,7 @@ def test_historical_biya_confusion_counts_are_dependent_descriptions():
         summary.true_negative_count,
         summary.false_negative_count,
         summary.unevaluable_count,
-    ) == (2, 0, 0, 0, 0)
+    ) == (2, 0, 0, 0, 1)
     rates = _by_metric(summary)
     assert rates["sensitivity_descriptive_research_classification_rate"].exact_fraction == "2/2"
     assert rates["positive_predictive_value_descriptive_research_classification_rate"].exact_fraction == "2/2"
@@ -66,6 +66,7 @@ def test_all_unevaluable_rows_leave_every_binary_rate_undefined():
     rows = tuple(
         row for row in load_dataset().rows
         if row.research_classification.value == "UNEVALUABLE"
+        and row.case_id.startswith("SYN_")
     )
     summary = build_confusion_matrix(rows, _context(independent=True))
     assert summary.unevaluable_count == 7

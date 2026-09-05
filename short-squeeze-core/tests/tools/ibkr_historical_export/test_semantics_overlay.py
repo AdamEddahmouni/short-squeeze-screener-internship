@@ -27,7 +27,16 @@ def _seed_private_root(root: Path) -> PrivateLayout:
     layout = PrivateLayout(root)
     layout.ensure()
 
-    bars = [make_bar(_SYMBOL, DETECTION_CONTEXT, 111, 1_784_217_600)]
+    bars = [
+        make_bar(
+            _SYMBOL,
+            DETECTION_CONTEXT,
+            111,
+            0,
+            timestamp_utc="2026-07-18T12:00:00Z",
+            timestamp_epoch=1784443200,
+        )
+    ]
     csv_bytes = serialize_bars_csv(bars)
     layout.raw_csv(_SYMBOL, DETECTION_CONTEXT).write_bytes(csv_bytes)
     sha, length = sha256_and_length(csv_bytes)
@@ -54,15 +63,15 @@ def _seed_private_root(root: Path) -> PrivateLayout:
     return layout, sha, length
 
 
-def test_detection_context_rejected_with_two_unknowns(tmp_path):
+def test_detection_context_ibkr_volume_semantics_remain_unknown(tmp_path):
     layout, sha, length = _seed_private_root(tmp_path)
     summary = generate_overlays(layout, symbols=(_SYMBOL,))
 
     assert summary["detection_context_count"] == 1
     item = summary["detection_context_preflight"][0]
-    assert item["preflight_status"] == "PREFLIGHT_REJECTED"
-    assert "MISSING_ADJUSTMENT_SEMANTICS" in item["reason_codes"]
-    assert "MISSING_TIMESTAMP_SEMANTICS" in item["reason_codes"]
+    assert item["preflight_status"] == "PREFLIGHT_READY"
+    assert item["reason_codes"] == []
+    assert "volume_adjustment_semantics" in summary["unresolved_fields"]
 
 
 def test_resolved_price_is_split_adjusted_in_overlay(tmp_path):

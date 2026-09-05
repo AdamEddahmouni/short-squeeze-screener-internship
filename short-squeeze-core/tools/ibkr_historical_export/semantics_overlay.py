@@ -42,8 +42,8 @@ from .preflight_bundle import (
     PROVIDER_NAME,
     PROVIDER_PRODUCT,
     build_profile,
+    run_preflight_from_bytes,
 )
-from .preflight_bundle import run_preflight_from_bytes
 from .statuses import PreflightStatus
 
 # Fixed, explicit access date for the official-documentation research (outside identity;

@@ -9,7 +9,10 @@ import pytest
 from tools.ibkr_historical_export import collector as collector_mod
 from tools.ibkr_historical_export.cohort import DETECTION_CONTEXT, FROZEN_FORWARD
 from tools.ibkr_historical_export.collector import (
+    ConnectionResult,
+    ResilientConnection,
     probe_and_connect,
+    reconnect_using_result,
     run_collection,
 )
 from tools.ibkr_historical_export.paths import PrivateLayout
@@ -63,6 +66,30 @@ def test_probe_skips_ports_that_fail_precheck():
     assert any(a["port"] == 4002 and a["client_id"] is None for a in result.attempts)
 
 
+def test_reconnect_using_result_reuses_observed_port():
+    factory = session_factory(connect_ports={4001}, ready_ports={4001})
+    session, result = probe_and_connect(factory, precheck=_precheck(4001))
+    session.connection_closed()
+    reconnected, reconnect_result = reconnect_using_result(
+        factory, result, precheck=_precheck(4001),
+    )
+    assert reconnect_result.status is CollectionStatus.CONNECTION_SUCCESS
+    assert reconnect_result.observed_port == 4001
+    assert reconnected.isConnected()
+
+
+def test_resilient_connection_reconnects_after_drop():
+    factory = session_factory(connect_ports={4001}, ready_ports={4001})
+    session, result = probe_and_connect(factory, precheck=_precheck(4001))
+    session.record_endpoint("127.0.0.1", 4001, result.client_id)
+    session.connection_closed()
+    resilient = ResilientConnection(factory, result)
+    resilient._session = session
+    active = resilient.ensure_session()
+    assert active.isConnected()
+    assert resilient.reconnect_events
+
+
 # --------------------------------------------------------------- full run
 
 def _connected_session():
@@ -90,21 +117,37 @@ def _run(tmp_path):
         status=CollectionStatus.CONNECTION_SUCCESS, observed_port=4002,
         client_id=27185, server_version=187, current_time_epoch=1_784_000_000,
     )
-    summary = run_collection(session, layout, connection)
+    factory = session_factory(
+        contract_script={"XNCR": [make_candidate("XNCR", 111)]},
+        historical_script={
+            ("XNCR", DETECTION_CONTEXT): {
+                "bars": [
+                    make_bar("XNCR", DETECTION_CONTEXT, 111, 1_784_000_000),
+                    make_bar("XNCR", DETECTION_CONTEXT, 111, 1_784_000_060,
+                             timestamp_utc="2026-07-17T13:39:00Z"),
+                ],
+                "completed": True,
+            },
+            ("XNCR", FROZEN_FORWARD): {"bars": [], "completed": True},
+        },
+    )
+    resilient = ResilientConnection(factory, connection)
+    resilient._session = session
+    summary = run_collection(resilient, layout)
     return summary, layout
 
 
 def test_full_run_writes_summary_and_statuses(tmp_path):
     summary, layout = _run(tmp_path)
     by_symbol = {s["symbol"]: s for s in summary["symbols"]}
-    assert len(summary["symbols"]) == 13
+    assert len(summary["symbols"]) == 15
     xncr = by_symbol["XNCR"]
     assert xncr["contract_status"] == "CONTRACT_RESOLVED"
     reqs = {r["request_name"]: r for r in xncr["requests"]}
     assert reqs[DETECTION_CONTEXT]["historical_status"] == "HISTORICAL_REQUEST_SUCCESS"
     assert reqs[DETECTION_CONTEXT]["bar_count"] == 2
-    assert reqs[DETECTION_CONTEXT]["preflight_status"] == "PREFLIGHT_REJECTED"
-    assert "MISSING_ADJUSTMENT_SEMANTICS" in reqs[DETECTION_CONTEXT]["preflight_reason_codes"]
+    assert reqs[DETECTION_CONTEXT]["preflight_status"] == "PREFLIGHT_READY"
+    assert "MISSING_ADJUSTMENT_SEMANTICS" not in reqs[DETECTION_CONTEXT]["preflight_reason_codes"]
     # Weekend forward window: empty and preflight not applicable.
     assert reqs[FROZEN_FORWARD]["historical_status"] == "SUCCESS_EMPTY"
     assert reqs[FROZEN_FORWARD]["preflight_status"] == "PREFLIGHT_NOT_APPLICABLE_EMPTY"

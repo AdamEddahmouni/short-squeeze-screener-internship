@@ -29,6 +29,7 @@ from squeeze_core.validation.outcome_case import build_biya_outcome_amendment_ca
 from squeeze_core.validation.outcome_context import (  # noqa: E402
     build_unavailable_context,
     normalize_yahoo_news,
+    parse_finra_published_short_interest,
     parse_finra_short_sale_volume,
     parse_yahoo_corporate_actions,
 )
@@ -94,6 +95,14 @@ def _synthetic_anchor_manifests():
     return partial, network, entitlement
 
 
+def _find_optional(manifests, data_type, *, provider=None, state=AcquisitionResultState.SUCCESS):
+    matches = [item for item in manifests if item.data_type is data_type and item.result_state is state
+               and (provider is None or item.provider == provider)]
+    if len(matches) > 1:
+        raise ValueError(f"expected at most one {data_type.value}/{provider}/{state.value}, found {len(matches)}")
+    return matches[0] if matches else None
+
+
 def build_artifacts():
     manifests = _manifests()
     intraday_manifest = _find(manifests, AcquisitionDataType.INTRADAY_MARKET_BARS,
@@ -110,17 +119,28 @@ def build_artifacts():
     short_sale = tuple(parse_finra_short_sale_volume(item, _raw(item)) for item in manifests
                        if item.data_type is AcquisitionDataType.FINRA_SHORT_SALE_VOLUME
                        and item.result_state is AcquisitionResultState.SUCCESS)
+    short_interest = None
+    si_manifest = _find_optional(manifests, AcquisitionDataType.PUBLISHED_SHORT_INTEREST,
+                                 provider="finra", state=AcquisitionResultState.SUCCESS)
+    if si_manifest is not None:
+        short_interest = parse_finra_published_short_interest(si_manifest, _raw(si_manifest))
     unavailable = {}
     for label, kind in (
         ("halt_collection", AcquisitionDataType.TRADING_HALTS),
-        ("short_interest_context", AcquisitionDataType.PUBLISHED_SHORT_INTEREST),
         ("borrow_fee_context", AcquisitionDataType.BORROW_FEE),
         ("borrow_availability_context", AcquisitionDataType.BORROW_AVAILABILITY),
     ):
         source = next(item for item in manifests if item.data_type is kind)
         unavailable[label] = build_unavailable_context(label.upper(), source.acquisition_id)
-    unavailable["days_to_cover_context"] = build_unavailable_context(
-        "DAYS_TO_COVER", unavailable["short_interest_context"].acquisition_manifest_id)
+    if short_interest is None:
+        si_source = next(item for item in manifests if item.data_type is AcquisitionDataType.PUBLISHED_SHORT_INTEREST)
+        unavailable["short_interest_context"] = build_unavailable_context(
+            "SHORT_INTEREST_CONTEXT", si_source.acquisition_id)
+        unavailable["days_to_cover_context"] = build_unavailable_context(
+            "DAYS_TO_COVER", si_source.acquisition_id)
+    else:
+        unavailable["days_to_cover_context"] = build_unavailable_context(
+            "DAYS_TO_COVER", short_interest.acquisition_id)
     outcomes = (
         build_boundary_outcome(BIYA_EARLIEST_BOUNDARY, intraday),
         build_boundary_outcome(BIYA_LATEST_BOUNDARY, intraday),
@@ -131,6 +151,8 @@ def build_artifacts():
         *(item.deterministic_id for item in short_sale),
         *(item.deterministic_id for item in unavailable.values()),
     )
+    if short_interest is not None:
+        context_ids = context_ids + (short_interest.deterministic_id,)
     amendment = build_biya_outcome_amendment_case(
         original, outcomes, contextual_evidence_ids=context_ids
     )
@@ -147,8 +169,13 @@ def build_artifacts():
          "actions": tuple(item.model_dump(mode="python") for item in corporate.actions),
          "limitation": corporate.limitations[0]},
         {"data_type": "TRADING_HALTS", "availability": "UNAVAILABLE"},
-        {"data_type": "PUBLISHED_SHORT_INTEREST", "availability": "UNAVAILABLE"},
-        {"data_type": "DAYS_TO_COVER", "availability": "UNAVAILABLE"},
+        {"data_type": "PUBLISHED_SHORT_INTEREST",
+         **({"availability": "UNAVAILABLE"} if short_interest is None else {
+             "record_count": len(short_interest.observations),
+             "limitations": short_interest.limitations,
+         })},
+        {"data_type": "DAYS_TO_COVER",
+         "availability": "UNAVAILABLE" if short_interest is None else "DERIVED_WHEN_METRICS_AVAILABLE"},
         {"data_type": "BORROW_FEE", "availability": "UNAVAILABLE"},
         {"data_type": "BORROW_AVAILABILITY", "availability": "UNAVAILABLE"},
     )
@@ -156,7 +183,8 @@ def build_artifacts():
     assert_export_is_clean(canonical_json_bytes(public))
     return {
         "manifests": manifests, "intraday": intraday, "daily": daily, "news": news,
-        "corporate": corporate, "short_sale": short_sale, "unavailable": unavailable,
+        "corporate": corporate, "short_sale": short_sale, "short_interest": short_interest,
+        "unavailable": unavailable,
         "original": original, "outcomes": outcomes, "amendment": amendment, "public": public,
     }
 
@@ -200,7 +228,11 @@ def build_anchor_results():
                                                 for item in (earliest, latest)),
         "news_timing_collection": data["news"],
         "halt_collection": data["unavailable"]["halt_collection"],
-        "short_interest_context": data["unavailable"]["short_interest_context"],
+        "short_interest_context": (
+            data["short_interest"]
+            if data["short_interest"] is not None
+            else data["unavailable"].get("short_interest_context", data["unavailable"]["days_to_cover_context"])
+        ),
         "short_sale_volume_context": short_sale_context,
         "days_to_cover_context": data["unavailable"]["days_to_cover_context"],
         "borrow_context": (data["unavailable"]["borrow_fee_context"],
@@ -235,11 +267,28 @@ def write_outputs() -> None:
         AcquisitionDataType.CORPORATE_ACTIONS: ("biya_corporate_actions.json", canonical_json_bytes(data["corporate"])),
         AcquisitionDataType.FINRA_SHORT_SALE_VOLUME: ("biya_short_sale_volume.json", canonical_json_bytes(data["short_sale"])),
     }
+    if data["short_interest"] is not None:
+        normalized_bytes[AcquisitionDataType.PUBLISHED_SHORT_INTEREST] = (
+            "biya_published_short_interest.json",
+            canonical_json_bytes(data["short_interest"]),
+        )
     for filename, rendered in normalized_bytes.values():
         (normalized_root / filename).write_bytes(rendered)
     updated_manifests = []
     for manifest in data["manifests"]:
         normalized = normalized_bytes.get(manifest.data_type)
+        if manifest.data_type is AcquisitionDataType.PUBLISHED_SHORT_INTEREST:
+            if manifest.result_state is AcquisitionResultState.SUCCESS and data["short_interest"] is not None:
+                filename, rendered = normalized_bytes[AcquisitionDataType.PUBLISHED_SHORT_INTEREST]
+                manifest = manifest.model_copy(update={
+                    "normalization_status": AcquisitionNormalizationState.SUCCESS,
+                    "normalized_relative_path": f"normalized/{filename}",
+                    "normalized_sha256": f"sha256:{hashlib.sha256(rendered).hexdigest()}",
+                })
+                (ACQUISITION_ROOT / "manifests" / f"{manifest.acquisition_id}.json").write_bytes(
+                    canonical_json_bytes(manifest))
+            updated_manifests.append(manifest)
+            continue
         if manifest.result_state is AcquisitionResultState.SUCCESS and normalized is not None:
             filename, rendered = normalized
             manifest = manifest.model_copy(update={
@@ -258,19 +307,25 @@ def write_outputs() -> None:
     _jsonl(FIXTURE_ROOT / "biya_short_sale_volume.jsonl",
            (record for collection in data["short_sale"] for record in collection.records))
     _jsonl(FIXTURE_ROOT / "biya_corporate_actions.jsonl", data["corporate"].observations)
+    if data["short_interest"] is not None:
+        _jsonl(FIXTURE_ROOT / "biya_short_interest.jsonl", data["short_interest"].observations)
+    else:
+        _jsonl(FIXTURE_ROOT / "biya_short_interest.jsonl",
+               (data["unavailable"]["short_interest_context"],))
     for name, key in (("biya_halts.jsonl", "halt_collection"),
-                      ("biya_short_interest.jsonl", "short_interest_context"),
                       ("biya_borrow_history.jsonl", "borrow_fee_context")):
         _jsonl(FIXTURE_ROOT / name, (data["unavailable"][key],))
     (FIXTURE_ROOT / "biya_acquisition_manifests.json").write_bytes(canonical_json_bytes(data["manifests"]))
     (FIXTURE_ROOT / "biya_outcome_case.json").write_bytes(canonical_json_bytes(data["amendment"]))
+    unavailable_domains = ["TRADING_HALTS", "BORROW_FEE", "BORROW_AVAILABILITY"]
+    if data["short_interest"] is None:
+        unavailable_domains.extend(("PUBLISHED_SHORT_INTEREST", "DAYS_TO_COVER"))
     fixture_metadata = {
         "schema_version": "1.0.0",
         "classification": "SANITIZED_PUBLIC_HISTORICAL_DATA",
         "synthetic_edge_cases": ("partial_acquisition_manifest", "network_failure_manifest",
                                  "entitlement_failure_manifest"),
-        "unavailable_domains": ("TRADING_HALTS", "PUBLISHED_SHORT_INTEREST", "DAYS_TO_COVER",
-                                "BORROW_FEE", "BORROW_AVAILABILITY"),
+        "unavailable_domains": tuple(unavailable_domains),
         "prohibition": "Unavailable domains contain no invented historical values.",
     }
     (FIXTURE_ROOT / "phase_2v_outcome_fixture_metadata.json").write_bytes(

@@ -8,10 +8,10 @@ def _by_case(summary):
 
 def test_registry_quality_counts_complete_synthetic_partial_and_blocked_cases():
     summary = build_registry_data_quality(load_registry())
-    assert summary.registered_case_count == 19
-    assert summary.complete_case_count == 13
+    assert summary.registered_case_count == 43
+    assert summary.complete_case_count == 42
     assert summary.synthetic_case_count == 11
-    assert summary.partial_case_count == 5
+    assert summary.partial_case_count == 0
     assert summary.blocked_case_count == 1
     assert summary.conflicting_identity_count == 1
     assert summary.unknown_platform_status_count > 0
@@ -20,19 +20,9 @@ def test_registry_quality_counts_complete_synthetic_partial_and_blocked_cases():
 def test_incomplete_real_symbols_remain_visible_without_fabricated_evidence():
     cases = _by_case(build_registry_data_quality(load_registry()))
     assert set(cases) >= {
-        "KLRS_ARTIFACT_DISCOVERY",
-        "LBGJ_ARTIFACT_DISCOVERY",
-        "SG_ARTIFACT_DISCOVERY",
-        "TRVI_ARTIFACT_DISCOVERY",
-        "SLS_ARTIFACT_DISCOVERY",
         "KLOS_IDENTITY_CONFLICT",
     }
     for case_id in (
-        "KLRS_ARTIFACT_DISCOVERY",
-        "LBGJ_ARTIFACT_DISCOVERY",
-        "SG_ARTIFACT_DISCOVERY",
-        "TRVI_ARTIFACT_DISCOVERY",
-        "SLS_ARTIFACT_DISCOVERY",
         "KLOS_IDENTITY_CONFLICT",
     ):
         case = cases[case_id]
@@ -41,7 +31,6 @@ def test_incomplete_real_symbols_remain_visible_without_fabricated_evidence():
         assert not case.outcome_available
         assert case.exclusion_reason
         assert case.required_evidence
-    assert cases["SG_ARTIFACT_DISCOVERY"].platform_status == "UNKNOWN"
     assert cases["KLOS_IDENTITY_CONFLICT"].identity_conflict
 
 

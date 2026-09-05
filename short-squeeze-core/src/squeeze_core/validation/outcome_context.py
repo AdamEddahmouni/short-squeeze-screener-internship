@@ -4,7 +4,9 @@ FINRA daily short-sale volume deliberately has its own contract.  News and corpo
 actions use Phase 1 observations; unavailable domains remain explicit empty contexts.
 """
 
+import csv
 import hashlib
+import io
 import json
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -13,6 +15,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from squeeze_core.adapters import AdapterContext
+from squeeze_core.adapters.finra import normalize_finra_short_interest_records
 from squeeze_core.adapters.news import normalize_news_records
 from squeeze_core.contracts import (
     AssetClass,
@@ -118,6 +121,74 @@ class UnavailableEvidenceContext(BaseModel):
     evidence_ids: tuple[str, ...] = ()
     limitation: str
     deterministic_id: str
+
+
+class PublishedShortInterestCollection(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    data_type: str = "PUBLISHED_SHORT_INTEREST"
+    acquisition_id: str
+    provider: str
+    retrieved_at: datetime
+    observations: tuple[Observation, ...]
+    limitations: tuple[str, ...] = (
+        "Published short interest is a settlement-period position, not daily short-sale volume.",
+    )
+    deterministic_id: str
+
+
+def _finra_si_row(row: dict[str, str], line_no: int, symbol: str) -> dict[str, object] | None:
+    row_symbol = (
+        row.get("Symbol")
+        or row.get("symbol")
+        or row.get("SYMBOL")
+        or ""
+    ).strip().upper()
+    if row_symbol != symbol:
+        return None
+    short_shares = (
+        row.get("Current Short Position")
+        or row.get("Short Shares")
+        or row.get("short_shares")
+        or ""
+    ).strip()
+    settlement = (
+        row.get("Settlement Date")
+        or row.get("settlement_date")
+        or row.get("SettlementDate")
+        or ""
+    ).strip()
+    if not short_shares or not settlement:
+        return None
+    previous = (row.get("Previous Short Position") or row.get("previous_short_shares") or "").strip()
+    pct = row.get("Short % of Float") or row.get("short_float_percent") or ""
+    publication = row.get("Publication Date") or ""
+    if not publication:
+        settlement_date = datetime.strptime(settlement, "%Y-%m-%d").date()
+        if settlement_date.day <= 15:
+            publication = f"{settlement_date.year}-{settlement_date.month:02d}-27"
+        else:
+            next_month = settlement_date.month + 1
+            year = settlement_date.year
+            if next_month > 12:
+                next_month = 1
+                year += 1
+            publication = f"{year}-{next_month:02d}-11"
+    return {
+        "source_record_id": f"finra-si-line-{line_no}",
+        "provider_schema": "FINRA_SHORT_INTEREST_V1",
+        "record_type": "PUBLISHED_SHORT_INTEREST",
+        "fixture_origin": "SANITIZED_RECORDED_SAMPLE",
+        "symbol": row_symbol,
+        "short_shares": short_shares.replace(",", ""),
+        "previous_short_shares": previous.replace(",", "") if previous else None,
+        "settlement_date": settlement,
+        "publication_date": publication,
+        "publication_timezone": "UTC",
+        "date_only_publication_policy": "END_OF_PUBLICATION_DATE",
+        "short_float_percent": pct.replace("%", "").strip() if pct else None,
+        "short_float_percent_unit": "PERCENT_POINTS" if pct else None,
+        "revision_status": row.get("record_status") or "ORIGINAL",
+    }
 
 
 def _verify(manifest: AcquisitionManifest, raw: bytes, kind: AcquisitionDataType) -> None:
@@ -275,6 +346,47 @@ def parse_yahoo_corporate_actions(manifest: AcquisitionManifest, raw: bytes) -> 
     )
 
 
+def parse_finra_published_short_interest(
+    manifest: AcquisitionManifest, raw: bytes
+) -> PublishedShortInterestCollection:
+    _verify(manifest, raw, AcquisitionDataType.PUBLISHED_SHORT_INTEREST)
+    lines = raw.decode("utf-8-sig").splitlines()
+    if not lines:
+        raise ValueError("FINRA published short-interest response is empty")
+    delimiter = "|" if "|" in lines[0] else ","
+    reader = csv.DictReader(io.StringIO("\n".join(lines)), delimiter=delimiter)
+    records: list[dict[str, object]] = []
+    for line_no, row in enumerate(reader, start=2):
+        parsed = _finra_si_row(row, line_no, manifest.symbol)
+        if parsed is not None:
+            records.append(parsed)
+    context = AdapterContext(
+        ingested_at=manifest.retrieved_at,
+        source_timezone="America/New_York",
+        provider=manifest.provider,
+        adapter_version="phase-2v-outcome-finra-si.v1",
+        normalization_version="finra-short-interest-v1",
+        entitlement_status=EntitlementState.NOT_APPLICABLE,
+        collection_method=IngestionMethod.DOWNLOADED,
+        source_endpoint_name="historical-finra-published-short-interest",
+    )
+    normalized = normalize_finra_short_interest_records(records, context)
+    if not normalized.accepted:
+        raise ValueError(f"FINRA SI normalization failed: {normalized.rejection}")
+    identity = {
+        "result_type": "PHASE_2V_PUBLISHED_SHORT_INTEREST",
+        "acquisition_id": manifest.acquisition_id,
+        "observation_ids": sorted(str(item.observation_id) for item in normalized.observations),
+    }
+    return PublishedShortInterestCollection(
+        acquisition_id=manifest.acquisition_id,
+        provider=manifest.provider,
+        retrieved_at=manifest.retrieved_at,
+        observations=normalized.observations,
+        deterministic_id=deterministic_metric_id(identity),
+    )
+
+
 def build_unavailable_context(data_type: str, acquisition_manifest_id: str) -> UnavailableEvidenceContext:
     identity = {"result_type": "PHASE_2V_UNAVAILABLE_CONTEXT", "data_type": data_type,
                 "acquisition_manifest_id": acquisition_manifest_id}
@@ -287,7 +399,8 @@ def build_unavailable_context(data_type: str, acquisition_manifest_id: str) -> U
 
 __all__ = [
     "CorporateActionCollection", "EvidenceAvailability", "FinraShortSaleVolumeCollection",
-    "NewsTiming", "NewsTimingCollection", "UnavailableEvidenceContext",
-    "build_unavailable_context", "normalize_yahoo_news", "parse_finra_short_sale_volume",
+    "NewsTiming", "NewsTimingCollection", "PublishedShortInterestCollection",
+    "UnavailableEvidenceContext", "build_unavailable_context", "normalize_yahoo_news",
+    "parse_finra_published_short_interest", "parse_finra_short_sale_volume",
     "parse_yahoo_corporate_actions",
 ]
