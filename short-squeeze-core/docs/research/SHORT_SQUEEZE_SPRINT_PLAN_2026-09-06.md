@@ -6,7 +6,7 @@
 | Scope | Finish the causal Short Squeeze lane end-to-end (roadmap Phases 4–7) plus repo close-out |
 | Source | [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md), [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) |
 | Product version | 0.16.0 (current) |
-| Status | Open — 0/26 items closed |
+| Status | Open — 2/26 items closed (0.3, 0.4) |
 | Ownership | Short-squeeze child repo (`short-squeeze-project`); platform-facing items coordinated through the parent monorepo (guarded import) |
 
 **How to use:** tick `[ ]` → `[x]` as items close. Work that lands in the child repo follows
@@ -57,7 +57,7 @@ batch08 29-symbol synthetic mirror.
 - **Acceptance:** `workspace-manifest.json` `source_commit` points at the merged child
   commit; `monorepo_guard.py validate` passes; whole-repo doc-link scan exits 0.
 
-### 0.3 — Close the operation-readiness fixture gap
+### 0.3 — ✅ Close the operation-readiness fixture gap
 
 - **Fix:** extend the batch07 synthetic manifests to the full 15-symbol `FROZEN_COHORT`
   (add KLRS + SG rows from the batch08 mirror), then regenerate
@@ -65,7 +65,7 @@ batch08 29-symbol synthetic mirror.
 - **Acceptance:** `pytest tests/acquisition/test_operation_readiness.py` — 0 failed, 0 errors
   (all 11 unblocked); full suite green except the CI-baseline and live-IB-Gateway buckets.
 
-### 0.4 — Suite greenness baseline check
+### 0.4 — ✅ Suite greenness baseline check
 
 - **Fix:** run the full suite after 0.3 and record the remaining environmental buckets
   (compatibility tests need CI baseline history; IBKR collector tests need a live gateway).
@@ -295,3 +295,4 @@ owner-side path are in-sprint; the rest stay registered gaps.
 | Date | Change |
 |---|---|
 | 2026-09-06 | Initial sprint plan; dataset decision recorded (34-label path, mechanism adjudication separately gated); fixture-gap root cause identified |
+| 2026-09-05 | 0.3 closed: batch07 manifests extended to the 29-symbol `FROZEN_COHORT` (KLRS/SG/BATCH3F0x mirror rows), golden report regenerated, test asserts against the cohort constant — `test_operation_readiness.py` 37/37 green. 0.4 closed: full suite re-run; remaining failures are only the two environmental buckets (26 compatibility/CI-baseline, 6 live-IB-Gateway), 0 errors |
