@@ -60,7 +60,7 @@ The probe registry's `Capability` enum is the canonical vocabulary:
 | `catalyst_age_hours` | Computed: news + SEC `filed_at` | `NEWS` / `FILINGS` | SEC EDGAR needs no key; fair-access limits apply |
 | `borrow_availability_pct_float` | IBKR + Finviz (both legs required) | `SHORTABLE_SHARES` + `FLOAT` | One provider's indicative figure ≠ whole market (handoff §12) |
 | `borrow_fee` | IBKR (secondary) | `BORROW_FEE` | See G1 — the live-retrieval adapter is a placeholder |
-| Historical OHLCV bars | IBKR (`intake/local-bars/ibkr-batch-*`) | `HISTORICAL_BARS` | Backbone of the Phase 3E/3F cohort (29 symbols, 43 registered boundaries) |
+| Historical OHLCV bars | IBKR (`intake/local-bars/ibkr-batch-*`) | `HISTORICAL_BARS` | Backbone of the Phase 3E/3F cohort (29 symbols, 43-entry registry = 31 historical case boundaries + synthetic/blocked entries) |
 | `news_headlines` | NewsAPI, Finnhub News, RSS | `NEWS` | Feed order is configurable (`NEWS_PROVIDER_ORDER`) |
 | SEC filings metadata | SEC EDGAR | `FILINGS` | `filed_at` feeds catalyst age |
 | Halts | halts adapter | `HALTS` | Supplemental evidence |
@@ -114,7 +114,7 @@ evaluator never invents the evidence.
 | G1 | `borrow_utilization_velocity` / `shares_on_loan_delta` / lending snapshot | Data acquisition | Verify a governed lending feed (IBKR borrow API mechanism, or commercial lending-data provider) and its PIT semantics | Admit the fields through the same admissibility pipeline as existing fields; the evaluator already flips the missing keys off when the snapshot is supplied (`evaluator.py` lending branch) | §19.2; roadmap Phase 7 |
 | G2 | `order_flow_cvd` | Order Flow lane | Lane publishes normalized CVD evidence | Platform live-wiring so the donor bridge stops degrading to fixtures (roadmap track C) | §14 |
 | G3 | `options_dealer_positioning` | Options lane | Lane publishes normalized dealer-positioning evidence | Same as G2 | §14 |
-| G4 | Horizon probabilities | Model calibration | 43-case labeled registry + mechanism-class adjudication | Walk-forward harness producing `HorizonModelSnapshot(status=CALIBRATED, pit_verified=True)` | §9, §11–13; roadmap Phase 4 |
+| G4 | Horizon probabilities | Model calibration | 43-entry labeled registry + mechanism-class adjudication | Walk-forward harness producing `HorizonModelSnapshot(status=CALIBRATED, pit_verified=True)` | §9, §11–13; roadmap Phase 4 |
 | G5 | ShortPainDistribution | Research | Entry-price inference method + adjudication | Separate research track; de-scope explicitly until method exists | §19.3, §20 |
 | G6 | Recall observability | Research | Define recall window + labeling pipeline | Missed-event labeling so recall is measurable, not just precision | §20 |
 | G7 | FTD / threshold list | Decision: acquire vs de-scope | Source identification (SEC/FINRA FTD feeds; exchange threshold lists) | If acquired: separate fields with their own admissibility, never conflated with SI | §5 |

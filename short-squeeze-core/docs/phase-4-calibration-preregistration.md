@@ -43,13 +43,26 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
 | Registered registry entries | 43 | `tests/fixtures/research/phase_3b_case_registry.json` (`phase_3b_case_registry.v1`) |
 | — of which `COMPLETE` | 42 | same |
 | — of which `BLOCKED_CONFLICTING_IDENTITY` | 1 (`KLOS_IDENTITY_CONFLICT`, excluded) | same |
-| — of which ADR-0053 synthetic evaluations | 9 (`SYN_*`, excluded from historical analysis) | same |
-| Unique symbols in registry | 41 | same |
+| — of which ADR-0053 synthetic evaluations | 11 (`SYN_*`, excluded from historical analysis) | same |
+| — historical case boundaries (excl. SYN, excl. KLOS) | 31 | same |
+| — unique historical symbols | 29 (BIYA ×3 boundaries) | same |
+| Unique symbols in registry (incl. SYN symbols) | 41 | same |
 | Registered BIYA boundaries | 3 (`BIYA_EARLIEST_BOUNDARY`, `BIYA_ARTIFACT_DISCOVERY`, `BIYA_LATEST_BOUNDARY`) | same |
 | Analysis dataset case boundaries | 31 | `tests/fixtures/analysis` / `test_runner.py` constants |
 | Analysis dataset unique symbols | 29 | same |
-| Committed outcome-observation files | 35 (33 unique symbols; BIYA ×3) | `tests/fixtures/research/*_outcome_observation.json` |
-| Evaluable Stage 2 outcome labels (roadmap/COHORT accounting) | 34 | [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md); permanent exclusion 1 (AACP — [AACP_OUTCOME_EXCLUSION_RECORD.md](calibration/AACP_OUTCOME_EXCLUSION_RECORD.md)) |
+| Committed outcome-observation files | 35 (33 unique symbols; BIYA ×3; 33 `COMPLETE` + 2 `PARTIAL`) | `tests/fixtures/research/*_outcome_observation.json` |
+| Pipeline-registered boundaries incl. batch 05 | 36 (31 historical + AACB/AACG/AACI/AACP/AADX) | reconciled accounting (O-5, below) |
+| Evaluable Stage-2 outcome labels | 35 (AACP has no outcome file) | reconciled accounting (O-5, below) |
+| Permanent outcome exclusions | 1 (AACP — [AACP_OUTCOME_EXCLUSION_RECORD.md](calibration/AACP_OUTCOME_EXCLUSION_RECORD.md)) | same |
+| Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `phase_3d_calibration_policy_v1.json` |
+
+> **O-5 reconciliation (2026-09-05):** counts above are measured from committed
+> fixtures; the earlier "34 evaluable Stage-2 labels" figure counted 30 prior + 4
+> batch-05 before the Batch-04 BIYA-artifact outcome was regenerated into the fixture
+> set. The single source of truth lives in
+> [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md)
+> (§ "Reconciled accounting"). Note the committed registry fixture excludes batch-05
+> entries (present only in the outcome-observation set / intake provenance).
 | Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `phase_3d_calibration_policy_v1.json` |
 
 ### 2.2 Units of analysis and the dependence rule
@@ -218,7 +231,7 @@ forward evidence justifies promotion of the *framing* (never of policy).
 | O-2 | Regime cutpoints + purge `w` / embargo `e` values, outcome-blind, with cited calendar | Reviewer confirms addendum | §6/§7 not executable |
 | O-3 | Final feature table (outcome-blind) | Reviewer confirms addendum | §5 not executable |
 | O-4 | Reference cost set for EV reporting (owner-specified, not tuned) | Owner | EV metric not reportable |
-| O-5 | Reconcile registry accounting across [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md) (35 boundaries / 34 evaluable at batch-05 close) vs. the committed registry/analysis fixtures (43 registered / 31 boundaries / 29 symbols / 35 observation files) and record the single source of truth for the modeling set | Owner + reviewer | Dataset §2 not fully locked |
+| O-5 | ~~Reconcile registry accounting across [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md) vs. committed fixtures~~ — **Resolved 2026-09-05**: reconciled accounting (single source of truth) added to the COHORT doc; dataset §2 updated to the measured counts (43 registry entries = 31 historical boundaries / 29 symbols / 11 SYN / 1 KLOS; 35 outcome files / 36 pipeline boundaries incl. batch 05 / 35 evaluable / 1 AACP exclusion) | Owner + reviewer | ~~Dataset §2 not fully locked~~ — closed; reviewer re-check on final approval |
 | O-6 | Owner review of this preregistration (status → approved or amended) | Owner | No fitting at all |
 
 ## 11. Non-goals
@@ -245,3 +258,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | Date | Change |
 |---|---|
 | 2026-09-05 | Initial draft (v0.1); dataset counts measured from committed fixtures; 24h-horizon data limitation and O-1..O-6 recorded before any fitting |
+| 2026-09-05 | O-5 resolved: reconciled accounting added to [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md); §2 updated to measured counts (43-entry registry = 31 historical boundaries / 29 symbols / 11 SYN / 1 KLOS; 35 outcome files; 36 pipeline boundaries incl. batch 05; 35 evaluable labels; 1 AACP exclusion); SYN entry count corrected 9→11 |

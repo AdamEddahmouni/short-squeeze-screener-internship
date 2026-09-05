@@ -29,7 +29,7 @@ Reading rules:
 | Product | Short Squeeze Research Screener **v0.16.0**, read-only research application (no orders, no recommendations, no predictive-validation claims) |
 | Causal evaluator | `squeeze_core/intelligence/evaluator.py`, model `squeeze_causal_baseline.v4` — evidence-gated state machine with fail-closed `UNEVALUABLE`, mechanism labels, separated model/data/overall confidence, and `RESEARCH_ONLY` horizon slots |
 | Causal intelligence layer | `intelligence/` modules: `evaluator.py`, `hysteresis.py`, `fuel.py`, `cross_lane.py`, `explanation.py`, `contracts.py` |
-| Historical cohort | 29 IBKR frozen-boundary symbols; **43 registered case boundaries** in the expanded Phase 3F registry; 34 evaluable Stage 2 outcome labels; 1 permanent outcome exclusion (AACP) |
+| Historical cohort | 29 IBKR frozen-boundary symbols; **43-entry registry** (31 historical case boundaries / 29 symbols / 11 SYN / 1 KLOS blocked); 35 evaluable Stage 2 outcome labels; 1 permanent outcome exclusion (AACP) — reconciled accounting in [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md) |
 | Calibration | Phase 3D n=30 policy threshold met (2026-08-17); ADRs 0067–0070 retain all production policies unchanged |
 | Platform integration | `squeeze` is a first-class lane (workspace route, Demo/Paper/Live modes, donor bridge `squeeze_client.py`, execution simulation consuming `remaining_fuel` / `exhaustion_risk` / participation caps) |
 
@@ -44,7 +44,7 @@ Reading rules:
 | Phase 3C | Descriptive analysis — Wilson intervals, sample-size bands, confusion descriptions | `phase_3c_descriptive_statistics_policy.v1`; ADRs 0053–0058 |
 | Phase 3D | Acquisition pipeline, preregistered batches, leakage audits, counterfactual calibration layer | `squeeze_core.acquisition`; ADRs 0059–0065 |
 | Phase 3E | Systematic historical evidence construction for 13 IBKR pilot symbols; Stage 2 forward-outcome acquisition | [phase-3e-design.md](../phase-3e-design.md), [phase-3e-stage2-acquisition-plan.md](../phase-3e-stage2-acquisition-plan.md); ADR-0066 |
-| Phase 3F | Cohort expansion to 29 symbols / 43 registry cases; n=30 threshold met; calibration findings | [phase-3f-*.md](../phase-3f-external-discovery-preregistration.md); [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md); ADRs 0067–0070 |
+| Phase 3F | Cohort expansion to 29 symbols / 43-entry registry; n=30 threshold met; calibration findings | [phase-3f-*.md](../phase-3f-external-discovery-preregistration.md); [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md); ADRs 0067–0070 |
 | Causal intelligence (with 3E/3F) | State machine, hysteresis, fuel/exhaustion estimation, cross-lane evidence consumption, explanation graph | `tests/intelligence/test_causal_evaluator.py`, `tests/intelligence/test_hysteresis.py`; IMP `test_causal_squeeze_projection.py` |
 
 ## 4. Definition of done
@@ -74,8 +74,9 @@ output contract — `HorizonModelSnapshot` (`status=CALIBRATED`, `pit_verified=T
 `hazard_by_horizon`, optional `magnitude`) in
 `squeeze_core/intelligence/contracts.py` — and `evaluate_squeeze_intelligence`
 already consumes it via `_horizon_probabilities_from_model`. What does not exist yet
-is the walk-forward harness that produces a validated snapshot. The 43-case labeled
-registry is the dataset this phase unlocks.
+is the walk-forward harness that produces a validated snapshot. The 43-entry labeled
+registry (31 historical case boundaries + synthetic controls) is the dataset this phase
+unlocks.
 
 **Prerequisites (gate):**
 
