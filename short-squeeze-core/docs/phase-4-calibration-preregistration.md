@@ -5,7 +5,7 @@ Fitting must not start until the open items in [§10](#10-open-items-to-lock-bef
 **Spec:** [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](research/SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) (`squeeze_causal_research_spec.v1`)
 **Roadmap:** [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](research/SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md) Phase 4 (closes spec §19 limitation 1)
 **Sprint:** [SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md](research/SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md) item 1.1
-**Version:** `phase_4_calibration_preregistration.v0.1-draft`
+**Version:** `phase_4_calibration_preregistration.v0.2-draft` (spec/ADR audit amendments, 2026-09-05)
 
 ## 1. Purpose and ground rules
 
@@ -64,7 +64,6 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
 > set. The single source of truth lives in
 > [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md)
 > (§ "Reconciled accounting").
-| Policy threshold `min_case_count_for_recommendation` | 30 (**met**) | `phase_3d_calibration_policy_v1.json` |
 
 ### 2.2 Units of analysis and the dependence rule
 
@@ -75,6 +74,9 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
   train/test/validation split must keep all of a symbol's boundaries in the same
   fold. Boundary-level results may be reported as secondary with an explicit
   dependence warning, never as independent evidence.
+- **Intervals never assume independence** (ADR-0054): boundary-level intervals and
+  reports carry the pipeline's `HISTORICAL_CASE_BOUNDARIES_NOT_INDEPENDENT` limitation
+  and are secondary; primary interval estimates are unique-symbol-level.
 
 ### 2.3 Accepted limitations (recorded, not waived)
 
@@ -85,17 +87,32 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
   `HorizonModelSnapshot.hazard_by_horizon` must remain `RESEARCH_ONLY` (never forced
   `CALIBRATED`) unless owned multi-day forward-path data is acquired and registered
   (see [§10](#10-open-items-to-lock-before-any-fit), open item O-1).
-- **Detection-evaluability** is limited (ADR-0067 at n=30: 28 of 30 boundaries were
-  detection-unevaluable under baseline due to Batch 07 price-level blocking). The
-  sprint dataset decision accepts this limitation explicitly for Phase 4. No Batch 07
-  semantics gate is lowered to inflate evaluability.
+- **Detection-evaluability** is limited (ADR-0067 recorded 28 of 30 boundaries
+  detection-unevaluable at n=30; at the current 48-entry registry the regenerated
+  Phase 3C confusion matrix measures **33 of 35 historical case boundaries**
+  detection-unevaluable under the retained baseline policy —
+  `phase_3c_confusion_matrix_summary.json`). The sprint dataset decision accepts this
+  limitation explicitly for Phase 4. No Batch 07 semantics gate is lowered to inflate
+  evaluability.
+- **No backfill into unsupported horizons:** the evaluator's `occurrence_probability`
+  fallback (`_horizon_probabilities_from_model`) must **not** fill the 3/5/10/20-day
+  slots from a 1-day estimate. Partial `hazard_by_horizon` coverage keeps the
+  uncovered slots `RESEARCH_ONLY`.
 - Outcome labels describe forward price movement from a frozen boundary; they do not
   establish short-squeeze causation (ADR-0068).
 
 ## 3. Outcome definition (pre-registered)
 
+- **Horizons (spec §9):** the target tuple is `HORIZON_DAYS = (1, 3, 5, 10, 20)`
+  (trading days; `squeeze_core/intelligence/evaluator.py`). Horizon 1 is served by the
+  owned 24_HOURS outcome labels (with the Stage-2 adjusted-Monday convention for
+  weekend boundaries); horizons 3/5/10/20 require owned multi-day forward paths (O-1).
 - **Reference price:** `first_eligible_trade_bar_close_at_or_after_boundary.v1`
   (from `phase_3b_outcome_label_policy.v1`).
+- **Detection predicate (retained, unchanged):** `phase_3b_research_detection_policy.v1`
+  (`PRICE_RANGE`, `MARKET_DATA_AVAILABLE`, `COMPLETED_BAR_AVAILABLE`) stays in force;
+  the gate variants rejected by ADR-0067 (`momentum_full`, `short_pressure_core`,
+  `momentum_pct_change`) are not revisited in Phase 4.
 - **Predicate (unchanged production policy, retained by ADR-0068):** upward crossing
   of **+25%** within **24 hours** from the frozen boundary; the mirror downward
   predicate is **−25%** and is retained for outcome-policy continuity but is **not** a
@@ -115,12 +132,15 @@ registry state (tests that pin these counts: `tests/analysis/test_runner.py`,
 
 1. **Interpretable logistic baseline** for occurrence at the 1-day window, and — when
    O-1 is closed — a **discrete-time hazard / Cox baseline** for
-   time-to-first-crossing over the supported horizons. The logistic/hazard baseline is
-   the Phase 4 deliverable.
+   time-to-first-crossing over the supported horizons, with event = first upward +25%
+   crossing and right-censoring at the end of the owned forward window (never beyond
+   owned data). The logistic/hazard baseline is the Phase 4 deliverable.
 2. **Calibrated gradient-boosted trees** only if the pre-registered sample-size gates
    in [§8](#8-pre-registered-success-and-failure-thresholds) pass **and** the tree variant
-   beats the baseline by the pre-registered metric margins. Trees are an optional
-   second step, never a replacement for the interpretable baseline.
+   beats the baseline by the pre-registered margins: held-out **Brier skill score ≥
+   baseline + 0.05 and PR-AUC ≥ baseline + 0.05**, with C-1..C-3 still passing on the
+   same folds. Trees are an optional second step, never a replacement for the
+   interpretable baseline.
 3. **Temporal (sequence) models** require explicit written justification appended to
    this document before fitting (spec §10); the default is no temporal model.
 
@@ -208,8 +228,9 @@ evaluator's `RESEARCH_ONLY` slots are retained; nothing is force-flipped to
 Primary, reported on held-out folds:
 
 - Brier score and **Brier skill score vs. the base rate** (C-3 uses the latter);
-- **PR-AUC** (precision-recall, appropriate for rare events); precision@K for
-  K ∈ {3, 5};
+- **PR-AUC** (precision-recall, appropriate for rare events); **precision and recall
+  at the pre-registered operating point** (no threshold optimization) and precision@K
+  for K ∈ {3, 5};
 - **Calibration curve** with slope/intercept diagnostics (C-1/C-2) and, when the
   sample allows, a binwise plot with Wilson intervals;
 - **Log loss**;
@@ -223,6 +244,10 @@ calibration check, reported separately from occurrence metrics.
 Every report carries `COUNTERFACTUAL_EXPLORATION_ONLY` / `SMALL_SAMPLE_WARNING` /
 `NO_THRESHOLD_AUTO_PROMOTION` framing per ADRs 0067/0068 until the §8 gates pass and
 forward evidence justifies promotion of the *framing* (never of policy).
+
+The base rate and the positive/negative event counts are always reported alongside
+the metrics; no outcome-informed resampling or class-weight tuning is permitted (class
+imbalance is reported, not engineered away).
 
 ## 10. Open items to lock before any fit
 
@@ -244,6 +269,10 @@ forward evidence justifies promotion of the *framing* (never of policy).
 - No imputation of missing historical evidence with current values (ADR-0062).
 - No raw accuracy as an evaluation metric.
 - No calibration of magnitude conflated with occurrence.
+- No re-run of outcome-threshold sensitivity variants (`upward_28`, `upward_30`,
+  `strict_35`) — rejected by ADR-0068 decisions 2–4.
+- No Adam scoring calibration or weight tuning (`adam_evidence_gated_prime.v1`) —
+  deferred per ADR-0067 decision 5 and ADRs 0069/0070.
 
 ## 12. Acceptance (sprint item 1.1)
 
@@ -261,3 +290,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | 2026-09-05 | Initial draft (v0.1); dataset counts measured from committed fixtures; 24h-horizon data limitation and O-1..O-6 recorded before any fitting |
 | 2026-09-05 | O-5 resolved (part 1): reconciled accounting added to [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md); §2 updated to measured counts; SYN entry count corrected 9→11 |
 | 2026-09-05 | O-5 resolved (part 2): registry fixture regenerated to include batch-05 (generator `_batch05_entries()`; AACP `EVALUATION_ONLY`); Phase 3B/3C fixtures + analysis-test constants updated in the same change; §2 table re-measured (48 registry entries = 36 historical boundaries / 34 symbols / 11 SYN / 1 AACP / 1 KLOS; 46 dataset rows; 35 evaluable labels) |
+| 2026-09-05 | Spec/ADR audit (v0.2-draft, outcome-blind): gaps closed — spec §9 horizon tuple `(1,3,5,10,20)` enumerated with 1-day ≡ owned 24h label; §10 hazard event/censoring pinned and tree-variant margins fixed (Brier skill ≥ +0.05, PR-AUC ≥ +0.05); §13 precision+recall added and base-rate/imbalance reporting required; ADR-0054 independence framing (`HISTORICAL_CASE_BOUNDARIES_NOT_INDEPENDENT`); ADR-0067 retained detection predicate + rejected gate variants + current 33/35 unevaluable measurement + no occurrence-probability backfill into unsupported horizons; ADR-0068 outcome-variant rejection + Adam deferral added to non-goals |
