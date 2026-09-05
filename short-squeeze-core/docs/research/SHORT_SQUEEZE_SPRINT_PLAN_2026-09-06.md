@@ -6,7 +6,7 @@
 | Scope | Finish the causal Short Squeeze lane end-to-end (roadmap Phases 4–7) plus repo close-out |
 | Source | [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md), [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) |
 | Product version | 0.16.0 (current) |
-| Status | Open — 2/26 items closed (0.3, 0.4) |
+| Status | Open — 3/26 items closed (0.3, 0.4, 1.2) |
 | Ownership | Short-squeeze child repo (`short-squeeze-project`); platform-facing items coordinated through the parent monorepo (guarded import) |
 
 **How to use:** tick `[ ]` → `[x]` as items close. Work that lands in the child repo follows
@@ -109,17 +109,29 @@ trees only if data justifies them.
   counts as success before any fitting happens. Modeled on the Phase 3F preregistration
   pattern.
 
-### 1.2 — Walk-forward harness scaffold
+### 1.2 — ✅ Walk-forward harness scaffold
 
-- **Problem:** no chronological walk-forward machinery exists; `run_calibration_suite.py`
-  is Phase 3D counterfactual-only.
-- **Fix:** a `squeeze_core/calibration` walk-forward module (or sibling of the existing
-  harness) that: orders cases chronologically, splits with purging/embargo, treats repeated
-  symbol boundaries as dependent (ADR-0054), and slices regimes per the preregistration.
-  Extend `tools/run_calibration_suite.py` rather than forking it.
-- **Acceptance:** the harness replays the 35-label outcome set through at least two folds and
-  emits per-fold + aggregate diagnostics; unit tests cover the purge/embargo and
-  dependent-observation logic.
+- **Problem:** no chronological walk-forward machinery existed;
+  `run_calibration_suite.py` is Phase 3D counterfactual-only.
+- **Fix:** `src/squeeze_core/calibration/walkforward.py` orders boundaries
+  chronologically, groups repeated symbol boundaries as dependent (ADR-0054),
+  applies the O-2 purge/embargo windows (30/15 calendar days), slices regimes,
+  and enforces the §7 degeneracy gate — structure only, outcome-blind, no
+  fitting. Runner: `tools/run_walk_forward_plan.py` (plan + diagnostics JSON/MD
+  under `reports/calibration/`). Tests:
+  `tests/calibration/test_walkforward.py` (20 unit/fixture tests).
+- **Honest structural finding (recorded 2026-09-05):** the committed 35-boundary
+  historical cohort has exactly **2 non-empty evaluation folds** (the §7
+  minimum) and **0 admissible training boundaries in both folds** — the two
+  boundary instants sit inside each other's purge/embargo gap, and all 35
+  boundaries are `POST_NORMALIZATION` (3 empty regimes reported as empty).
+  Item 1.3 must report this structure as-is (`NOT_CALIBRATED`,
+  `RESEARCH_ONLY` retained); the outcome-blind windows are not relaxed to
+  manufacture a fit.
+- **Acceptance (met):** the harness partitions the 35-boundary outcome set into
+  folds and emits per-fold + aggregate diagnostics; unit tests cover the
+  purge/embargo and dependent-observation logic.
+- **Doc:** [phase-4-walk-forward-harness.md](../phase-4-walk-forward-harness.md)
 
 ### 1.3 — Logistic/hazard baseline fit
 
@@ -303,6 +315,7 @@ owner-side path are in-sprint; the rest stay registered gaps.
 
 | Date | Change |
 |---|---|
+| 2026-09-06 | 1.2 closed: walk-forward scaffold committed (grouped folds, purge/embargo per O-2, regime slices, degeneracy gate, diagnostics); committed-cohort structure recorded honestly — 2 evaluation folds, 0 admissible training boundaries, 3 empty regimes |
 | 2026-09-06 | Initial sprint plan; dataset decision recorded (34-label path, mechanism adjudication separately gated); fixture-gap root cause identified |
 | 2026-09-05 | 0.3 closed: batch07 manifests extended to the 29-symbol `FROZEN_COHORT` (KLRS/SG/BATCH3F0x mirror rows), golden report regenerated, test asserts against the cohort constant — `test_operation_readiness.py` 37/37 green. 0.4 closed: full suite re-run; remaining failures are only the two environmental buckets (26 compatibility/CI-baseline, 6 live-IB-Gateway), 0 errors |
 | 2026-09-05 | Registry accounting reconciled (O-5, part 1): authoritative counts measured from committed fixtures — 43-entry registry = 31 historical case boundaries / 29 unique symbols / 11 SYN / 1 KLOS; 35 outcome-observation files; 36 pipeline boundaries incl. batch 05; 35 evaluable labels; 1 AACP exclusion. See [COHORT_EXPANSION_PROGRESS.md](../calibration/COHORT_EXPANSION_PROGRESS.md) |

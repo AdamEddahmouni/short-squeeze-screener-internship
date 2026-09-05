@@ -207,6 +207,13 @@ by cross-validation on the **training** folds only.
   evaluation folds (e.g. all labels cluster at one or two boundary instants), the
   result is **`NOT_CALIBRATED`** and is reported with the degeneracy named — no
   random/time-shuffled split is substituted to manufacture folds.
+- **Scaffold note (2026-09-05):** the split machinery is implemented
+  (`src/squeeze_core/calibration/walkforward.py`,
+  [phase-4-walk-forward-harness.md](phase-4-walk-forward-harness.md)) and the
+  committed cohort measures **2 non-empty evaluation folds with 0 admissible
+  training boundaries** under these windows. This is a structural measurement,
+  not a fit result; it is recorded for item 1.3's honest reporting and implies
+  no change to the outcome-blind windows.
 
 ## 8. Pre-registered success and failure thresholds
 
@@ -311,3 +318,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | 2026-09-05 | O-3 addendum drafted and linked (v0.4-draft): exact point-in-time feature table from the evaluator's evidence inputs (25 rule outcomes / 14 evidence metrics / 28 snapshot fields / 6 derived dimension scores), fixed encodings + missingness indicators, explicit non-features; pending reviewer confirmation |
 | 2026-09-05 | O-4 addendum drafted and linked (v0.5-draft): reference cost set for EV reporting — fixed reference position (long, 1× cash, ≤24 h), commission 0.50% + slippage 0.50% per side (round-trip 2.00%), financing 0.00%, fixed EV expression + reporting constraints; not-tuned/outcome-blind; pending owner confirmation |
 | 2026-09-05 | Cross-addendum audit (v0.6-draft, outcome-blind, no fixture changes): §2.1 gains the research-dataset rows (46 rows / 44 unique symbols) to match the COHORT single source of truth; §2.3 detection-evaluability citation corrected to `phase_3c_historical_case_boundary_analysis.json` (CASE_BOUNDARY: 2 TP / 33 unevaluable / 35) with the unique-symbol-level figure (1 TP / 32 unevaluable / 33) noted alongside; all measured counts re-verified against committed fixtures |
+| 2026-09-05 | §7 scaffold note: walk-forward split machinery implemented (sprint item 1.2); committed cohort measures 2 non-empty evaluation folds / 0 admissible training boundaries under the pre-registered windows — recorded for item 1.3's honest reporting, no windows changed |
