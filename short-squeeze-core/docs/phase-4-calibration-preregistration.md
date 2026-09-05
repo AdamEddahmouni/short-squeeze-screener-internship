@@ -5,7 +5,7 @@ Fitting must not start until the open items in [§10](#10-open-items-to-lock-bef
 **Spec:** [SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md](research/SHORT_SQUEEZE_CAUSAL_RESEARCH_SPEC.md) (`squeeze_causal_research_spec.v1`)
 **Roadmap:** [SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md](research/SHORT_SQUEEZE_IMPLEMENTATION_ROADMAP.md) Phase 4 (closes spec §19 limitation 1)
 **Sprint:** [SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md](research/SHORT_SQUEEZE_SPRINT_PLAN_2026-09-06.md) item 1.1
-**Version:** `phase_4_calibration_preregistration.v0.2-draft` (spec/ADR audit amendments, 2026-09-05)
+**Version:** `phase_4_calibration_preregistration.v0.3-draft` (O-2 addendum linked, 2026-09-05)
 
 ## 1. Purpose and ground rules
 
@@ -169,10 +169,12 @@ by cross-validation on the **training** folds only.
 
 ## 6. Regime slices and the GameStop non-dominance rule (pre-registered)
 
-- **Slices (spec §12):** `pre-2020`, `meme-regime`, `high-rate`. Exact calendar
-  cutpoints are defined in an outcome-blind addendum with a cited external regime
-  calendar **before any fit** (open item O-2) and never after inspecting label
-  timestamps or outcomes.
+- **Slices (spec §12):** `pre-2020`, `meme-regime`, `high-rate` (+ a
+  `post-normalization` slice so the partition is exhaustive). Exact calendar cutpoints
+  are fixed outcome-blind in
+  [phase-4-calibration-regime-cutpoints-addendum.md](phase-4-calibration-regime-cutpoints-addendum.md)
+  (open item O-2) with a cited external regime calendar (SEC staff report, FOMC) and
+  are never chosen after inspecting label timestamps or outcomes.
 - **Empty slices:** any slice with zero (or below the §8 minimum) boundaries is
   reported as empty; it is never padded, re-weighted, or silently dropped from the
   report.
@@ -188,9 +190,11 @@ by cross-validation on the **training** folds only.
 - **Splits:** chronological, ordered by boundary time. Repeated symbol boundaries are
   grouped (ADR-0054) and never straddle a fold boundary.
 - **Purge/embargo:** a **purge** of `w` and an **embargo** of `e` follow each training
-  boundary; exact `w`/`e` values (calendar days) are fixed in the same outcome-blind
-  addendum as O-2. Fold results are reported per fold and pooled; the pooled report is
-  the one judged against [§8](#8-pre-registered-success-and-failure-thresholds).
+  boundary; exact values are fixed in the same outcome-blind addendum as O-2 —
+  **purge `w` = 30 calendar days, embargo `e` = 15 calendar days** per
+  [phase-4-calibration-regime-cutpoints-addendum.md](phase-4-calibration-regime-cutpoints-addendum.md).
+  Fold results are reported per fold and pooled; the pooled report is the one judged
+  against [§8](#8-pre-registered-success-and-failure-thresholds).
 - **Degeneracy gate:** if chronological splitting leaves fewer than two non-empty
   evaluation folds (e.g. all labels cluster at one or two boundary instants), the
   result is **`NOT_CALIBRATED`** and is reported with the degeneracy named — no
@@ -254,7 +258,7 @@ imbalance is reported, not engineered away).
 | ID | Item | Who | Blocker if unresolved |
 |---|---|---|---|
 | O-1 | Owned multi-day forward-path data for horizons 3/5/10/20, or explicit acceptance that those slots stay `RESEARCH_ONLY` | Owner (data feasibility) | Horizons > 1 cannot be calibrated |
-| O-2 | Regime cutpoints + purge `w` / embargo `e` values, outcome-blind, with cited calendar | Reviewer confirms addendum | §6/§7 not executable |
+| O-2 | Regime cutpoints + purge/embargo values — **drafted 2026-09-05** in [phase-4-calibration-regime-cutpoints-addendum.md](phase-4-calibration-regime-cutpoints-addendum.md) (outcome-blind; SEC/FOMC cited calendar; purge 30 / embargo 15 calendar days) | Reviewer confirms addendum | §6/§7 executable once confirmed |
 | O-3 | Final feature table (outcome-blind) | Reviewer confirms addendum | §5 not executable |
 | O-4 | Reference cost set for EV reporting (owner-specified, not tuned) | Owner | EV metric not reportable |
 | O-5 | ~~Reconcile registry accounting across [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md) vs. committed fixtures~~ — **Resolved 2026-09-05**: reconciled accounting added to the COHORT doc **and the registry fixture regenerated to include batch-05** (48 entries = 36 historical boundaries incl. batch-05 / 34 symbols / 11 SYN / 1 AACP EVALUATION_ONLY / 1 KLOS; 35 outcome files / 46 dataset rows / 35 evaluable / 1 AACP exclusion). Single source of truth: regenerated fixtures + COHORT doc | Owner + reviewer | ~~Dataset §2 not fully locked~~ — closed; reviewer re-check on final approval |
@@ -291,3 +295,4 @@ grouped walk-forward with purge/embargo, §6–§7), and **what counts as succes
 | 2026-09-05 | O-5 resolved (part 1): reconciled accounting added to [COHORT_EXPANSION_PROGRESS.md](calibration/COHORT_EXPANSION_PROGRESS.md); §2 updated to measured counts; SYN entry count corrected 9→11 |
 | 2026-09-05 | O-5 resolved (part 2): registry fixture regenerated to include batch-05 (generator `_batch05_entries()`; AACP `EVALUATION_ONLY`); Phase 3B/3C fixtures + analysis-test constants updated in the same change; §2 table re-measured (48 registry entries = 36 historical boundaries / 34 symbols / 11 SYN / 1 AACP / 1 KLOS; 46 dataset rows; 35 evaluable labels) |
 | 2026-09-05 | Spec/ADR audit (v0.2-draft, outcome-blind): gaps closed — spec §9 horizon tuple `(1,3,5,10,20)` enumerated with 1-day ≡ owned 24h label; §10 hazard event/censoring pinned and tree-variant margins fixed (Brier skill ≥ +0.05, PR-AUC ≥ +0.05); §13 precision+recall added and base-rate/imbalance reporting required; ADR-0054 independence framing (`HISTORICAL_CASE_BOUNDARIES_NOT_INDEPENDENT`); ADR-0067 retained detection predicate + rejected gate variants + current 33/35 unevaluable measurement + no occurrence-probability backfill into unsupported horizons; ADR-0068 outcome-variant rejection + Adam deferral added to non-goals |
+| 2026-09-05 | O-2 addendum drafted and linked (v0.3-draft): exhaustive 4-slice partition (pre-2020 / meme-regime / high-rate / post-normalization) from the SEC meme-stock staff report + FOMC calendar; purge 30 / embargo 15 calendar days with re-derivation rule; pending reviewer confirmation |

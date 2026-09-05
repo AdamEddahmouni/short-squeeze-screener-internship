@@ -99,7 +99,8 @@ trees only if data justifies them.
   non-dominance rule, (8) the pre-registered success/failure thresholds.
 - **Draft added 2026-09-05:** [phase-4-calibration-preregistration.md](../phase-4-calibration-preregistration.md)
   (v0.1-draft) — dataset counts measured from committed fixtures, 24h-horizon data
-  limitation recorded, O-1..O-4 and O-6 open items listed (O-5 resolved 2026-09-05).
+  limitation recorded, O-1..O-4 and O-6 open items listed (O-5 resolved 2026-09-05;
+  O-2 addendum drafted 2026-09-05 — pending reviewer confirmation).
   **Not owner-reviewed; do not start fitting until the remaining open items are locked**
   (item not self-closed).
 - **Acceptance:** a reviewer can tell exactly what will be fit, on what data, and what
