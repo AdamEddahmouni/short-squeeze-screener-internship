@@ -18,7 +18,11 @@ The images below are intended to be **actual browser captures** of the running F
 | :--- | :--- |
 | ![Frozen demo Scanner](docs/portfolio/assets/scanner.png) | ![Frozen demo Advanced Research](docs/portfolio/assets/advanced-research.png) |
 
-![Advanced Research methodology comparison](docs/portfolio/assets/methodology-comparison.png)
+![Advanced Research methodology comparison in frozen mode](docs/portfolio/assets/methodology-comparison.png)
+
+**Important demo limitation:** the sanitized fixture does not contain the full market inputs needed for server-evaluated methodology comparisons. In FROZEN_DEMO, this tab correctly reports **0 comparable candidates**; it does not fabricate pressure/ignition values. The actual frozen rule outcomes are available in Research Summary:
+
+![Frozen Research Summary](docs/portfolio/assets/research-summary.png)
 
 [Watch the short frozen-demo walkthrough](docs/portfolio/assets/frozen-demo-walkthrough.webm) · [Follow the narrated steps](docs/portfolio/walkthrough.md)
 
@@ -27,8 +31,8 @@ The images below are intended to be **actual browser captures** of the running F
 Most dashboards show a ranking without explaining the quality of the underlying evidence. This research screener distinguishes available observations from missing, stale, conflicting or inadmissible information. It presents three independent methodology outputs rather than collapsing them into a confident-looking trading signal.
 
 - **Scanner:** Filter research candidates by symbol, market data, pressure, ignition, evidence coverage, news and classification.
-- **Advanced Research:** Examine case details, canonical Phase 3A rule outcomes, research summaries and methodological differences.
-- **Evidence-Gated Prime v1:** Evaluates supported pressure and ignition inputs without replacing missing data with zero.
+- **Advanced Research:** Examine case details and canonical Phase 3A rule outcomes. In current/live-capable modes with admissible inputs, compare methodologies; the sanitized demo deliberately cannot calculate those projections.
+- **Evidence-Gated Prime v1:** Evaluates supported pressure and ignition inputs without replacing missing data with zero; the sanitized fixture is not sufficient to compute these scores.
 - **Frozen demo:** 13 sanitized candidates with 25 rule outcomes each: **97 PASS, 20 FAIL, 208 UNKNOWN** across 325 rule/case evaluations. These are research-rule outcomes, **not** profitable-trade results.
 - **Stable integration surface:** API version 1.0.0; schema batch14.integration.v1, documented in the [API reference](short-squeeze-core/docs/API.md).
 
