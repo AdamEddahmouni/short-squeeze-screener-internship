@@ -55,6 +55,8 @@ jobs:
           else
             npx playwright install --with-deps chromium
           fi
+          # Playwright video recording requires its small FFmpeg helper even with system Chrome.
+          npx playwright install ffmpeg
 
       - name: Start the actual credential-free frozen app
         env:
