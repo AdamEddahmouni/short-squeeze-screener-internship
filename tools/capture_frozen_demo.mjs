@@ -122,6 +122,7 @@ try {
     },
   };
   await context.close();
+  await video.saveAs(resolve(destination, 'frozen-demo-walkthrough.webm'));
 } finally {
   await browser.close();
 }
@@ -130,7 +131,6 @@ if (!video || !captureFacts) {
   throw new Error('A validated screenshot session did not complete.');
 }
 const videoFile = resolve(destination, 'frozen-demo-walkthrough.webm');
-await video.saveAs(videoFile);
 assert.ok((await stat(videoFile)).size > 1024, 'Recorded walkthrough must not be empty');
 await writeFile(
   resolve(destination, 'capture-evidence.json'),
