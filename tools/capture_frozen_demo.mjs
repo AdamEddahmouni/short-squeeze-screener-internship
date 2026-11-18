@@ -18,6 +18,7 @@ const destination = fileURLToPath(new URL('../docs/portfolio/assets/', import.me
 await mkdir(destination, { recursive: true });
 
 const browser = await chromium.launch({
+  ...(process.env.DEMO_CHROME_EXECUTABLE ? { executablePath: process.env.DEMO_CHROME_EXECUTABLE } : {}),
   headless: true,
   args: ['--disable-dev-shm-usage'],
 });
