@@ -1,0 +1,33 @@
+{
+  "source": "actual local running Short Squeeze Research Screener",
+  "visualMode": "FROZEN_DEMO",
+  "captures": [
+    "scanner.png",
+    "advanced-research.png",
+    "methodology-comparison.png",
+    "frozen-demo-walkthrough.webm"
+  ],
+  "disclaimer": "Sanitized historical research examples; no live market data, trading or validated forecasting.",
+  "capturedAtUTC": "2026-11-18T22:43:13.993Z",
+  "commit": "8e3056f8cdcc48c5aac96497c4e4d760826a4b7b",
+  "data": {
+    "rowCount": 13,
+    "outcomeTotals": {
+      "PASS": 97,
+      "FAIL": 20,
+      "UNKNOWN": 208
+    },
+    "methodologyIds": [
+      "legacy_prime_setup",
+      "peer_reference_methodology",
+      "adam_evidence_gated_prime.v1"
+    ],
+    "apiVersion": "1.0.0",
+    "schemaVersion": "batch14.integration.v1",
+    "prohibitedCapabilities": {
+      "trading": "UNSUPPORTED",
+      "orders": "UNSUPPORTED",
+      "account_access": "UNSUPPORTED"
+    }
+  }
+}
