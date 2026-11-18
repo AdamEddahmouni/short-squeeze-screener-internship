@@ -8,7 +8,7 @@
  *              python -m apps.research_screener --no-browser
  */
 import assert from 'node:assert/strict';
-import { mkdir, writeFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, stat, unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
@@ -104,12 +104,24 @@ try {
     path: resolve(destination, 'methodology-comparison.png'),
     animations: 'disabled',
   });
+
+  // The sanitized frozen fixture contains no full method inputs, so this
+  // comparison tab may correctly show zero server-evaluated projections.
+  // The research summary is the meaningful evidence-bearing frozen view.
+  await page.locator('#btn-research-summary').click();
+  await page.locator('#research-summary-panel').waitFor({ state: 'visible', timeout: 15000 });
+  await page.waitForTimeout(850);
+  await page.locator('#research-summary-panel').scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: resolve(destination, 'research-summary.png'),
+    animations: 'disabled',
+  });
   await page.waitForTimeout(650);
 
   captureFacts = {
     source: 'actual local running Short Squeeze Research Screener',
     visualMode: 'FROZEN_DEMO',
-    captures: ['scanner.png', 'advanced-research.png', 'methodology-comparison.png', 'frozen-demo-walkthrough.webm'],
+    captures: ['scanner.png', 'advanced-research.png', 'methodology-comparison.png', 'research-summary.png', 'frozen-demo-walkthrough.webm'],
     disclaimer: 'Sanitized historical research examples; no live market data, trading or validated forecasting.',
     capturedAtUTC: new Date().toISOString(),
     commit: process.env.GITHUB_SHA || 'local-working-copy',
@@ -123,7 +135,11 @@ try {
     },
   };
   await context.close();
+  const rawVideoPath = await video.path();
   await video.saveAs(resolve(destination, 'frozen-demo-walkthrough.webm'));
+  if (rawVideoPath !== resolve(destination, 'frozen-demo-walkthrough.webm')) {
+    await unlink(rawVideoPath);
+  }
 } finally {
   await browser.close();
 }
