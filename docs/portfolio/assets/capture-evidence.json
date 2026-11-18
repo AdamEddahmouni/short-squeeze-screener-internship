@@ -5,11 +5,12 @@
     "scanner.png",
     "advanced-research.png",
     "methodology-comparison.png",
+    "research-summary.png",
     "frozen-demo-walkthrough.webm"
   ],
   "disclaimer": "Sanitized historical research examples; no live market data, trading or validated forecasting.",
-  "capturedAtUTC": "2026-11-18T22:43:13.993Z",
-  "commit": "8e3056f8cdcc48c5aac96497c4e4d760826a4b7b",
+  "capturedAtUTC": "2026-11-18T22:48:24.536Z",
+  "commit": "41c3cc3cc2bc481f55e6333801dbc198ef0c0070",
   "data": {
     "rowCount": 13,
     "outcomeTotals": {
