@@ -99,5 +99,8 @@ jobs:
           git add docs/portfolio/assets/
           if ! git diff --cached --quiet; then
             git commit -m "docs: add verified frozen-demo screenshots and walkthrough"
+            # Integrate any independent documentation commits made during capture.
+            git fetch origin "+refs/heads/$GITHUB_REF_NAME:refs/remotes/origin/$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
