@@ -7,11 +7,14 @@
 - assets/scanner.png — real Scanner screen (browser at the local frozen-demo server).
 - assets/advanced-research.png — real Advanced Research screen.
 - assets/methodology-comparison.png — real Methodology Comparison tab.
-- assets/frozen-demo-walkthrough.webm — short real browser recording that visits both views and the methodology tab.
+- assets/research-summary.png — actual frozen Research Summary view showing available outcome aggregates.
+- assets/frozen-demo-walkthrough.webm — short real browser recording of Scanner, Advanced Research, comparison limitations and Research Summary.
 - assets/capture-evidence.json — capture metadata and frozen API validation facts.
 - architecture.svg — original source-grounded explanatory diagram, **not** a screenshot.
 - methodologies.svg — original explanatory methodology comparison, **not** an application screenshot.
 - walkthrough.md — accessible, text-based interactive demonstration.
+
+**Frozen-demo limitation:** the Methodology Comparison tab correctly shows zero server-evaluated rows because the sanitized fixtures lack admissible underlying market fields. Do not edit screenshots to invent values. Use Research Summary for the meaningful frozen evidence demonstration.
 
 These PNG and WebM outputs must be created only by the browser automation against a running FROZEN_DEMO server. If they are absent, the capture job has not successfully completed: **do not replace them with stock graphics or mockups**.
 
