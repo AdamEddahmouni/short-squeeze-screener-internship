@@ -31,11 +31,18 @@ Select **Advanced** or navigate to http://127.0.0.1:8787/advanced.
 ![Methodology Comparison tab](assets/methodology-comparison.png)
 
 - Click **Methodology Comparison**.
-- Compare Legacy Prime, Peer Reference and Evidence-Gated Prime independently.
+- The frozen demo deliberately shows **0 server-evaluated methodology comparisons** because full underlying market observations are not included in the sanitized fixture. Do **not** interpret this as a populated comparison or claim it demonstrates live scores.
+- Use the documented Legacy Prime, Peer Reference and Evidence-Gated Prime definitions to understand what a fully evidenced comparison would require.
 - Interpret the Pressure × Ignition landscape as a **descriptive research visualization** only; cases may be unplotted because necessary observations are absent.
 - If a peer reference is incomplete or inputs conflict, the system reports that condition instead of manufacturing a classification.
 
-### 4. Verify, then assess the limitations
+### 4. Review the Research Summary
+
+![Frozen Research Summary](assets/research-summary.png)
+
+Select **Research Summary** to see the available sanitized aggregate counts and research constraints. This is the substantive part of the offline demonstration: inspect aggregate PASS / FAIL / UNKNOWN rule outcomes without claiming they measure trading performance.
+
+### 5. Verify, then assess the limitations
 
 For an automated, local verification, run from short-squeeze-core:
 
